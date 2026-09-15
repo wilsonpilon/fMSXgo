@@ -1,0 +1,24 @@
+NON-COMMERCIAL LICENSE FOR DERIVATIVE WORK
+
+This project is a non-commercial Go port of the fMSX emulator. 
+fMSX is a proprietary, non-commercial software created and copyrighted by Marat Fayzullin. 
+
+Because this project is a derivative work based on the fMSX source code, it inherits the non-commercial restrictions of the original software.
+
+----------------------------------------------------------------------
+PART 1: THE GO PORT
+Copyright (c) 2026 Wilson "Barney" Pilon
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of the Go source code files in this repository (the "Software"), to use, copy, modify, and merge the Software for strictly NON-COMMERCIAL purposes, subject to the following conditions:
+
+1. The Software may not be used, sold, distributed, or bundled for any commercial purpose or financial gain.
+2. The original copyright notices and this permission notice shall be included in all copies or substantial portions of the Software.
+3. Any distribution of this Software must also respect the original fMSX license terms.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
+
+----------------------------------------------------------------------
+PART 2: THE ORIGINAL fMSX C CODE
+The original C source code provided in the `third_party/fMSX` directory (or used as reference) remains the exclusive property of Marat Fayzullin. 
+
+Please refer to the original documentation and license files within that directory for the specific terms regarding the original fMSX codebase. Commercial use of fMSX requires explicit permission and licensing from Marat Fayzullin.

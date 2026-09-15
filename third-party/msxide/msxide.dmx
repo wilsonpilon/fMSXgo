@@ -1,0 +1,41 @@
+## ------------------------------------------------------------------
+## msxide.dmx - biblioteca de referencia do msxIDE
+##
+## Definicoes, rotinas e variaveis de uso geral, escritas pra serem
+## reaproveitadas por varios programas diferentes (nao e' um programa
+## pronto pra rodar sozinho). Tudo aqui - defines, rotinas, variaveis -
+## comeca sempre com o prefixo M_, pra nao colidir com nomes que o
+## proprio programa que usa esta biblioteca ja escolheu.
+##
+## Para usar num programa: INCLUDE "msxide.dmx" (ajuste o caminho
+## conforme onde este arquivo estiver salvo em relacao ao seu .dmx).
+## Abra pelo menu Referencia -> msxide.dmx sempre que precisar consultar
+## o que ja existe aqui antes de reinventar.
+## ------------------------------------------------------------------
+
+
+## ------------------------------------------------------------------
+## 1) Cores do MSX1 (paleta fixa do VDP TMS9918, 16 cores)
+##
+## Use o NOME em vez do numero - mais facil de ler e nao precisa
+## decorar a tabela. O menu Inserir -> Cor MSX escreve esses mesmos
+## nomes direto no cursor.
+##
+##   color M_cyan, M_black, M_black
+##
+## em vez de
+##
+##   color 7, 1, 1
+##
+## Numeros oficiais da paleta MSX - os mesmos aceitos pelo COLOR/SET
+## COLOR do MSX BASIC (0 = transparente).
+## ------------------------------------------------------------------
+define [M_transparent][0], [M_black][1]
+define [M_medium_green][2], [M_light_green][3]
+define [M_dark_blue][4], [M_light_blue][5]
+define [M_dark_red][6], [M_cyan][7]
+define [M_medium_red][8], [M_light_red][9]
+define [M_dark_yellow][10], [M_light_yellow][11]
+define [M_dark_green][12], [M_magenta][13]
+define [M_gray][14], [M_white][15]
+

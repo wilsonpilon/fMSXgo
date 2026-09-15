@@ -1,0 +1,130 @@
+OK   - amx exists fixtures/inputs/loops_labels.amx
+OK   - bmx exists fixtures/inputs/loops_labels.bmx
+FAIL - amx matches fixtures/inputs/loops_labels.dmx -> fixtures/expected/loops_labels.amx
+FAIL - bmx matches fixtures/inputs/loops_labels.dmx -> fixtures/expected/loops_labels.bmx
+OK   - dsk exists fixtures/inputs/loops_labels.dmx
+OK   - dsk root structure fixtures/inputs/loops_labels.dmx
+OK   - dsk dmx dos datetime fixtures/inputs/loops_labels.dmx
+OK   - dsk amx bytes fixtures/inputs/loops_labels.dmx
+OK   - dsk amx metadata fixtures/inputs/loops_labels.dmx
+OK   - dsk amx dos datetime fixtures/inputs/loops_labels.dmx
+OK   - dsk bmx bytes fixtures/inputs/loops_labels.dmx
+OK   - dsk bmx metadata fixtures/inputs/loops_labels.dmx
+OK   - dsk bmx dos datetime fixtures/inputs/loops_labels.dmx
+OK   - dsk autoexec bytes fixtures/inputs/loops_labels.dmx
+OK   - dsk autoexec metadata fixtures/inputs/loops_labels.dmx
+OK   - dsk autoexec dos datetime fixtures/inputs/loops_labels.dmx
+OK   - amx exists fixtures/inputs/include_define.amx
+OK   - bmx exists fixtures/inputs/include_define.bmx
+OK   - amx matches fixtures/inputs/include_define.dmx
+OK   - bmx matches fixtures/inputs/include_define.dmx
+OK   - dsk exists fixtures/inputs/include_define.dmx
+OK   - dsk root structure fixtures/inputs/include_define.dmx
+OK   - dsk dmx dos datetime fixtures/inputs/include_define.dmx
+OK   - dsk amx bytes fixtures/inputs/include_define.dmx
+OK   - dsk amx metadata fixtures/inputs/include_define.dmx
+OK   - dsk amx dos datetime fixtures/inputs/include_define.dmx
+OK   - dsk bmx bytes fixtures/inputs/include_define.dmx
+OK   - dsk bmx metadata fixtures/inputs/include_define.dmx
+OK   - dsk bmx dos datetime fixtures/inputs/include_define.dmx
+OK   - dsk autoexec bytes fixtures/inputs/include_define.dmx
+OK   - dsk autoexec metadata fixtures/inputs/include_define.dmx
+OK   - dsk autoexec dos datetime fixtures/inputs/include_define.dmx
+OK   - amx exists fixtures/inputs\\..\outputs\remtags_custom.amx
+OK   - bmx exists fixtures/inputs\\..\outputs\remtags_custom.bmx
+OK   - amx matches fixtures/inputs/remtags_export.dmx
+OK   - bmx matches fixtures/inputs/remtags_export.dmx
+OK   - dsk exists fixtures/inputs/remtags_export.dmx
+OK   - dsk root structure fixtures/inputs/remtags_export.dmx
+OK   - dsk dmx dos datetime fixtures/inputs/remtags_export.dmx
+OK   - dsk amx bytes fixtures/inputs/remtags_export.dmx
+OK   - dsk amx metadata fixtures/inputs/remtags_export.dmx
+OK   - dsk amx dos datetime fixtures/inputs/remtags_export.dmx
+OK   - dsk bmx bytes fixtures/inputs/remtags_export.dmx
+OK   - dsk bmx metadata fixtures/inputs/remtags_export.dmx
+OK   - dsk bmx dos datetime fixtures/inputs/remtags_export.dmx
+OK   - dsk autoexec bytes fixtures/inputs/remtags_export.dmx
+OK   - dsk autoexec metadata fixtures/inputs/remtags_export.dmx
+OK   - dsk autoexec dos datetime fixtures/inputs/remtags_export.dmx
+OK   - amx exists fixtures/inputs/float_scientific.amx
+OK   - bmx exists fixtures/inputs/float_scientific.bmx
+OK   - amx matches fixtures/inputs/float_scientific.dmx
+OK   - bmx matches fixtures/inputs/float_scientific.dmx
+OK   - dsk exists fixtures/inputs/float_scientific.dmx
+OK   - dsk root structure fixtures/inputs/float_scientific.dmx
+OK   - dsk dmx dos datetime fixtures/inputs/float_scientific.dmx
+OK   - dsk amx bytes fixtures/inputs/float_scientific.dmx
+OK   - dsk amx metadata fixtures/inputs/float_scientific.dmx
+OK   - dsk amx dos datetime fixtures/inputs/float_scientific.dmx
+OK   - dsk bmx bytes fixtures/inputs/float_scientific.dmx
+OK   - dsk bmx metadata fixtures/inputs/float_scientific.dmx
+OK   - dsk bmx dos datetime fixtures/inputs/float_scientific.dmx
+OK   - dsk autoexec bytes fixtures/inputs/float_scientific.dmx
+OK   - dsk autoexec metadata fixtures/inputs/float_scientific.dmx
+OK   - dsk autoexec dos datetime fixtures/inputs/float_scientific.dmx
+OK   - amx exists fixtures/inputs/ns_main_big.amx
+OK   - bmx exists fixtures/inputs/ns_main_big.bmx
+OK   - amx matches fixtures/inputs/ns_main_big.dmx
+OK   - bmx matches fixtures/inputs/ns_main_big.dmx
+OK   - dsk exists fixtures/inputs/ns_main_big.dmx
+OK   - dsk root structure fixtures/inputs/ns_main_big.dmx
+OK   - dsk dmx dos datetime fixtures/inputs/ns_main_big.dmx
+OK   - dsk amx bytes fixtures/inputs/ns_main_big.dmx
+OK   - dsk amx metadata fixtures/inputs/ns_main_big.dmx
+OK   - dsk amx dos datetime fixtures/inputs/ns_main_big.dmx
+OK   - dsk bmx bytes fixtures/inputs/ns_main_big.dmx
+OK   - dsk bmx metadata fixtures/inputs/ns_main_big.dmx
+OK   - dsk bmx dos datetime fixtures/inputs/ns_main_big.dmx
+OK   - dsk autoexec bytes fixtures/inputs/ns_main_big.dmx
+OK   - dsk autoexec metadata fixtures/inputs/ns_main_big.dmx
+OK   - dsk autoexec dos datetime fixtures/inputs/ns_main_big.dmx
+OK   - amx exists fixtures/inputs\\..\outputs\remtags_extra_custom.amx
+OK   - bmx exists fixtures/inputs\\..\outputs\remtags_extra_custom.bmx
+OK   - amx matches fixtures/inputs/remtags_extra.dmx
+OK   - bmx matches fixtures/inputs/remtags_extra.dmx
+OK   - dsk exists fixtures/inputs/remtags_extra.dmx
+OK   - dsk root structure fixtures/inputs/remtags_extra.dmx
+OK   - dsk dmx dos datetime fixtures/inputs/remtags_extra.dmx
+OK   - dsk amx bytes fixtures/inputs/remtags_extra.dmx
+OK   - dsk amx metadata fixtures/inputs/remtags_extra.dmx
+OK   - dsk amx dos datetime fixtures/inputs/remtags_extra.dmx
+OK   - dsk bmx bytes fixtures/inputs/remtags_extra.dmx
+OK   - dsk bmx metadata fixtures/inputs/remtags_extra.dmx
+OK   - dsk bmx dos datetime fixtures/inputs/remtags_extra.dmx
+OK   - dsk autoexec bytes fixtures/inputs/remtags_extra.dmx
+OK   - dsk autoexec metadata fixtures/inputs/remtags_extra.dmx
+OK   - dsk autoexec dos datetime fixtures/inputs/remtags_extra.dmx
+OK   - amx exists fixtures/inputs/msxbasic_modes.amx
+OK   - bmx exists fixtures/inputs/msxbasic_modes.bmx
+OK   - amx matches fixtures/inputs/msxbasic_modes.dmx
+OK   - bmx matches fixtures/inputs/msxbasic_modes.dmx
+OK   - dsk exists fixtures/inputs/msxbasic_modes.dmx
+OK   - dsk root structure fixtures/inputs/msxbasic_modes.dmx
+OK   - dsk dmx dos datetime fixtures/inputs/msxbasic_modes.dmx
+OK   - dsk amx bytes fixtures/inputs/msxbasic_modes.dmx
+OK   - dsk amx metadata fixtures/inputs/msxbasic_modes.dmx
+OK   - dsk amx dos datetime fixtures/inputs/msxbasic_modes.dmx
+OK   - dsk bmx bytes fixtures/inputs/msxbasic_modes.dmx
+OK   - dsk bmx metadata fixtures/inputs/msxbasic_modes.dmx
+OK   - dsk bmx dos datetime fixtures/inputs/msxbasic_modes.dmx
+OK   - dsk autoexec bytes fixtures/inputs/msxbasic_modes.dmx
+OK   - dsk autoexec metadata fixtures/inputs/msxbasic_modes.dmx
+OK   - dsk autoexec dos datetime fixtures/inputs/msxbasic_modes.dmx
+OK   - amx exists fixtures/inputs/msxbasic_modes.amx
+OK   - bmx exists fixtures/inputs/msxbasic_modes.bmx
+OK   - amx matches fixtures/inputs/msxbasic_modes.dmx
+OK   - bmx matches fixtures/inputs/msxbasic_modes.dmx
+OK   - dsk exists fixtures/inputs/msxbasic_modes.dmx
+OK   - dsk root structure fixtures/inputs/msxbasic_modes.dmx
+OK   - dsk dmx dos datetime fixtures/inputs/msxbasic_modes.dmx
+OK   - dsk amx bytes fixtures/inputs/msxbasic_modes.dmx
+OK   - dsk amx metadata fixtures/inputs/msxbasic_modes.dmx
+OK   - dsk amx dos datetime fixtures/inputs/msxbasic_modes.dmx
+OK   - dsk bmx bytes fixtures/inputs/msxbasic_modes.dmx
+OK   - dsk bmx metadata fixtures/inputs/msxbasic_modes.dmx
+OK   - dsk bmx dos datetime fixtures/inputs/msxbasic_modes.dmx
+OK   - dsk autoexec bytes fixtures/inputs/msxbasic_modes.dmx
+OK   - dsk autoexec metadata fixtures/inputs/msxbasic_modes.dmx
+OK   - dsk autoexec dos datetime fixtures/inputs/msxbasic_modes.dmx
+
+REGRESSION FAIL: 2 of 128 checks

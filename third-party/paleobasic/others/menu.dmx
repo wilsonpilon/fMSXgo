@@ -1,0 +1,185 @@
+## Menu MSX Versao 3.0
+## Autor: Wilson "Barney" Pilon
+## Criacao: Março, 2023
+## Sem codigo legado
+
+define [keyflush][tecla$=inkey$:if tecla$<>"" then {@}]
+define [keypress][tecla$=inkey$:if tecla$="" then {@}]
+declare tecla:tk
+define [borda_cse][chr$(1)chr$(64+24)]
+define [borda_s][chr$(1)chr$(64+23)]
+define [borda_csd][chr$(1)chr$(64+1)]
+define [borda_le][chr$(1)chr$(64+22)]
+define [borda_ld][chr$(1)chr$(64+2)]
+define [borda_cie][chr$(1)chr$(64+3)]
+define [borda_i][chr$(1)chr$(64+4)]
+define [borda_cid][chr$(1)chr$(64+5)]
+define [borda_de][chr$(1)chr$(64+20)]
+define [borda_dd][chr$(1)chr$(64+0)]
+define [borda_d][chr$(1)chr$(64+23)]
+
+
+{main}
+    gosub {inicializa}:
+    gosub {desktop}:
+    [?](8,1) "Menu MSX"
+    [keyflush]
+    menu{
+        [keypress]
+    }
+
+
+## Rotina para gerar tons fixos
+{gera_tom}
+    gosub {clrscr}:
+    [?](5,1) "Gerador de tons fixos":
+    frequencia=.inputint("Qual a frequencia desejada      (em Hertz)"):
+    [?](2,6) "Frequencia: ";frequencia;" Hz":
+    volume=.inputint("Qual a amplitude (volume) do    sinal na saida (0-15)"):
+    [?](2,7) "Volume: ";volume
+    clock=3575611#/8192/frequencia:
+    registro1=int(clock):
+    registro0=int(.5+256*(clock-registro1))
+    sound 0,registro0:
+    sound 1,registro1:
+    sound 7,254:
+    sound 8,volume:
+    gosub {clrscr}:
+    [?](5,1) "Gerador de tons fixos":
+    [?](2,6) "Frequencia =>";frequencia:
+    [?](2,7) "Volume =>";volume
+    tecla$=.message("Para interromper pressione uma  tecla"):
+    sound 8,1:
+    tecla$=.yesno("Deseja escolher outra frequencia"):
+    if tecla$="s" then _
+        goto {gera_tom}
+    else
+        goto {main}
+
+## Rotina para a varredura de tons
+{varredura}
+    gosub {clrscr}:
+    [?](5,1) "Varredura de tons":
+    freq_inicial=.inputint("Entre com a frequencia inicial  (em Hertz)"):
+    freq_final=.inputint("Entre com a frequencia final    (em Hertz)"):
+    intervalo=.inputint("Especifique o intervalo da      varredura (em Hertz)")
+    if freq_inicial>freq_final then intervalo=-intervalo
+    volume=.inputint("Especifique o volume (0-15)"):
+    tempo=.inputint("Especifique o tempo de troca    (1000-longo => 50-curto)"):
+    {clrscr}
+    for temp=freq_inicial to freq_final step intervalo:
+        clock=3575611#/8192/temp:
+        registro1=int(clock):
+        registro0=int(0.5+256*(clock-registro1)):
+        sound 0,registro0:
+        sound 1,registro1:
+        sound 7,254:
+        sound 8,volume
+        [?](2,6) "frequencia => ";temp;"     ":time=0
+        if time<tempo then {@}
+        next temp
+        if freq_inicial>freq_final then if temp<freq_final then sound 8,0
+        if freq_inicial<freq_final then if temp>freq_final then sound 8,0
+        tecla$=.yesno("Deseja fazer outra varredura   "):
+            if tecla$="s" then _
+                goto {varredura} _
+            else goto {main}
+## Rotina de encerramento
+{encerra}
+    cls:
+    [?](15,10) "fim":
+    for temp=1 to 500:next temp:
+    screen 0,,1:
+    color 15,1,1:
+    key off:
+    end
+
+## Rotina de inicializacao
+{inicializa}
+    cls:
+    screen 1,,0:
+    width 32:
+    color 15,1,1:
+    key off:
+    bload "newmenu.alf",s,-&h1200:
+    bload "newmenu.s1c",s:
+    return
+
+
+## Rotinas Auxiliares
+## Rotina para desenhar bordas na tela
+{desktop}
+    [?](0,0) [borda_cse];:
+    for temp=1 to 30:
+        print [borda_s];:
+    next temp:
+    [?](31,0) [borda_csd];:
+    for temp=3 to 20:
+        [?](0,temp) [borda_le]:
+        [?](31,temp) [borda_ld]:
+    next:
+    [?](0,21) [borda_cie];
+    for temp=1 to 30:
+        print [borda_i];:
+    next temp:
+    [?](31,21) [borda_cid]:
+    [?](0,3) [borda_de];:
+    for temp=1 to 30:
+        print [borda_d];:
+    next temp:
+    [?](31,3) [borda_dd]:
+###
+    locate 1,1:
+    for temp=144 to 173:
+        print chr$(temp);:
+    next temp:
+###
+    return
+
+## Rotina para limpar area util da tela
+{clrscr}
+    gosub {clrmsg}:
+    [?](0,21) space$(32);:
+    for temp=3 to 20:
+        [?](1,temp) space$(30):
+    next temp:
+    return
+
+## Rotina para limpar area de mensagens
+{clrmsg}
+    [?](0,21) space$(32);:
+    return
+
+## Funcao para entrada de valor inteiro
+func .inputint(mensagem$)
+    .display(mensagem$)
+    input valor:
+    gosub {clrmsg}:
+ret valor
+
+## Funcao para mostrar mensagem e aguardar uma tecla
+func .message(mensagem$)
+    .display(mensagem$)
+    [keyflush]
+    [keypress]
+    gosub {clrmsg}:
+ret tecla$
+
+## Funcao para aceitar S ou N
+func .yesno(mensagem$)
+    .display(mensagem$+" (s/n)?")
+    [keyflush]
+    [keypress]
+    if tecla$ = "s" or tecla$ = "S" then _ 
+        tecla$="s" _
+    else _
+        tecla$="n"
+    gosub {clrmsg}:
+ret tecla$
+
+## Funcao para mostrar um texto na area de mensagens
+func .display(texto$)
+    gosub {clrmsg}:
+    [?](0,20) mid$(texto$,1,32);:
+ret
+

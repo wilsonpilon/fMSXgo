@@ -1,0 +1,65 @@
+' ------------------------------------------------------------
+'  sprite_loader.dmx - rotina generica (mascara) para ler os DATA gerados
+'  pelo botao "Injetar" do editor de sprites (menu Criar -> Sprite... no
+'  BadigEditor) e colocar o sprite na tela com PUT SPRITE.
+'
+'  Cada clique em "Injetar" gera 3 linhas DATA nesta ordem fixa:
+'    1) tamanho da grade (8 ou 16) e o modo (1=MSX1, 2=MSX2)
+'    2) a(s) cor(es) do sprite - um valor so se for MSX1 (sprite inteiro
+'       com uma cor), ou um valor por linha se for MSX2 (uma cor por
+'       linha, na ordem de cima pra baixo)
+'    3) os bytes do padrao (8 bytes pra 8x8, 32 bytes pra 16x16 - nesse
+'       caso, na ordem de quadrantes TL,BL,TR,BR que o MSX-BASIC exige
+'       pra sprite grande)
+'
+'  A rotina abaixo le esses 3 valores/blocos e ja monta SPRITE$/
+'  COLOR SPRITE$ e chama PUT SPRITE - a cor sai direto do DATA, sem
+'  precisar informar nada. So restam dois pontos abertos por chamada:
+'  qual numero de sprite/padrao usar (n_sprite, 0-31) e onde posicionar
+'  na tela (n_x, n_y) - o resto (tamanho, modo, cor) o proprio DATA ja
+'  descreve.
+'
+'  Uso: RESTORE ate o {label} colocado logo antes do DATA do sprite
+'  desejado, depois chame a funcao:
+'
+'    restore {meu_sprite}
+'    .CreateSprite(0, 100, 80)
+' ------------------------------------------------------------
+
+screen 2
+
+func .CreateSprite(n_sprite, n_x, n_y)
+  read s_size, s_mode
+
+  s_colorcount = 1
+  if s_mode = 2 then s_colorcount = s_size
+  s_colors$ = ""
+  for s_i = 1 to s_colorcount
+    read s_c
+    s_colors$ = s_colors$ + chr$(s_c)
+  next s_i
+
+  s_bytes = s_size * s_size / 8
+  s_pattern$ = ""
+  for s_i = 1 to s_bytes
+    read s_b
+    s_pattern$ = s_pattern$ + chr$(s_b)
+  next s_i
+
+  sprite$(n_sprite) = s_pattern$
+  if s_mode = 2 then color sprite$(n_sprite) = s_colors$
+  if s_mode = 1 then put sprite n_sprite,(n_x,n_y),asc(s_colors$),n_sprite
+  if s_mode = 2 then put sprite n_sprite,(n_x,n_y),,n_sprite
+ret
+
+' --- exemplo: cole aqui embaixo o DATA gerado pelo botao "Injetar" ---
+{meu_sprite}
+data &H10,&H01
+data &H0F,&H0F,&H0F,&H0F,&H0F,&H0F,&H0F,&H0F,&H0F,&H0F,&H0F,&H0F,&H0F,&H0F,&H0F,&H0F
+data &H00,&H00,&H00,&H00,&H00,&H00,&H00,&H00,&H00,&H00,&H00,&H00,&H00,&H00,&H00,&H00
+data &H00,&H00,&H00,&H00,&H00,&H00,&H00,&H00,&H00,&H00,&H00,&H00,&H00,&H00,&H00,&H00
+
+restore {meu_sprite}
+.CreateSprite(0, 100, 80)
+
+end

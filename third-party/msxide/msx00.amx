@@ -1,0 +1,4 @@
+1 maxfiles=1:gosub3:gosub4:zx$=input$(1):gosub2
+2 screen0:colorzv,zu,zu:cls:width40:keyoff:end
+3 open"grp:"foroutputas#1:screen2,1:color4,7,5:cls:return
+4 forzt=0to15:zs=zr*16:zq=zs+15:preset(zs+5*(zs*0),168):?#1,zt:line(zs,176)-(zq,191),zt,bf:nextzt:forzp=0to256step16:line(zp,0)-(zp,192):nextzp:forzo=0to192step16:line(0,zo)-(255,zo):nextzo:return

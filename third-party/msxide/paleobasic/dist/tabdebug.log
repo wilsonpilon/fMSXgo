@@ -1,0 +1,117 @@
+07:48:04.533  AddDocumentTab entrada  Path=''  Mode=DMX  DocsCountAntes=0
+07:48:04.540  AddDocumentTab saida  NewPosition=0  Sci=2400975859440  DocsCountDepois=1
+07:48:04.540  RedrawTabBar  W=1000 H=36 StartDrawingOk=-637462463 DocsCount=1 ActiveTabPosition=-1
+07:48:04.541  SetActiveTab(0)  DocsCount=1  ActiveBefore=-1
+07:48:04.547  RedrawTabBar  W=1000 H=36 StartDrawingOk=-150924871 DocsCount=1 ActiveTabPosition=0
+07:48:04.548  RedrawTabBar  W=1000 H=36 StartDrawingOk=-50261575 DocsCount=1 ActiveTabPosition=0
+10:35:06.527  AddDocumentTab entrada  Path=''  Mode=DMX  DocsCountAntes=0
+10:35:06.534  AddDocumentTab saida  NewPosition=0  Sci=2920137039504  DocsCountDepois=1
+10:35:06.535  RedrawTabBar  W=1000 H=36 StartDrawingOk=-2029971363 DocsCount=1 ActiveTabPosition=-1
+10:35:06.537  SetActiveTab(0)  DocsCount=1  ActiveBefore=-1
+10:35:06.539  RedrawTabBar  W=1000 H=36 StartDrawingOk=-1811867459 DocsCount=1 ActiveTabPosition=0
+10:35:06.540  RedrawTabBar  W=1000 H=36 StartDrawingOk=-1711204163 DocsCount=1 ActiveTabPosition=0
+11:10:03.540  AddDocumentTab entrada  Path=''  Mode=DMX  DocsCountAntes=0
+11:10:03.548  AddDocumentTab saida  NewPosition=0  Sci=2739863035536  DocsCountDepois=1
+11:10:03.548  RedrawTabBar  W=1000 H=36 StartDrawingOk=-1962862450 DocsCount=1 ActiveTabPosition=-1
+11:10:03.549  SetActiveTab(0)  DocsCount=1  ActiveBefore=-1
+11:10:03.552  RedrawTabBar  W=1000 H=36 StartDrawingOk=973150029 DocsCount=1 ActiveTabPosition=0
+11:10:03.554  RedrawTabBar  W=1000 H=36 StartDrawingOk=1090590541 DocsCount=1 ActiveTabPosition=0
+11:18:49.496  AddDocumentTab entrada  Path=''  Mode=DMX  DocsCountAntes=0
+11:18:49.501  AddDocumentTab saida  NewPosition=0  Sci=2677910806160  DocsCountDepois=1
+11:18:49.501  RedrawTabBar  W=1000 H=36 StartDrawingOk=-1610544252 DocsCount=1 ActiveTabPosition=-1
+11:18:49.502  SetActiveTab(0)  DocsCount=1  ActiveBefore=-1
+11:18:49.506  RedrawTabBar  W=1000 H=36 StartDrawingOk=1040258608 DocsCount=1 ActiveTabPosition=0
+11:18:49.507  RedrawTabBar  W=1000 H=36 StartDrawingOk=1157699120 DocsCount=1 ActiveTabPosition=0
+11:32:40.543  AddDocumentTab entrada  Path=''  Mode=DMX  DocsCountAntes=0
+11:32:40.552  AddDocumentTab saida  NewPosition=0  Sci=2814118207120  DocsCountDepois=1
+11:32:40.552  RedrawTabBar  W=1000 H=36 StartDrawingOk=-1392436566 DocsCount=1 ActiveTabPosition=-1
+11:32:40.553  SetActiveTab(0)  DocsCount=1  ActiveBefore=-1
+11:32:40.556  RedrawTabBar  W=1000 H=36 StartDrawingOk=2080446840 DocsCount=1 ActiveTabPosition=0
+11:32:40.558  RedrawTabBar  W=1000 H=36 StartDrawingOk=-2113857160 DocsCount=1 ActiveTabPosition=0
+12:53:32.568  AddDocumentTab entrada  Path=''  Mode=DMX  DocsCountAntes=0
+12:53:32.578  AddDocumentTab saida  NewPosition=0  Sci=2477131570144  DocsCountDepois=1
+12:53:32.578  RedrawTabBar  W=1000 H=36 StartDrawingOk=2030114339 DocsCount=1 ActiveTabPosition=-1
+12:53:32.579  SetActiveTab(0)  DocsCount=1  ActiveBefore=-1
+12:53:32.581  RedrawTabBar  W=1000 H=36 StartDrawingOk=-83815225 DocsCount=1 ActiveTabPosition=0
+12:53:32.583  RedrawTabBar  W=1000 H=36 StartDrawingOk=33625287 DocsCount=1 ActiveTabPosition=0
+12:54:30.555  AddDocumentTab entrada  Path=''  Mode=DMX  DocsCountAntes=0
+12:54:30.564  AddDocumentTab saida  NewPosition=0  Sci=2243496778720  DocsCountDepois=1
+12:54:30.564  RedrawTabBar  W=1000 H=36 StartDrawingOk=-603907397 DocsCount=1 ActiveTabPosition=-1
+12:54:30.565  SetActiveTab(0)  DocsCount=1  ActiveBefore=-1
+12:54:30.568  RedrawTabBar  W=1000 H=36 StartDrawingOk=-2063525238 DocsCount=1 ActiveTabPosition=0
+12:54:30.569  RedrawTabBar  W=1000 H=36 StartDrawingOk=-1946084726 DocsCount=1 ActiveTabPosition=0
+13:11:23.617  AddDocumentTab entrada  Path=''  Mode=DMX  DocsCountAntes=0
+13:11:23.624  AddDocumentTab saida  NewPosition=0  Sci=1533841710736  DocsCountDepois=1
+13:11:23.624  RedrawTabBar  W=1000 H=36 StartDrawingOk=-1526654128 DocsCount=1 ActiveTabPosition=-1
+13:11:23.625  SetActiveTab(0)  DocsCount=1  ActiveBefore=-1
+13:11:23.627  RedrawTabBar  W=1000 H=36 StartDrawingOk=33626449 DocsCount=1 ActiveTabPosition=0
+13:11:23.628  RedrawTabBar  W=1000 H=36 StartDrawingOk=151066961 DocsCount=1 ActiveTabPosition=0
+13:22:47.564  AddDocumentTab entrada  Path=''  Mode=DMX  DocsCountAntes=0
+13:22:47.571  AddDocumentTab saida  NewPosition=0  Sci=2084512341648  DocsCountDepois=1
+13:22:47.572  RedrawTabBar  W=1000 H=36 StartDrawingOk=419500626 DocsCount=1 ActiveTabPosition=-1
+13:22:47.572  SetActiveTab(0)  DocsCount=1  ActiveBefore=-1
+13:22:47.576  RedrawTabBar  W=1000 H=36 StartDrawingOk=151066147 DocsCount=1 ActiveTabPosition=0
+13:22:47.577  RedrawTabBar  W=1000 H=36 StartDrawingOk=251729443 DocsCount=1 ActiveTabPosition=0
+13:24:47.543  AddDocumentTab entrada  Path=''  Mode=DMX  DocsCountAntes=0
+13:24:47.550  AddDocumentTab saida  NewPosition=0  Sci=1729547083408  DocsCountDepois=1
+13:24:47.550  RedrawTabBar  W=1000 H=36 StartDrawingOk=-922674305 DocsCount=1 ActiveTabPosition=-1
+13:24:47.551  SetActiveTab(0)  DocsCount=1  ActiveBefore=-1
+13:24:47.554  RedrawTabBar  W=1000 H=36 StartDrawingOk=335616922 DocsCount=1 ActiveTabPosition=0
+13:24:47.555  RedrawTabBar  W=1000 H=36 StartDrawingOk=436280218 DocsCount=1 ActiveTabPosition=0
+13:32:02.543  AddDocumentTab entrada  Path=''  Mode=DMX  DocsCountAntes=0
+13:32:02.549  AddDocumentTab saida  NewPosition=0  Sci=2155446804112  DocsCountDepois=1
+13:32:02.549  RedrawTabBar  W=1000 H=36 StartDrawingOk=1359026637 DocsCount=1 ActiveTabPosition=-1
+13:32:02.550  SetActiveTab(0)  DocsCount=1  ActiveBefore=-1
+13:32:02.557  RedrawTabBar  W=1000 H=36 StartDrawingOk=-1711206109 DocsCount=1 ActiveTabPosition=0
+13:32:02.559  RedrawTabBar  W=1000 H=36 StartDrawingOk=-1593765597 DocsCount=1 ActiveTabPosition=0
+13:40:52.705  AddDocumentTab entrada  Path=''  Mode=DMX  DocsCountAntes=0
+13:40:52.712  AddDocumentTab saida  NewPosition=0  Sci=2217030196192  DocsCountDepois=1
+13:40:52.712  RedrawTabBar  W=1000 H=36 StartDrawingOk=1510021826 DocsCount=1 ActiveTabPosition=-1
+13:40:52.713  SetActiveTab(0)  DocsCount=1  ActiveBefore=-1
+13:40:52.718  RedrawTabBar  W=1000 H=36 StartDrawingOk=1895897698 DocsCount=1 ActiveTabPosition=0
+13:40:52.721  RedrawTabBar  W=1000 H=36 StartDrawingOk=2013338210 DocsCount=1 ActiveTabPosition=0
+16:37:37.671  AddDocumentTab entrada  Path=''  Mode=DMX  DocsCountAntes=0
+16:37:37.681  AddDocumentTab saida  NewPosition=0  Sci=2591833857680  DocsCountDepois=1
+16:37:37.682  RedrawTabBar  W=1000 H=36 StartDrawingOk=-1493103760 DocsCount=1 ActiveTabPosition=-1
+16:37:37.683  SetActiveTab(0)  DocsCount=1  ActiveBefore=-1
+16:37:37.687  RedrawTabBar  W=1000 H=36 StartDrawingOk=-1576984947 DocsCount=1 ActiveTabPosition=0
+16:37:37.689  RedrawTabBar  W=1000 H=36 StartDrawingOk=-1459544435 DocsCount=1 ActiveTabPosition=0
+16:37:42.831  RedrawTabBar  W=1000 H=36 StartDrawingOk=654384785 DocsCount=1 ActiveTabPosition=0
+16:37:42.073  RedrawTabBar  W=1000 H=36 StartDrawingOk=-1308549583 DocsCount=1 ActiveTabPosition=0
+16:37:42.111  RedrawTabBar  W=1000 H=36 StartDrawingOk=-1224663503 DocsCount=1 ActiveTabPosition=0
+19:05:21.472  AddDocumentTab entrada  Path=''  Mode=DMX  DocsCountAntes=0
+19:05:21.479  AddDocumentTab saida  NewPosition=0  Sci=2078693990032  DocsCountDepois=1
+19:05:21.479  RedrawTabBar  W=1000 H=36 StartDrawingOk=-1862201411 DocsCount=1 ActiveTabPosition=-1
+19:05:21.480  SetActiveTab(0)  DocsCount=1  ActiveBefore=-1
+19:05:21.482  RedrawTabBar  W=1000 H=36 StartDrawingOk=335614409 DocsCount=1 ActiveTabPosition=0
+19:05:21.483  RedrawTabBar  W=1000 H=36 StartDrawingOk=453054921 DocsCount=1 ActiveTabPosition=0
+06:37:56.150  AddDocumentTab entrada  Path=''  Mode=DMX  DocsCountAntes=0
+06:37:56.216  AddDocumentTab saida  NewPosition=0  Sci=2135475035104  DocsCountDepois=1
+06:37:56.217  RedrawTabBar  W=1000 H=36 StartDrawingOk=1711345470 DocsCount=1 ActiveTabPosition=-1
+06:37:56.232  SetActiveTab(0)  DocsCount=1  ActiveBefore=-1
+06:37:56.236  RedrawTabBar  W=1000 H=36 StartDrawingOk=-754903128 DocsCount=1 ActiveTabPosition=0
+06:37:56.240  RedrawTabBar  W=1000 H=36 StartDrawingOk=-637462616 DocsCount=1 ActiveTabPosition=0
+06:40:45.962  AddDocumentTab entrada  Path=''  Mode=DMX  DocsCountAntes=0
+06:40:46.996  AddDocumentTab saida  NewPosition=0  Sci=1529778806416  DocsCountDepois=1
+06:40:46.997  RedrawTabBar  W=1000 H=36 StartDrawingOk=-1962862635 DocsCount=1 ActiveTabPosition=-1
+06:40:46.000  SetActiveTab(0)  DocsCount=1  ActiveBefore=-1
+06:40:46.004  RedrawTabBar  W=1000 H=36 StartDrawingOk=-218032197 DocsCount=1 ActiveTabPosition=0
+06:40:46.011  RedrawTabBar  W=1000 H=36 StartDrawingOk=-117368901 DocsCount=1 ActiveTabPosition=0
+11:20:46.470  AddDocumentTab entrada  Path=''  Mode=DMX  DocsCountAntes=0
+11:20:46.482  AddDocumentTab saida  NewPosition=0  Sci=1532670979792  DocsCountDepois=1
+11:20:46.486  RedrawTabBar  W=1000 H=36 StartDrawingOk=1493242203 DocsCount=1 ActiveTabPosition=-1
+11:20:46.487  SetActiveTab(0)  DocsCount=1  ActiveBefore=-1
+11:20:46.488  RedrawTabBar  W=1000 H=36 StartDrawingOk=-922677179 DocsCount=1 ActiveTabPosition=0
+11:20:46.491  RedrawTabBar  W=1000 H=36 StartDrawingOk=-805236667 DocsCount=1 ActiveTabPosition=0
+13:47:10.503  AddDocumentTab entrada  Path=''  Mode=DMX  DocsCountAntes=0
+13:47:10.510  AddDocumentTab saida  NewPosition=0  Sci=1421852946128  DocsCountDepois=1
+13:47:10.510  RedrawTabBar  W=1000 H=36 StartDrawingOk=-1274997927 DocsCount=1 ActiveTabPosition=-1
+13:47:10.511  SetActiveTab(0)  DocsCount=1  ActiveBefore=-1
+13:47:10.512  RedrawTabBar  W=1000 H=36 StartDrawingOk=-1174334274 DocsCount=1 ActiveTabPosition=0
+13:47:10.513  RedrawTabBar  W=1000 H=36 StartDrawingOk=-1073670978 DocsCount=1 ActiveTabPosition=0
+13:56:23.499  AddDocumentTab entrada  Path=''  Mode=DMX  DocsCountAntes=0
+13:56:23.507  AddDocumentTab saida  NewPosition=0  Sci=2147132512960  DocsCountDepois=1
+13:56:23.508  RedrawTabBar  W=1000 H=36 StartDrawingOk=-1023339350 DocsCount=1 ActiveTabPosition=-1
+13:56:23.508  SetActiveTab(0)  DocsCount=1  ActiveBefore=-1
+13:56:23.510  RedrawTabBar  W=1000 H=36 StartDrawingOk=-1258220259 DocsCount=1 ActiveTabPosition=0
+13:56:23.511  RedrawTabBar  W=1000 H=36 StartDrawingOk=-1140779747 DocsCount=1 ActiveTabPosition=0

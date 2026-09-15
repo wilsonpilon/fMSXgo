@@ -1,0 +1,464 @@
+10 ' Converted with Basic Dignified (native PureBasic port)
+20 ' ------------------------------------------------------------
+30 '  Suporte ao NestorBASIC 1.11 (by Nestor Soriano / Konami Man)
+40 '
+50 '  NestorBASIC da acesso a memoria mapeada, VRAM, disco, compressao
+60 '  grafica, tocador Moonblaster, efeitos PSG e mais, tudo atraves de
+70 '  usr(numero_funcao) e dos arrays p() (parametros/retornos inteiros)
+80 '  e f$() (nomes de arquivo/strings, quando a funcao usa).
+90 '
+100 '  NBASIC.BIN precisa estar no disco/pasta do programa em tempo de
+110 '  execucao. O carregador logo abaixo (via GOTO, ver comentario perto
+120 '  de {NBasicLoad} - NAO pode ser func/ret) carrega e mostra o erro
+130 '  (se houver).
+140 '  Os wrappers .NB_* (mais abaixo) dao nome as funcoes mais comuns do
+150 '  NestorBASIC (geral, RAM, VRAM, disco) - use-os ao inves de usr()
+160 '  cru sempre que possivel.
+170 ' ------------------------------------------------------------
+180 defint p
+190 dim p(15)
+200 dim f$(1)
+210 goto 270
+220 ' NestorBASIC instalado - p(0) tem o numero de segmentos de RAM
+230 ' disponiveis (sempre >=5 se chegou ate aqui). Use os wrappers .NB_*
+240 ' abaixo (ou usr(numero_funcao) direto) para chamar as funcoes do
+250 ' NestorBASIC.
+260 end
+270 bload"nbasic.bin",r
+280 if p(0)>=5 goto 220
+290 ?"Erro ao carregar o NestorBASIC: ";
+300 if p(0)=0 then?"computador sem RAM mapeada (minimo 128K)."
+310 if p(0)=1 then?"erro de disco ao ler NBASIC.BIN."
+320 if p(0)=2 then?"sem segmentos livres no mapper primario (DOS 2)."
+330 if p(0)=3 then?"o NestorBASIC ja estava instalado."
+340 if p(0)=4 then?"erro nao definido nesta versao."
+350 end
+360 ' --- Biblioteca NestorBASIC (Tier 1: geral, RAM, VRAM, disco) ---
+370 ' Convencao: cada .NB_* devolve so o(s) valor(es) principal(is) da
+380 ' chamada, sempre com o codigo de erro por ultimo (0 = sem erro; use
+390 ' .NB_ErrorText(codigo) pra mensagem). Os demais resultados documentados
+400 ' no manual continuam em p()/f$() logo apos a chamada.
+410 ' --- 10.2 Funcoes gerais ---
+420 ' Desinstala o NestorBASIC. liberarRam<>0 libera tambem a RAM ocupada
+430 ' pela rotina de salto (~500 bytes), voltando FRE(0) ao valor de antes
+440 ' de instalar. (S4)
+450 p(0)=ZZ
+460 ZY=usr(0)
+470 RETURN
+480 ' Informacoes gerais sobre o NestorBASIC e sobre o segmento indicado.
+490 ' Devolve o numero de segmentos de RAM disponiveis; outros resultados
+500 ' (versao, DOS, VRAM em K, arquivos abertos, slot/segmento fisico,
+510 ' caminho do NBASIC.BIN em f$(0) etc. - ver secao 10.2 do manual)
+520 ' continuam em p()/f$().
+530 p(0)=ZX
+540 ZY=usr(1)
+550 RETURN
+560 ' --- 10.3 Acesso a segmentos (RAM) ---
+570 ' Le um byte do segmento/endereco indicado.
+580 p(0)=ZX
+590 p(1)=ZW
+600 ZY=usr(2)
+610 RETURN
+620 ' Le um byte e devolve o endereco seguinte (pra percorrer sequencialmente:' byte, endereco = .NB_ReadByteInc(segmento, endereco)).
+630 p(0)=ZX
+640 p(1)=ZW
+650 ZY=usr(3)
+660 RETURN
+670 ' Le um inteiro (2 bytes, low+high) do segmento/endereco indicado.
+680 p(0)=ZX
+690 p(1)=ZW
+700 ZY=usr(4)
+710 RETURN
+720 ' Le um inteiro e devolve o endereco seguinte.
+730 p(0)=ZX
+740 p(1)=ZW
+750 ZY=usr(5)
+760 RETURN
+770 ' Escreve um byte no segmento/endereco indicado.
+780 p(0)=ZX
+790 p(1)=ZW
+800 p(2)=ZV
+810 ZY=usr(6)
+820 RETURN
+830 ' Escreve um byte e devolve o endereco seguinte.
+840 p(0)=ZX
+850 p(1)=ZW
+860 p(2)=ZV
+870 ZY=usr(7)
+880 RETURN
+890 ' Escreve um inteiro (2 bytes) no segmento/endereco indicado.
+900 p(0)=ZX
+910 p(1)=ZW
+920 p(2)=ZV
+930 ZY=usr(8)
+940 RETURN
+950 ' Escreve um inteiro e devolve o endereco seguinte.
+960 p(0)=ZX
+970 p(1)=ZW
+980 p(2)=ZV
+990 ZY=usr(9)
+1000 RETURN
+1010 ' Copia um bloco de dados entre dois segmentos. incOrigem/incDestino<>0
+1020 ' avancam o endereco de origem/destino correspondente (util em loop).
+1030 p(0)=ZU
+1040 p(1)=ZT
+1050 p(2)=ZS
+1060 p(3)=ZR
+1070 p(4)=ZQ
+1080 p(5)=ZP
+1090 p(6)=ZO
+1100 ZY=usr(10)
+1110 RETURN
+1120 ' Preenche uma area de um segmento com um byte fixo.
+1130 p(0)=ZX
+1140 p(1)=ZW
+1150 p(2)=ZN
+1160 p(3)=ZQ
+1170 ZY=usr(11)
+1180 RETURN
+1190 ' Preenche uma area de um segmento com um byte fixo e devolve o
+1200 ' endereco seguinte a area preenchida.
+1210 p(0)=ZX
+1220 p(1)=ZW
+1230 p(2)=ZN
+1240 p(3)=ZQ
+1250 ZY=usr(12)
+1260 RETURN
+1270 ' --- 10.4 Acesso a VRAM ---
+1280 ' bloco = 0 (64K VRAM baixa) ou 1 (64K VRAM alta, so em maquinas com
+1290 ' 128K) - endereco 0-&HFFFF; se um autoincremento passar de &HFFFF,
+1300 ' o endereco volta a 0 e o bloco se inverte (0<->1).
+1310 ' Le um byte da VRAM.
+1320 p(0)=ZM
+1330 p(1)=ZW
+1340 ZY=usr(13)
+1350 RETURN
+1360 ' Le um byte da VRAM e devolve bloco/endereco seguintes.
+1370 p(0)=ZM
+1380 p(1)=ZW
+1390 ZY=usr(14)
+1400 RETURN
+1410 ' Le um inteiro (2 bytes) da VRAM.
+1420 p(0)=ZM
+1430 p(1)=ZW
+1440 ZY=usr(15)
+1450 RETURN
+1460 ' Le um inteiro da VRAM e devolve bloco/endereco seguintes.
+1470 p(0)=ZM
+1480 p(1)=ZW
+1490 ZY=usr(16)
+1500 RETURN
+1510 ' Escreve um byte na VRAM.
+1520 p(0)=ZM
+1530 p(1)=ZW
+1540 p(2)=ZV
+1550 ZY=usr(17)
+1560 RETURN
+1570 ' Escreve um byte na VRAM e devolve bloco/endereco seguintes.
+1580 p(0)=ZM
+1590 p(1)=ZW
+1600 p(2)=ZV
+1610 ZY=usr(18)
+1620 RETURN
+1630 ' Escreve um inteiro (2 bytes) na VRAM.
+1640 p(0)=ZM
+1650 p(1)=ZW
+1660 p(2)=ZV
+1670 ZY=usr(19)
+1680 RETURN
+1690 ' Escreve um inteiro na VRAM e devolve bloco/endereco seguintes.
+1700 p(0)=ZM
+1710 p(1)=ZW
+1720 p(2)=ZV
+1730 ZY=usr(20)
+1740 RETURN
+1750 ' Copia um bloco de dados da VRAM pra um segmento de RAM.
+1760 p(0)=ZL
+1770 p(1)=ZT
+1780 p(2)=ZS
+1790 p(3)=ZR
+1800 p(4)=ZQ
+1810 p(5)=ZP
+1820 p(6)=ZO
+1830 ZY=usr(21)
+1840 RETURN
+1850 ' Copia um bloco de dados de um segmento de RAM pra VRAM.
+1860 p(0)=ZU
+1870 p(1)=ZT
+1880 p(2)=ZK
+1890 p(3)=ZR
+1900 p(4)=ZQ
+1910 p(5)=ZP
+1920 p(6)=ZO
+1930 ZY=usr(22)
+1940 RETURN
+1950 ' Copia um bloco de dados entre duas areas da VRAM (maximo &H4000
+1960 ' bytes por chamada - pra blocos maiores repita a chamada, ver secao
+1970 ' 10.4 do manual).
+1980 p(0)=ZL
+1990 p(1)=ZT
+2000 p(2)=ZK
+2010 p(3)=ZR
+2020 p(4)=ZQ
+2030 p(5)=ZP
+2040 p(6)=ZO
+2050 ZY=usr(23)
+2060 RETURN
+2070 ' Preenche uma area da VRAM com um byte fixo (maximo 16K por chamada).
+2080 p(0)=ZM
+2090 p(1)=ZW
+2100 p(2)=ZN
+2110 p(3)=ZQ
+2120 ZY=usr(24)
+2130 RETURN
+2140 ' Preenche uma area da VRAM com um byte fixo e devolve bloco/endereco
+2150 ' seguintes (maximo 16K por chamada).
+2160 p(0)=ZM
+2170 p(1)=ZW
+2180 p(2)=ZN
+2190 p(3)=ZQ
+2200 ZY=usr(25)
+2210 RETURN
+2220 ' --- 10.5 Acesso a disco ---
+2230 ' atributos: R+2*H+4*S+8*V+16*D+32*A (Somente leitura+Oculto+Sistema+
+2240 ' Volume+Diretorio+Arquivo). unidade normalmente 0=A:,1=B:,...,7=H: -
+2250 ' EXCETO em .NB_GetDiskSpace e .NB_GetDir, onde e 0=unidade padrao,
+2260 ' 1=A:,...,8=H: (assim mesmo no manual original, secao 10.5).
+2270 ' Procura o primeiro arquivo (buscarProximo=0) ou o proximo
+2280 ' (buscarProximo=1) que bate com a mascara (vazia = "*.*"). f$(0)
+2290 ' devolve so o nome encontrado; hora/data/cluster/unidade/tamanho/
+2300 ' contador ficam em p(2) a p(11) - ver secao 10.5 do manual. (S4)
+2310 f$(1)=ZJ$
+2320 p(0)=ZI
+2330 p(1)=ZH
+2340 ZY=usr(26)
+2350 RETURN
+2360 ' Renomeia um arquivo. (S4)
+2370 f$(0)=ZG$
+2380 f$(1)=ZF$
+2390 ZY=usr(27)
+2400 RETURN
+2410 ' Apaga um arquivo. (S4)
+2420 f$(0)=ZG$
+2430 ZY=usr(28)
+2440 RETURN
+2450 ' Move um arquivo/diretorio pra outro local (so DOS 2; novoLocal$ nao
+2460 ' pode ter nome de arquivo nem letra de unidade, so o caminho novo).
+2470 f$(0)=ZG$
+2480 f$(1)=ZE$
+2490 ZY=usr(29)
+2500 RETURN
+2510 ' Cria um arquivo vazio ou subdiretorio.
+2520 f$(0)=ZG$
+2530 p(0)=ZD
+2540 ZY=usr(30)
+2550 RETURN
+2560 ' Abre um arquivo e devolve o numero atribuido a ele.
+2570 f$(0)=ZG$
+2580 ZY=usr(31)
+2590 RETURN
+2600 ' Fecha um arquivo aberto - sempre feche arquivos que nao vai mais usar.
+2610 p(0)=ZC
+2620 ZY=usr(32)
+2630 RETURN
+2640 ' Le do arquivo (a partir da posicao atual do ponteiro) pra um segmento
+2650 ' de RAM. incrementar<>0 avanca enderecoDestino pelo numero de bytes
+2660 ' lidos. (S4)
+2670 p(0)=ZC
+2680 p(2)=ZS
+2690 p(3)=ZB
+2700 p(4)=ZQ
+2710 p(6)=ZA
+2720 ZY=usr(33)
+2730 RETURN
+2740 ' Le do arquivo pra VRAM (maximo &H4000 bytes por chamada). (S4)
+2750 p(0)=ZC
+2760 p(2)=ZK
+2770 p(3)=ZB
+2780 p(4)=ZQ
+2790 p(6)=ZA
+2800 ZY=usr(34)
+2810 RETURN
+2820 ' Le setores do disco (bruto, sem passar por arquivo) pra um segmento
+2830 ' de RAM (maximo 32 setores = 16K por chamada). (S4)
+2840 p(0)=YZ
+2850 p(1)=YY
+2860 p(2)=ZS
+2870 p(3)=ZB
+2880 p(4)=YX
+2890 p(6)=ZA
+2900 ZY=usr(35)
+2910 RETURN
+2920 ' Le setores do disco (bruto) pra VRAM (maximo 32 setores = 16K por
+2930 ' chamada). (S4)
+2940 p(0)=YZ
+2950 p(1)=YY
+2960 p(2)=ZK
+2970 p(3)=ZB
+2980 p(4)=YX
+2990 p(6)=ZA
+3000 ZY=usr(36)
+3010 RETURN
+3020 ' Escreve no arquivo (a partir da posicao atual do ponteiro) a partir
+3030 ' de um segmento de RAM. (S4)
+3040 p(0)=ZC
+3050 p(2)=ZU
+3060 p(3)=YW
+3070 p(4)=ZQ
+3080 p(6)=ZA
+3090 ZY=usr(37)
+3100 RETURN
+3110 ' Escreve no arquivo a partir da VRAM (maximo &H4000 bytes por
+3120 ' chamada). (S4)
+3130 p(0)=ZC
+3140 p(2)=ZL
+3150 p(3)=YW
+3160 p(4)=ZQ
+3170 p(6)=ZA
+3180 ZY=usr(38)
+3190 RETURN
+3200 ' Escreve setores do disco (bruto) a partir de um segmento de RAM
+3210 ' (maximo 32 setores = 16K por chamada). (S4)
+3220 p(0)=YZ
+3230 p(1)=YY
+3240 p(2)=ZU
+3250 p(3)=YW
+3260 p(4)=YX
+3270 p(6)=ZA
+3280 ZY=usr(39)
+3290 RETURN
+3300 ' Escreve setores do disco (bruto) a partir da VRAM (maximo 32
+3310 ' setores = 16K por chamada). (S4)
+3320 p(0)=YZ
+3330 p(1)=YY
+3340 p(2)=ZL
+3350 p(3)=YW
+3360 p(4)=YX
+3370 p(6)=ZA
+3380 ZY=usr(40)
+3390 RETURN
+3400 ' Preenche um arquivo inteiro com um byte fixo (maximo &H4000 por
+3410 ' chamada). (S4)
+3420 p(0)=ZC
+3430 p(1)=ZN
+3440 p(4)=ZQ
+3450 ZY=usr(41)
+3460 RETURN
+3470 ' Move o ponteiro do arquivo. metodo: 0=a partir do inicio, 1=a partir
+3480 ' da posicao atual, 2=a partir do fim. offsetBaixo/offsetAlto: deslocamento
+3490 ' com sinal, dividido em 2 partes de 16 bits (formula na secao 10.5 do
+3500 ' manual pra deslocamentos fora de -32768..32767). Pra saber a posicao
+3510 ' atual sem mover: metodo=1, offsetBaixo=0, offsetAlto=0.
+3520 p(0)=ZC
+3530 p(1)=YV
+3540 p(2)=YU
+3550 p(3)=YT
+3560 ZY=usr(42)
+3570 RETURN
+3580 ' Devolve a unidade padrao e o vetor de unidades disponiveis (bit N = 1
+3590 ' se a unidade N existe, bit 0 = A:).
+3600 ZY=usr(43)
+3610 RETURN
+3620 ' Define a unidade padrao.
+3630 p(0)=YZ
+3640 ZY=usr(44)
+3650 RETURN
+3660 ' Informacoes de espaco em disco (unidade: 0=padrao,1=A:,...,8=H:,
+3670 ' ver nota no topo da secao). Espaco livre em bytes = setoresPorCluster
+3680 ' * clustersLivres * 512.
+3690 p(0)=YZ
+3700 ZY=usr(45)
+3710 RETURN
+3720 ' Devolve o diretorio padrao (so DOS 2; unidade: 0=padrao,1=A:,...,8=H:,
+3730 ' ver nota no topo da secao). Sem letra de unidade nem barras nas pontas -
+3740 ' raiz = string vazia.
+3750 p(0)=YZ
+3760 ZY=usr(46)
+3770 RETURN
+3780 ' Define o diretorio padrao (so DOS 2; nao muda a unidade padrao, use
+3790 ' .NB_SetDrive pra isso).
+3800 f$(0)=YS$
+3810 ZY=usr(47)
+3820 RETURN
+3830 ' Devolve o tamanho do RAM disk em segmentos de 16K (0 = nao existe;
+3840 ' so DOS 2). Tamanho em K = resultado*16.
+3850 ZY=usr(48)
+3860 RETURN
+3870 ' Cria o RAM disk com o tamanho pedido, em segmentos de 16K (so DOS 2;
+3880 ' o NestorBASIC toma pra si todos os segmentos livres ao instalar - ver
+3890 ' funcao 80 do manual pra liberar segmentos antes de criar o RAM disk).
+3900 ' Devolve o tamanho realmente criado (pode ser menor que o pedido).
+3910 p(0)=YR
+3920 ZY=usr(49)
+3930 RETURN
+3940 ' Devolve os atributos de um arquivo ja aberto (so DOS 2).
+3950 p(0)=ZC
+3960 ZY=usr(50)
+3970 RETURN
+3980 ' Devolve os atributos de um arquivo pelo nome, sem precisar abri-lo
+3990 ' (so DOS 2).
+4000 p(0)=255
+4010 f$(0)=ZG$
+4020 ZY=usr(50)
+4030 RETURN
+4040 ' Define os atributos de um arquivo ja aberto (so DOS 2; nao da pra
+4050 ' mudar atributo de arquivo aberto pelo nome, por isso o numero aqui).
+4060 p(0)=ZC
+4070 p(1)=ZD
+4080 ZY=usr(51)
+4090 RETURN
+4100 ' Define os atributos de um arquivo pelo nome, sem precisar abri-lo
+4110 ' (so DOS 2; nao pode ser um arquivo ja aberto).
+4120 p(0)=255
+4130 f$(0)=ZG$
+4140 p(1)=ZD
+4150 ZY=usr(51)
+4160 RETURN
+4170 ' Interpreta um caminho (so DOS 2, nao acessa o disco): devolve o
+4180 ' ultimo item (arquivo/diretorio) do caminho e a unidade logica; os
+4190 ' demais resultados (contem diretorio/unidade/nome/extensao, item
+4200 ' ambiguo, se e "." ou ".." etc., todos -1/0) ficam em p(0) a p(7).
+4210 f$(0)=YS$
+4220 p(10)=YQ
+4230 ZY=usr(52)
+4240 RETURN
+4250 ' Traduz um codigo de erro (devolvido por usr()/pelos .NB_* acima) pra
+4260 ' uma mensagem. Cobre o erro generico -1 e os erros de disco (secao 4
+4270 ' do manual) - nao cobre erros especificos de compressao grafica/PSG/
+4280 ' Moonblaster (Tier 2, ainda nao implementada).
+4290 YP$="Erro desconhecido"
+4300 if YO=0 then YP$="Sem erro"
+4310 if YO=-1 then YP$="Segmento ou endereco VRAM invalido"
+4320 if YO=1 then YP$="Erro geral de disco (DOS 1)"
+4330 if YO=2 then YP$="Numero de arquivo invalido"
+4340 if YO=3 then YP$="Excesso de arquivos abertos (DOS 1)"
+4350 if YO=60 then YP$="FAT invalida"
+4360 if YO=62 then YP$="Unidade invalida"
+4370 if YO=68 then YP$="Disco protegido contra gravacao"
+4380 if YO=69 then YP$="Erro fisico de disco"
+4390 if YO=70 then YP$="Disco offline"
+4400 if YO=187 then YP$="RAM disk nao existe"
+4410 if YO=188 then YP$="RAM disk ja existe"
+4420 if YO=194 then YP$="Numero de arquivo invalido (nao atribuido)"
+4430 if YO=195 then YP$="Numero de arquivo invalido (maior que 63)"
+4440 if YO=196 then YP$="Excesso de arquivos abertos"
+4450 if YO=199 then YP$="Fim de arquivo encontrado"
+4460 if YO=202 then YP$="Arquivo esta aberto"
+4470 if YO=203 then YP$="Arquivo ja existe (criar diretorio)"
+4480 if YO=204 then YP$="Diretorio ja existe"
+4490 if YO=205 then YP$="Arquivo de sistema existe"
+4500 if YO=206 then YP$="Operacao invalida com . ou .."
+4510 if YO=207 then YP$="Atributos invalidos"
+4520 if YO=208 then YP$="Diretorio nao esta vazio"
+4530 if YO=209 then YP$="Arquivo somente leitura"
+4540 if YO=210 then YP$="Movimento de diretorio invalido"
+4550 if YO=211 then YP$="Arquivo ja existe (renomear/mover)"
+4560 if YO=212 then YP$="Disco cheio"
+4570 if YO=213 then YP$="Diretorio raiz cheio"
+4580 if YO=214 then YP$="Diretorio nao encontrado"
+4590 if YO=215 then YP$="Arquivo nao encontrado"
+4600 if YO=217 then YP$="Caminho invalido"
+4610 if YO=218 then YP$="Nome de arquivo invalido"
+4620 if YO=219 then YP$="Unidade invalida"
+4630 if YO=222 then YP$="Memoria interna do DOS 2 insuficiente"
+4640 RETURN

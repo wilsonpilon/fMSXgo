@@ -1,0 +1,23 @@
+[
+  {
+    "Ext"      : "alf",
+    "DataSize" : 2048,
+    "Name"     : "Alfabeto Graphos III (.ALF)",
+    "StartAddr": 37376,
+    "FirstByte": 254
+  },
+  {
+    "Ext"      : "lay",
+    "DataSize" : -1,
+    "Name"     : "Layout Graphos III (.LAY)",
+    "StartAddr": 37376,
+    "FirstByte": 254
+  },
+  {
+    "Ext"      : "scr",
+    "DataSize" : -1,
+    "Name"     : "Tela Graphos III (.SCR)",
+    "StartAddr": -1,
+    "FirstByte": 254
+  }
+]

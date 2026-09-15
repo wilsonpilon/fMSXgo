@@ -1,0 +1,638 @@
+dist/LICENSE
+dist/MANUAL.md
+dist/PaleoBasic.exe
+dist/README.md
+dist/editor/SUPER-X-PT.notas
+dist/editor/basic_options_settings.json
+dist/editor/fonts/LICENSE-nerd-fonts.txt
+dist/editor/fonts/SymbolsNerdFontMono-Regular.ttf
+dist/editor/msxbas2rom_settings.json
+dist/editor/n80_settings.json
+dist/editor/redbook_images/CH01F01.png
+dist/editor/redbook_images/CH01F02.png
+dist/editor/redbook_images/CH01F03.png
+dist/editor/redbook_images/CH01F04.png
+dist/editor/redbook_images/CH01F05.png
+dist/editor/redbook_images/CH01F06.png
+dist/editor/redbook_images/CH02F07.png
+dist/editor/redbook_images/CH02F08.png
+dist/editor/redbook_images/CH02F09.png
+dist/editor/redbook_images/CH02F10.png
+dist/editor/redbook_images/CH02F11.png
+dist/editor/redbook_images/CH02F12.png
+dist/editor/redbook_images/CH02F13.png
+dist/editor/redbook_images/CH02F14.png
+dist/editor/redbook_images/CH02F15.png
+dist/editor/redbook_images/CH02F16.png
+dist/editor/redbook_images/CH02F17.png
+dist/editor/redbook_images/CH02F18.png
+dist/editor/redbook_images/CH02F19.png
+dist/editor/redbook_images/CH02F20.png
+dist/editor/redbook_images/CH02F21.png
+dist/editor/redbook_images/CH02F22.png
+dist/editor/redbook_images/CH02F23.png
+dist/editor/redbook_images/CH02F24.png
+dist/editor/redbook_images/CH03F25.png
+dist/editor/redbook_images/CH03F26.png
+dist/editor/redbook_images/CH03F27.png
+dist/editor/redbook_images/CH03F28.png
+dist/editor/redbook_images/CH03F29.png
+dist/editor/redbook_images/CH03F30.png
+dist/editor/redbook_images/CH03F31.png
+dist/editor/redbook_images/CH03F32.png
+dist/editor/redbook_images/CH03F33.png
+dist/editor/redbook_images/CH04F34.png
+dist/editor/redbook_images/CH04F35.png
+dist/editor/redbook_images/CH04F36.png
+dist/editor/redbook_images/CH04F37.png
+dist/editor/redbook_images/CH04F38.png
+dist/editor/redbook_images/CH04F39a.png
+dist/editor/redbook_images/CH04F39b.png
+dist/editor/redbook_images/CH04F40.png
+dist/editor/redbook_images/CH05F41.png
+dist/editor/redbook_images/CH05F42.png
+dist/editor/redbook_images/CH05F43.png
+dist/editor/redbook_images/CH05F44.png
+dist/editor/redbook_images/CH05F45.png
+dist/editor/redbook_images/CH05F46.png
+dist/editor/redbook_images/CH05F47.png
+dist/editor/redbook_images/CH05F48.png
+dist/editor/redbook_images/CH05F49.png
+dist/editor/redbook_images/CH05F50.png
+dist/editor/redbook_images/CH05F51.png
+dist/editor/redbook_images/CH05F52.png
+dist/editor/th2handbook_images/Figure_1.1.png
+dist/editor/th2handbook_images/Figure_1.2.png
+dist/editor/th2handbook_images/Figure_1.3.png
+dist/editor/th2handbook_images/Figure_1.8.png
+dist/editor/th2handbook_images/Figure_2.1.png
+dist/editor/th2handbook_images/Figure_2.10.png
+dist/editor/th2handbook_images/Figure_2.11.png
+dist/editor/th2handbook_images/Figure_2.12.png
+dist/editor/th2handbook_images/Figure_2.13.png
+dist/editor/th2handbook_images/Figure_2.14.png
+dist/editor/th2handbook_images/Figure_2.15.png
+dist/editor/th2handbook_images/Figure_2.16.png
+dist/editor/th2handbook_images/Figure_2.17.png
+dist/editor/th2handbook_images/Figure_2.18.png
+dist/editor/th2handbook_images/Figure_2.2.png
+dist/editor/th2handbook_images/Figure_2.20.png
+dist/editor/th2handbook_images/Figure_2.3.png
+dist/editor/th2handbook_images/Figure_2.5.png
+dist/editor/th2handbook_images/Figure_2.8.png
+dist/editor/th2handbook_images/Figure_2.9.png
+dist/editor/th2handbook_images/Figure_3.12.png
+dist/editor/th2handbook_images/Figure_3.13.png
+dist/editor/th2handbook_images/Figure_3.20.png
+dist/editor/th2handbook_images/Figure_3.21.png
+dist/editor/th2handbook_images/Figure_3.3.png
+dist/editor/th2handbook_images/Figure_3.4.png
+dist/editor/th2handbook_images/Figure_3.5.png
+dist/editor/th2handbook_images/Figure_3.6.png
+dist/editor/th2handbook_images/Figure_4.1.png
+dist/editor/th2handbook_images/Figure_4.10.png
+dist/editor/th2handbook_images/Figure_4.11.png
+dist/editor/th2handbook_images/Figure_4.12.png
+dist/editor/th2handbook_images/Figure_4.13.png
+dist/editor/th2handbook_images/Figure_4.14.png
+dist/editor/th2handbook_images/Figure_4.15.png
+dist/editor/th2handbook_images/Figure_4.16.png
+dist/editor/th2handbook_images/Figure_4.17.png
+dist/editor/th2handbook_images/Figure_4.18.png
+dist/editor/th2handbook_images/Figure_4.19.png
+dist/editor/th2handbook_images/Figure_4.2.png
+dist/editor/th2handbook_images/Figure_4.20.png
+dist/editor/th2handbook_images/Figure_4.21.png
+dist/editor/th2handbook_images/Figure_4.22.png
+dist/editor/th2handbook_images/Figure_4.23.png
+dist/editor/th2handbook_images/Figure_4.24.png
+dist/editor/th2handbook_images/Figure_4.25.png
+dist/editor/th2handbook_images/Figure_4.26.png
+dist/editor/th2handbook_images/Figure_4.27.png
+dist/editor/th2handbook_images/Figure_4.28.png
+dist/editor/th2handbook_images/Figure_4.29.png
+dist/editor/th2handbook_images/Figure_4.3.png
+dist/editor/th2handbook_images/Figure_4.30.png
+dist/editor/th2handbook_images/Figure_4.31.png
+dist/editor/th2handbook_images/Figure_4.32.png
+dist/editor/th2handbook_images/Figure_4.33.png
+dist/editor/th2handbook_images/Figure_4.34.png
+dist/editor/th2handbook_images/Figure_4.35.png
+dist/editor/th2handbook_images/Figure_4.36.png
+dist/editor/th2handbook_images/Figure_4.37.png
+dist/editor/th2handbook_images/Figure_4.38.png
+dist/editor/th2handbook_images/Figure_4.39.png
+dist/editor/th2handbook_images/Figure_4.4.png
+dist/editor/th2handbook_images/Figure_4.40.png
+dist/editor/th2handbook_images/Figure_4.41.png
+dist/editor/th2handbook_images/Figure_4.42.png
+dist/editor/th2handbook_images/Figure_4.43.png
+dist/editor/th2handbook_images/Figure_4.44.png
+dist/editor/th2handbook_images/Figure_4.45.png
+dist/editor/th2handbook_images/Figure_4.46.png
+dist/editor/th2handbook_images/Figure_4.47.png
+dist/editor/th2handbook_images/Figure_4.48.png
+dist/editor/th2handbook_images/Figure_4.49.png
+dist/editor/th2handbook_images/Figure_4.5.png
+dist/editor/th2handbook_images/Figure_4.50.png
+dist/editor/th2handbook_images/Figure_4.51.png
+dist/editor/th2handbook_images/Figure_4.52.png
+dist/editor/th2handbook_images/Figure_4.53.png
+dist/editor/th2handbook_images/Figure_4.54.png
+dist/editor/th2handbook_images/Figure_4.55.png
+dist/editor/th2handbook_images/Figure_4.56.png
+dist/editor/th2handbook_images/Figure_4.6.png
+dist/editor/th2handbook_images/Figure_4.7.png
+dist/editor/th2handbook_images/Figure_4.8.png
+dist/editor/th2handbook_images/Figure_4.9.png
+dist/editor/tools/msxbas2rom/demo/Game Demo 1/gd1.akm
+dist/editor/tools/msxbas2rom/demo/Game Demo 1/gd1.akx
+dist/editor/tools/msxbas2rom/demo/Game Demo 1/gd1.bas
+dist/editor/tools/msxbas2rom/demo/Game Demo 1/gd1.chr.plet5
+dist/editor/tools/msxbas2rom/demo/Game Demo 1/gd1.clr.plet5
+dist/editor/tools/msxbas2rom/demo/Game Demo 1/gd1.rom
+dist/editor/tools/msxbas2rom/demo/Game Demo 1/gd1.spr
+dist/editor/tools/msxbas2rom/demo/Game Demo 1/gd1[ASCII8].rom
+dist/editor/tools/msxbas2rom/demo/Game Demo 1/gd1_0_0.plet5
+dist/editor/tools/msxbas2rom/demo/Game Demo 1/resources/gd1.aks
+dist/editor/tools/msxbas2rom/demo/Game Demo 1/resources/gd1.pal
+dist/editor/tools/msxbas2rom/demo/Game Demo 1/resources/gd1.prj
+dist/editor/tools/msxbas2rom/demo/Game Demo 1/resources/gd1.scr
+dist/editor/tools/msxbas2rom/demo/Game Demo 1/resources/gd1.til
+dist/editor/tools/msxbas2rom/demo/Game Demo 1/resources/invent14.mid
+dist/editor/tools/msxbas2rom/demo/Game Demo 2/SCREEN.S12
+dist/editor/tools/msxbas2rom/demo/Game Demo 2/SCREEN.SC2
+dist/editor/tools/msxbas2rom/demo/Game Demo 2/SCREEN.SC8
+dist/editor/tools/msxbas2rom/demo/Game Demo 2/gd2.akm
+dist/editor/tools/msxbas2rom/demo/Game Demo 2/gd2.akx
+dist/editor/tools/msxbas2rom/demo/Game Demo 2/gd2.bas
+dist/editor/tools/msxbas2rom/demo/Game Demo 2/gd2.rom
+dist/editor/tools/msxbas2rom/demo/Game Demo 2/gd2_1.spr
+dist/editor/tools/msxbas2rom/demo/Game Demo 2/gd2_2.spr
+dist/editor/tools/msxbas2rom/demo/Game Demo 2/resources/Holst-Mars.mid
+dist/editor/tools/msxbas2rom/demo/Game Demo 2/resources/Wagner_Entry_of_the_Gods_into_Valhalla.mid
+dist/editor/tools/msxbas2rom/demo/Game Demo 2/resources/gd2.aks
+dist/editor/tools/msxbas2rom/demo/Game Demo 2/resources/gd2_mars.aks
+dist/editor/tools/msxbas2rom/demo/Game Demo 2/resources/screen.jpg
+dist/editor/tools/msxbas2rom/demo/Games Published/ClubeMSX_Games.png
+dist/editor/tools/msxbas2rom/demo/Games Published/fishlife.png
+dist/editor/tools/msxbas2rom/demo/Games Published/indian night.png
+dist/editor/tools/msxbas2rom/demo/Games Published/mine_command_debug.png
+dist/editor/tools/msxbas2rom/demo/Games Published/msx adventure screenshot.png
+dist/editor/tools/msxbas2rom/demo/README.md
+dist/editor/tools/msxbas2rom/demo/Tesouro Perdido/SCREEN1.SC2
+dist/editor/tools/msxbas2rom/demo/Tesouro Perdido/SCREEN2.SC2
+dist/editor/tools/msxbas2rom/demo/Tesouro Perdido/SCREEN3.SC2
+dist/editor/tools/msxbas2rom/demo/Tesouro Perdido/SCREEN4.SC2
+dist/editor/tools/msxbas2rom/demo/Tesouro Perdido/SCREEN5.SC2
+dist/editor/tools/msxbas2rom/demo/Tesouro Perdido/SCREEN6.SC2
+dist/editor/tools/msxbas2rom/demo/Tesouro Perdido/SCREEN7.SC2
+dist/editor/tools/msxbas2rom/demo/Tesouro Perdido/SCREEN8.SC2
+dist/editor/tools/msxbas2rom/demo/Tesouro Perdido/SoundEffects.aks
+dist/editor/tools/msxbas2rom/demo/Tesouro Perdido/tesperd.akm
+dist/editor/tools/msxbas2rom/demo/Tesouro Perdido/tesperd.aks
+dist/editor/tools/msxbas2rom/demo/Tesouro Perdido/tesperd.akx
+dist/editor/tools/msxbas2rom/demo/Tesouro Perdido/tesperd.bas
+dist/editor/tools/msxbas2rom/demo/Tesouro Perdido/tesperd.rom
+dist/editor/tools/msxbas2rom/demo/scroll1/scroll1.bas
+dist/editor/tools/msxbas2rom/demo/scroll1/scroll1.rom
+dist/editor/tools/msxbas2rom/demo/scroll2/SHIP.SPR
+dist/editor/tools/msxbas2rom/demo/scroll2/STARS.JPG
+dist/editor/tools/msxbas2rom/demo/scroll2/STARS.SC2
+dist/editor/tools/msxbas2rom/demo/scroll2/scroll2.bas
+dist/editor/tools/msxbas2rom/demo/scroll2/scroll2.rom
+dist/editor/tools/msxbas2rom/demo/scroll3/SHIP.SPR
+dist/editor/tools/msxbas2rom/demo/scroll3/STARS.JPG
+dist/editor/tools/msxbas2rom/demo/scroll3/STARS.SC4
+dist/editor/tools/msxbas2rom/demo/scroll3/scroll3.bas
+dist/editor/tools/msxbas2rom/demo/scroll3/scroll3.rom
+dist/editor/tools/msxbas2rom/demo/scroll4/SAND.SC2
+dist/editor/tools/msxbas2rom/demo/scroll4/resources/sand.pal
+dist/editor/tools/msxbas2rom/demo/scroll4/resources/sand.prj
+dist/editor/tools/msxbas2rom/demo/scroll4/resources/sand.scr
+dist/editor/tools/msxbas2rom/demo/scroll4/resources/sand.til
+dist/editor/tools/msxbas2rom/demo/scroll4/scroll4.bas
+dist/editor/tools/msxbas2rom/demo/scroll4/scroll4.rom
+dist/editor/tools/msxbas2rom/demo/scroll5/SCR02.BAS
+dist/editor/tools/msxbas2rom/demo/scroll5/SCR02.rom
+dist/editor/tools/msxbas2rom/demo/scroll5/SCR07.BAS
+dist/editor/tools/msxbas2rom/demo/scroll5/SCR07.rom
+dist/editor/tools/msxbas2rom/demo/scroll5/SCR08.BAS
+dist/editor/tools/msxbas2rom/demo/scroll5/SCR08.rom
+dist/editor/tools/msxbas2rom/demo/scroll5/SCR12.BAS
+dist/editor/tools/msxbas2rom/demo/scroll5/SCR12.rom
+dist/editor/tools/msxbas2rom/demo/scroll5/SCREEN.S12
+dist/editor/tools/msxbas2rom/demo/scroll5/SCREEN.SC2
+dist/editor/tools/msxbas2rom/demo/scroll5/SCREEN.SC7
+dist/editor/tools/msxbas2rom/demo/scroll5/SCREEN.SC8
+dist/editor/tools/msxbas2rom/demo/scroll5/screen.jpg
+dist/editor/tools/msxbas2rom/games/.gitignore
+dist/editor/tools/msxbas2rom/games/Bobby/.vscode/debug.tcl
+dist/editor/tools/msxbas2rom/games/Bobby/.vscode/launch.json
+dist/editor/tools/msxbas2rom/games/Bobby/.vscode/tasks.json
+dist/editor/tools/msxbas2rom/games/Bobby/LICENSE
+dist/editor/tools/msxbas2rom/games/Bobby/README.md
+dist/editor/tools/msxbas2rom/games/Bobby/bobby.bas
+dist/editor/tools/msxbas2rom/games/Bobby/img/bobby.spr
+dist/editor/tools/msxbas2rom/games/Bobby/img/flanders.SC2
+dist/editor/tools/msxbas2rom/games/Bobby/img/png/flanders72.png
+dist/editor/tools/msxbas2rom/games/Bobby/img/png/sample1.png
+dist/editor/tools/msxbas2rom/games/Bobby/img/png/sample10.png
+dist/editor/tools/msxbas2rom/games/Bobby/img/png/sample11.png
+dist/editor/tools/msxbas2rom/games/Bobby/img/png/sample12.png
+dist/editor/tools/msxbas2rom/games/Bobby/img/png/sample13.png
+dist/editor/tools/msxbas2rom/games/Bobby/img/png/sample2.png
+dist/editor/tools/msxbas2rom/games/Bobby/img/png/sample3.png
+dist/editor/tools/msxbas2rom/games/Bobby/img/png/sample4.png
+dist/editor/tools/msxbas2rom/games/Bobby/img/png/sample5.png
+dist/editor/tools/msxbas2rom/games/Bobby/img/png/sample6.png
+dist/editor/tools/msxbas2rom/games/Bobby/img/png/sample7.png
+dist/editor/tools/msxbas2rom/games/Bobby/img/png/sample8.png
+dist/editor/tools/msxbas2rom/games/Bobby/img/png/sample9.png
+dist/editor/tools/msxbas2rom/games/Bobby/img/png/scene1-0.SC2
+dist/editor/tools/msxbas2rom/games/Bobby/img/png/scene1-0.png
+dist/editor/tools/msxbas2rom/games/Bobby/img/png/scene1-1.png
+dist/editor/tools/msxbas2rom/games/Bobby/img/png/scene1-2.png
+dist/editor/tools/msxbas2rom/games/Bobby/img/png/scene1-3.png
+dist/editor/tools/msxbas2rom/games/Bobby/img/png/scene1-4.png
+dist/editor/tools/msxbas2rom/games/Bobby/img/png/scene1-5.png
+dist/editor/tools/msxbas2rom/games/Bobby/img/png/scene1-6.png
+dist/editor/tools/msxbas2rom/games/Bobby/img/png/scene1-7.png
+dist/editor/tools/msxbas2rom/games/Bobby/img/png/scene1-7b.gif
+dist/editor/tools/msxbas2rom/games/Bobby/img/png/scene2-0.png
+dist/editor/tools/msxbas2rom/games/Bobby/img/png/splash.odp
+dist/editor/tools/msxbas2rom/games/Bobby/img/png/splash.png
+dist/editor/tools/msxbas2rom/games/Bobby/img/png/splash.xcf
+dist/editor/tools/msxbas2rom/games/Bobby/img/scene0.SC2
+dist/editor/tools/msxbas2rom/games/Bobby/img/scene1.SC2
+dist/editor/tools/msxbas2rom/games/Bobby/img/scene2.SC2
+dist/editor/tools/msxbas2rom/games/Bobby/img/scene3.SC2
+dist/editor/tools/msxbas2rom/games/Bobby/img/scene4.SC2
+dist/editor/tools/msxbas2rom/games/Bobby/img/scene5.SC2
+dist/editor/tools/msxbas2rom/games/Bobby/img/scene6.SC2
+dist/editor/tools/msxbas2rom/games/Bobby/img/scene7.SC2
+dist/editor/tools/msxbas2rom/games/Bobby/img/splash.SC2
+dist/editor/tools/msxbas2rom/games/Bobby/levels/levels.csv
+dist/editor/tools/msxbas2rom/games/Bobby/levels/schema.txt
+dist/editor/tools/msxbas2rom/games/Bobby/music/bobby.akm
+dist/editor/tools/msxbas2rom/games/Bobby/music/bobby.aks
+dist/editor/tools/msxbas2rom/games/Bobby/music/bobby_se.aks
+dist/editor/tools/msxbas2rom/games/Bobby/music/bobby_se.akx
+dist/editor/tools/msxbas2rom/games/Bobby/music/midi/What_a_Friend_We_Have_in_Jesus.mid
+dist/editor/tools/msxbas2rom/games/Bobby/music/midi/What_a_Friend_We_Have_in_Jesus_2.mid
+dist/editor/tools/msxbas2rom/games/Bobby/music/midi/bobby_1.mid
+dist/editor/tools/msxbas2rom/games/Bobby/music/midi/sweet.mid
+dist/editor/tools/msxbas2rom/games/Donkey/.gitignore
+dist/editor/tools/msxbas2rom/games/Donkey/.vscode/launch.json
+dist/editor/tools/msxbas2rom/games/Donkey/.vscode/tasks.json
+dist/editor/tools/msxbas2rom/games/Donkey/DONKEY.BAS
+dist/editor/tools/msxbas2rom/games/Donkey/DONKEY.rom
+dist/editor/tools/msxbas2rom/games/Donkey/Makefile
+dist/editor/tools/msxbas2rom/games/Donkey/README.md
+dist/editor/tools/msxbas2rom/games/Donkey/debug.tcl
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/.gitignore
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/.vscode/launch.json
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/.vscode/tasks.json
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/LICENSE
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/Makefile
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/README.md
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/debug.tcl
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/drgtsr.bas
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/drgtsr.rom
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/drgtsr[ASCII8].rom
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/img/SCR0.SC2
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/img/SCR1.SC2
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/img/SCR2.SC2
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/img/SCR3.SC2
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/img/SPRITES1.SPR
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/img/SPRITES2.SPR
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/img/extra/Dragon Treasure (Funvision).png
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/img/extra/Dragon Treasure (Funvision)_1.png
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/img/extra/Knight.png
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/img/extra/MSX MSX2 - Maze of Galious - Knightmare II - Popolon & Aphrodite.png
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/img/extra/cart1.jpg
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/img/extra/cart2.jpg
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/img/extra/cart3.jpg
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/img/extra/cart4.png
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/img/extra/castle1.png
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/img/extra/castle2.png
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/img/extra/castle3.png
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/img/extra/castle4.png
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/img/extra/fireball.png
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/music/Songs.txt
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/music/SoundEffects.aks
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/music/drgtsr.akm
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/music/drgtsr.aks
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/music/drgtsr.akx
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/music/extra/dragon_scream.bas
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/music/extra/dragon_scream.txt
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/music/midi/Agincourt-carol.mid
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/music/midi/Cuncti_Simus_Concanentes.mid
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/music/midi/Dies_Irae.mid
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/music/midi/Douce_Dame_Jolie_-_Machaut_Guillaume_de_c.1300_-_1377.mid
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/music/midi/Gurlitt_Opus_117_No_8_Vivace.mid
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/music/midi/La sereníssima (Loreena McKennitt).mid
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/music/midi/Misty Mountains (The Hobbit).mid
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/music/midi/Scarborough Fair.mid
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/music/midi/Sumer_Is_Icumen_In.mid
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/music/midi/The harmonious blacksmith (Handel).mid
+dist/editor/tools/msxbas2rom/games/Dragon Treasure/music/midi/douce_dameTBNE.mid
+dist/editor/tools/msxbas2rom/games/Flubber/.gitignore
+dist/editor/tools/msxbas2rom/games/Flubber/.vscode/launch.json
+dist/editor/tools/msxbas2rom/games/Flubber/.vscode/tasks.json
+dist/editor/tools/msxbas2rom/games/Flubber/LICENSE
+dist/editor/tools/msxbas2rom/games/Flubber/Makefile
+dist/editor/tools/msxbas2rom/games/Flubber/README.md
+dist/editor/tools/msxbas2rom/games/Flubber/debug.tcl
+dist/editor/tools/msxbas2rom/games/Flubber/flubber.bas
+dist/editor/tools/msxbas2rom/games/Flubber/flubber.rom
+dist/editor/tools/msxbas2rom/games/Flubber/img/Flubber_Screens.pal
+dist/editor/tools/msxbas2rom/games/Flubber/img/Flubber_Screens.prj
+dist/editor/tools/msxbas2rom/games/Flubber/img/Flubber_Screens.scr
+dist/editor/tools/msxbas2rom/games/Flubber/img/Flubber_Screens.til
+dist/editor/tools/msxbas2rom/games/Flubber/img/Flubber_Sprites.pal
+dist/editor/tools/msxbas2rom/games/Flubber/img/Flubber_Sprites.prj
+dist/editor/tools/msxbas2rom/games/Flubber/img/Flubber_Sprites.scr
+dist/editor/tools/msxbas2rom/games/Flubber/img/Flubber_Sprites.til
+dist/editor/tools/msxbas2rom/games/Flubber/img/finale.sc2
+dist/editor/tools/msxbas2rom/games/Flubber/img/flubber.spr
+dist/editor/tools/msxbas2rom/games/Flubber/img/playfield.sc2
+dist/editor/tools/msxbas2rom/games/Flubber/img/splash.sc2
+dist/editor/tools/msxbas2rom/games/Flubber/levels/levels.txt
+dist/editor/tools/msxbas2rom/games/Flubber/music/SoundEffectsFlubber.aks
+dist/editor/tools/msxbas2rom/games/Flubber/music/effects.akx
+dist/editor/tools/msxbas2rom/games/Flubber/music/flubber.akm
+dist/editor/tools/msxbas2rom/games/Flubber/music/flubber.aks
+dist/editor/tools/msxbas2rom/games/Fortknox/.gitignore
+dist/editor/tools/msxbas2rom/games/Fortknox/.vscode/launch.json
+dist/editor/tools/msxbas2rom/games/Fortknox/.vscode/tasks.json
+dist/editor/tools/msxbas2rom/games/Fortknox/LICENSE
+dist/editor/tools/msxbas2rom/games/Fortknox/Makefile
+dist/editor/tools/msxbas2rom/games/Fortknox/README.md
+dist/editor/tools/msxbas2rom/games/Fortknox/debug.tcl
+dist/editor/tools/msxbas2rom/games/Fortknox/fortknox.bas
+dist/editor/tools/msxbas2rom/games/Fortknox/fortknox[KonamiSCC].rom
+dist/editor/tools/msxbas2rom/games/Fortknox/img/INTRO.SC1
+dist/editor/tools/msxbas2rom/games/Fortknox/img/fortknox1.spr
+dist/editor/tools/msxbas2rom/games/Fortknox/img/fortknox2.spr
+dist/editor/tools/msxbas2rom/games/Fortknox/img/fortknox3.spr
+dist/editor/tools/msxbas2rom/games/Fortknox/img/png/Fortknox.png
+dist/editor/tools/msxbas2rom/games/Fortknox/img/png/example1.png
+dist/editor/tools/msxbas2rom/games/Fortknox/img/png/example2.png
+dist/editor/tools/msxbas2rom/games/Fortknox/img/png/example3.png
+dist/editor/tools/msxbas2rom/games/Fortknox/img/png/example4.png
+dist/editor/tools/msxbas2rom/games/Fortknox/img/png/example5.png
+dist/editor/tools/msxbas2rom/games/Fortknox/levels/SFBANK00.VRM
+dist/editor/tools/msxbas2rom/games/Fortknox/levels/SFBANK01.VRM
+dist/editor/tools/msxbas2rom/games/Fortknox/music/SoundEffects.aks
+dist/editor/tools/msxbas2rom/games/Fortknox/music/effects.akx
+dist/editor/tools/msxbas2rom/games/Fortknox/music/fortknox.akm
+dist/editor/tools/msxbas2rom/games/Fortknox/music/fortknox.aks
+dist/editor/tools/msxbas2rom/games/Fortknox/music/midi/Turkey in the Straw.mid
+dist/editor/tools/msxbas2rom/games/Kwirk/.gitignore
+dist/editor/tools/msxbas2rom/games/Kwirk/.vscode/launch.json
+dist/editor/tools/msxbas2rom/games/Kwirk/.vscode/tasks.json
+dist/editor/tools/msxbas2rom/games/Kwirk/LICENSE
+dist/editor/tools/msxbas2rom/games/Kwirk/Makefile
+dist/editor/tools/msxbas2rom/games/Kwirk/README.md
+dist/editor/tools/msxbas2rom/games/Kwirk/debug.tcl
+dist/editor/tools/msxbas2rom/games/Kwirk/img/abandon.SC5
+dist/editor/tools/msxbas2rom/games/Kwirk/img/extra/Kwirk - He's A-maze-ing! (USA, Europe)-1.png
+dist/editor/tools/msxbas2rom/games/Kwirk/img/extra/Kwirk - He's A-maze-ing! (USA, Europe)-10.png
+dist/editor/tools/msxbas2rom/games/Kwirk/img/extra/Kwirk - He's A-maze-ing! (USA, Europe)-11.png
+dist/editor/tools/msxbas2rom/games/Kwirk/img/extra/Kwirk - He's A-maze-ing! (USA, Europe)-12.png
+dist/editor/tools/msxbas2rom/games/Kwirk/img/extra/Kwirk - He's A-maze-ing! (USA, Europe)-13.png
+dist/editor/tools/msxbas2rom/games/Kwirk/img/extra/Kwirk - He's A-maze-ing! (USA, Europe)-14.png
+dist/editor/tools/msxbas2rom/games/Kwirk/img/extra/Kwirk - He's A-maze-ing! (USA, Europe)-15.png
+dist/editor/tools/msxbas2rom/games/Kwirk/img/extra/Kwirk - He's A-maze-ing! (USA, Europe)-16.png
+dist/editor/tools/msxbas2rom/games/Kwirk/img/extra/Kwirk - He's A-maze-ing! (USA, Europe)-2.png
+dist/editor/tools/msxbas2rom/games/Kwirk/img/extra/Kwirk - He's A-maze-ing! (USA, Europe)-3.png
+dist/editor/tools/msxbas2rom/games/Kwirk/img/extra/Kwirk - He's A-maze-ing! (USA, Europe)-4.png
+dist/editor/tools/msxbas2rom/games/Kwirk/img/extra/Kwirk - He's A-maze-ing! (USA, Europe)-5.png
+dist/editor/tools/msxbas2rom/games/Kwirk/img/extra/Kwirk - He's A-maze-ing! (USA, Europe)-6.png
+dist/editor/tools/msxbas2rom/games/Kwirk/img/extra/Kwirk - He's A-maze-ing! (USA, Europe)-7.png
+dist/editor/tools/msxbas2rom/games/Kwirk/img/extra/Kwirk - He's A-maze-ing! (USA, Europe)-8.png
+dist/editor/tools/msxbas2rom/games/Kwirk/img/extra/Kwirk - He's A-maze-ing! (USA, Europe)-9.png
+dist/editor/tools/msxbas2rom/games/Kwirk/img/extra/tiles.png
+dist/editor/tools/msxbas2rom/games/Kwirk/img/extra/wall.png
+dist/editor/tools/msxbas2rom/games/Kwirk/img/finish.SC5
+dist/editor/tools/msxbas2rom/games/Kwirk/img/floor.SC5
+dist/editor/tools/msxbas2rom/games/Kwirk/img/skill.SC5
+dist/editor/tools/msxbas2rom/games/Kwirk/img/snapshots/abandon.png
+dist/editor/tools/msxbas2rom/games/Kwirk/img/snapshots/finish.png
+dist/editor/tools/msxbas2rom/games/Kwirk/img/snapshots/floor.png
+dist/editor/tools/msxbas2rom/games/Kwirk/img/snapshots/skill.png
+dist/editor/tools/msxbas2rom/games/Kwirk/img/snapshots/splash.png
+dist/editor/tools/msxbas2rom/games/Kwirk/img/snapshots/start.png
+dist/editor/tools/msxbas2rom/games/Kwirk/img/snapshots/tiles.png
+dist/editor/tools/msxbas2rom/games/Kwirk/img/snapshots/wall.png
+dist/editor/tools/msxbas2rom/games/Kwirk/img/splash.SC5
+dist/editor/tools/msxbas2rom/games/Kwirk/img/start.SC5
+dist/editor/tools/msxbas2rom/games/Kwirk/img/tiles.SC5
+dist/editor/tools/msxbas2rom/games/Kwirk/img/wall.SC5
+dist/editor/tools/msxbas2rom/games/Kwirk/kwirk.bas
+dist/editor/tools/msxbas2rom/games/Kwirk/kwirk[KonamiSCC].rom
+dist/editor/tools/msxbas2rom/games/Kwirk/levels/extra/kwirk_20x.zip
+dist/editor/tools/msxbas2rom/games/Kwirk/levels/extra/kwirk_kernel.zip
+dist/editor/tools/msxbas2rom/games/Kwirk/levels/extra/kwirk_src.zip
+dist/editor/tools/msxbas2rom/games/Kwirk/levels/kEasy.89s
+dist/editor/tools/msxbas2rom/games/Kwirk/levels/kHard.89s
+dist/editor/tools/msxbas2rom/games/Kwirk/levels/kMed.89s
+dist/editor/tools/msxbas2rom/games/Kwirk/levels/schema.txt
+dist/editor/tools/msxbas2rom/games/Kwirk/music/SoundEffects.aks
+dist/editor/tools/msxbas2rom/games/Kwirk/music/effects.akx
+dist/editor/tools/msxbas2rom/games/Kwirk/music/kwirk.akm
+dist/editor/tools/msxbas2rom/games/Kwirk/music/kwirk.aks
+dist/editor/tools/msxbas2rom/games/Kwirk/music/midi/Kwirk - Going up.zip
+dist/editor/tools/msxbas2rom/games/Kwirk/music/midi/basic-rock-shuffle.mid
+dist/editor/tools/msxbas2rom/games/Kwirk/music/midi/disco-beat.mid
+dist/editor/tools/msxbas2rom/games/Kwirk/music/midi/kwirk_goal.mid
+dist/editor/tools/msxbas2rom/games/Kwirk/music/midi/trap-beat.mid
+dist/editor/tools/msxbas2rom/games/LICENSE
+dist/editor/tools/msxbas2rom/games/PickinX/.gitignore
+dist/editor/tools/msxbas2rom/games/PickinX/.vscode/launch.json
+dist/editor/tools/msxbas2rom/games/PickinX/.vscode/tasks.json
+dist/editor/tools/msxbas2rom/games/PickinX/LICENSE
+dist/editor/tools/msxbas2rom/games/PickinX/Makefile
+dist/editor/tools/msxbas2rom/games/PickinX/README.md
+dist/editor/tools/msxbas2rom/games/PickinX/debug.tcl
+dist/editor/tools/msxbas2rom/games/PickinX/img/picking.pal
+dist/editor/tools/msxbas2rom/games/PickinX/img/picking.prj
+dist/editor/tools/msxbas2rom/games/PickinX/img/picking.scr
+dist/editor/tools/msxbas2rom/games/PickinX/img/picking.til
+dist/editor/tools/msxbas2rom/games/PickinX/img/screen_0_0.plet5
+dist/editor/tools/msxbas2rom/games/PickinX/img/screen_1_0.plet5
+dist/editor/tools/msxbas2rom/games/PickinX/img/screen_2_0.plet5
+dist/editor/tools/msxbas2rom/games/PickinX/img/screen_3_0.plet5
+dist/editor/tools/msxbas2rom/games/PickinX/img/screen_4_0.plet5
+dist/editor/tools/msxbas2rom/games/PickinX/img/screen_5_0.plet5
+dist/editor/tools/msxbas2rom/games/PickinX/img/screen_6_0.plet5
+dist/editor/tools/msxbas2rom/games/PickinX/img/screen_7_0.plet5
+dist/editor/tools/msxbas2rom/games/PickinX/img/sprites.spr
+dist/editor/tools/msxbas2rom/games/PickinX/img/test.sc2
+dist/editor/tools/msxbas2rom/games/PickinX/img/tiles.chr.plet5
+dist/editor/tools/msxbas2rom/games/PickinX/img/tiles.clr.plet5
+dist/editor/tools/msxbas2rom/games/PickinX/music/pickinx.akm
+dist/editor/tools/msxbas2rom/games/PickinX/music/pickinx.aks
+dist/editor/tools/msxbas2rom/games/PickinX/music/pickinx.akx
+dist/editor/tools/msxbas2rom/games/PickinX/music/se_pickinx.aks
+dist/editor/tools/msxbas2rom/games/PickinX/pickinx.bas
+dist/editor/tools/msxbas2rom/games/PickinX/pickinx.rom
+dist/editor/tools/msxbas2rom/games/QbertDemo/.gitignore
+dist/editor/tools/msxbas2rom/games/QbertDemo/.vscode/launch.json
+dist/editor/tools/msxbas2rom/games/QbertDemo/.vscode/tasks.json
+dist/editor/tools/msxbas2rom/games/QbertDemo/LICENSE
+dist/editor/tools/msxbas2rom/games/QbertDemo/Makefile
+dist/editor/tools/msxbas2rom/games/QbertDemo/README.md
+dist/editor/tools/msxbas2rom/games/QbertDemo/debug.tcl
+dist/editor/tools/msxbas2rom/games/QbertDemo/img/INTRO.SC5
+dist/editor/tools/msxbas2rom/games/QbertDemo/img/TILES.SC5
+dist/editor/tools/msxbas2rom/games/QbertDemo/levels/Q-BERT1.STA
+dist/editor/tools/msxbas2rom/games/QbertDemo/music/Qbert.aks
+dist/editor/tools/msxbas2rom/games/QbertDemo/music/SoundEffects.aks
+dist/editor/tools/msxbas2rom/games/QbertDemo/music/effects.akx
+dist/editor/tools/msxbas2rom/games/QbertDemo/music/extra/basic-rock-shuffle.mid
+dist/editor/tools/msxbas2rom/games/QbertDemo/music/extra/disco-beat.mid
+dist/editor/tools/msxbas2rom/games/QbertDemo/music/extra/qbert_level_clear.mid
+dist/editor/tools/msxbas2rom/games/QbertDemo/music/extra/qbert_level_start.mid
+dist/editor/tools/msxbas2rom/games/QbertDemo/music/extra/qbert_lift.mid
+dist/editor/tools/msxbas2rom/games/QbertDemo/music/extra/sounds.txt
+dist/editor/tools/msxbas2rom/games/QbertDemo/music/extra/trap-beat.mid
+dist/editor/tools/msxbas2rom/games/QbertDemo/music/qbert.akm
+dist/editor/tools/msxbas2rom/games/QbertDemo/qbertdem.bas
+dist/editor/tools/msxbas2rom/games/QbertDemo/qbertdem[KonamiSCC].rom
+dist/editor/tools/msxbas2rom/games/README.md
+dist/editor/tools/msxbas2rom/games/Spider/.gitignore
+dist/editor/tools/msxbas2rom/games/Spider/.vscode/launch.json
+dist/editor/tools/msxbas2rom/games/Spider/.vscode/tasks.json
+dist/editor/tools/msxbas2rom/games/Spider/LICENSE
+dist/editor/tools/msxbas2rom/games/Spider/Makefile
+dist/editor/tools/msxbas2rom/games/Spider/README.md
+dist/editor/tools/msxbas2rom/games/Spider/debug.tcl
+dist/editor/tools/msxbas2rom/games/Spider/img/spider.SC2
+dist/editor/tools/msxbas2rom/games/Spider/img/spider.spr
+dist/editor/tools/msxbas2rom/games/Spider/music/SoundEffects.aks
+dist/editor/tools/msxbas2rom/games/Spider/music/effects.akx
+dist/editor/tools/msxbas2rom/games/Spider/music/midi/invent14.mid
+dist/editor/tools/msxbas2rom/games/Spider/music/spider.akm
+dist/editor/tools/msxbas2rom/games/Spider/music/spider.aks
+dist/editor/tools/msxbas2rom/games/Spider/spider.bas
+dist/editor/tools/msxbas2rom/games/Spider/spider.rom
+dist/editor/tools/msxbas2rom/games/Superman/.gitignore
+dist/editor/tools/msxbas2rom/games/Superman/.vscode/launch.json
+dist/editor/tools/msxbas2rom/games/Superman/.vscode/tasks.json
+dist/editor/tools/msxbas2rom/games/Superman/Makefile
+dist/editor/tools/msxbas2rom/games/Superman/debug.tcl
+dist/editor/tools/msxbas2rom/games/Superman/img/png/city_skyline.png
+dist/editor/tools/msxbas2rom/games/Superman/img/png/supermap.gif
+dist/editor/tools/msxbas2rom/games/Superman/img/superman.SC4Map
+dist/editor/tools/msxbas2rom/games/Superman/img/superman.SC4Pal
+dist/editor/tools/msxbas2rom/games/Superman/img/superman.SC4Super
+dist/editor/tools/msxbas2rom/games/Superman/img/superman.SC4Tiles
+dist/editor/tools/msxbas2rom/games/Superman/img/superman.mtf.json
+dist/editor/tools/msxbas2rom/games/Superman/superman.bas
+dist/editor/tools/msxbas2rom/help/_index.json
+dist/editor/tools/msxbas2rom/help/cli-help.md
+dist/editor/tools/msxbas2rom/help/compiler-architecture.md
+dist/editor/tools/msxbas2rom/help/compiling-code.md
+dist/editor/tools/msxbas2rom/help/debugging_with_openmsx.md
+dist/editor/tools/msxbas2rom/help/documentation.md
+dist/editor/tools/msxbas2rom/help/examples.md
+dist/editor/tools/msxbas2rom/help/extended-commands.md
+dist/editor/tools/msxbas2rom/help/extended-functions.md
+dist/editor/tools/msxbas2rom/help/getting-help.md
+dist/editor/tools/msxbas2rom/help/gettingstarted.md
+dist/editor/tools/msxbas2rom/help/home.md
+dist/editor/tools/msxbas2rom/help/install.md
+dist/editor/tools/msxbas2rom/help/msxbas2rom_vscode_manual_setup.md
+dist/editor/tools/msxbas2rom/help/mtf-support.md
+dist/editor/tools/msxbas2rom/help/music-support.md
+dist/editor/tools/msxbas2rom/help/nmt-support.md
+dist/editor/tools/msxbas2rom/help/resource-directives.md
+dist/editor/tools/msxbas2rom/help/ts-support.md
+dist/editor/tools/msxbas2rom/help/usage.md
+dist/editor/tools/msxbas2rom/help/vscode_integration.md
+dist/editor/tools/msxbas2rom/msxbas2rom.exe
+dist/editor/tools/n80/LB80.exe
+dist/editor/tools/n80/LK80.exe
+dist/editor/tools/n80/N80.exe
+dist/editor/tools/n80/help/_index.json
+dist/editor/tools/n80/help/lb80-cli.md
+dist/editor/tools/n80/help/lk80-cli.md
+dist/editor/tools/n80/help/m80l80-manual.md
+dist/editor/tools/n80/help/n80-cli.md
+dist/editor/tools/n80/help/n80-language-reference.md
+dist/editor/tools/n80/help/n80-writing-relocatable-code.md
+dist/fonts/Source_Code_Pro.zip
+dist/fossauro/help/_index.json
+dist/fossauro/help/integracao.md
+dist/fossauro/help/status.md
+dist/fossauro/help/teclado-cli.md
+dist/paleobasic.png
+dist/projects/README.md
+dist/projects/noname.msxproject
+dist/res/NBASIC.DAT
+dist/res/command.com
+dist/res/msxdos.dsk
+dist/res/msxdos.sys
+dist/sample/BRKEVN.CAL
+dist/sample/CHECKS.CAL
+dist/sample/ORCAMENT.CAL
+dist/sample/SAMPLE.CAL
+dist/sample/SCREEN2_DEMO_README.txt
+dist/sample/TENMIN.CAL
+dist/sample/TESTE_ASM_GUIA.md
+dist/sample/compile_teste.bat
+dist/sample/draw.amx
+dist/sample/draw.dmx
+dist/sample/no1.bmx
+dist/sample/noname1.amx
+dist/sample/noname1.bmx
+dist/sample/noname1.dmx
+dist/sample/nteste.asm
+dist/sample/print.mza
+dist/sample/sample
+dist/sample/sample.msxproject
+dist/sample/screen2_demo.asm
+dist/sample/sprite_loader.dmx
+dist/sample/teste
+dist/sample/teste.amx
+dist/sample/teste.asm
+dist/sample/teste.bmx
+dist/sample/teste.dmx
+dist/sample/teste.dmx.bak
+dist/sample/teste10_link_transitive_lib.rel
+dist/sample/teste10_link_transitive_main.asm
+dist/sample/teste10_link_transitive_main.rel
+dist/sample/teste10_link_transitive_modx.asm
+dist/sample/teste10_link_transitive_modx.rel
+dist/sample/teste10_link_transitive_mody.asm
+dist/sample/teste10_link_transitive_mody.rel
+dist/sample/teste10_link_transitive_modz.asm
+dist/sample/teste10_link_transitive_modz.rel
+dist/sample/teste2_macros.asm
+dist/sample/teste3_phase.asm
+dist/sample/teste4_rel_public.asm
+dist/sample/teste4_rel_public.rel
+dist/sample/teste5_rel_dseg.asm
+dist/sample/teste6_rel_extrn.asm
+dist/sample/teste7_link_lib.asm
+dist/sample/teste7_link_lib.rel
+dist/sample/teste7_link_main.asm
+dist/sample/teste7_link_main.rel
+dist/sample/teste8_link_common_a.asm
+dist/sample/teste8_link_common_a.rel
+dist/sample/teste8_link_common_b.asm
+dist/sample/teste8_link_common_b.rel
+dist/sample/teste9_link_request_lib.rel
+dist/sample/teste9_link_request_main.asm
+dist/sample/teste9_link_request_main.rel
+dist/sample/teste9_link_request_moda.asm
+dist/sample/teste9_link_request_moda.rel
+dist/sample/teste9_link_request_modb.asm
+dist/sample/teste9_link_request_modb.rel
+dist/sample/teste_opcodes.asm
+dist/sample/titulo1.bmx
+dist/sample/titulo1.dmx
+dist/tabdebug.log
+dist/fossauro.exe

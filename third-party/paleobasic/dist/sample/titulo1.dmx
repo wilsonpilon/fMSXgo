@@ -1,0 +1,4 @@
+screen 0 : key off : width 40 : color 15,1,1
+print "Carga de trabalho em DSK"
+a$=input#(1)
+end

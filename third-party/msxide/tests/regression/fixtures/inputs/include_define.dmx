@@ -1,0 +1,6 @@
+define [putc][PRINT [65]]
+include "inc_part.dmx"
+{main}
+[putc](66)
+GOTO {libstart}
+END

@@ -1,0 +1,249 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+============================================================================
+
+                  ALFA Vers±o 1.0 (Dominio Publico)
+              Autor: Carm‚lio Alves Filho  (C) Junho 1993
+
+
+                        MANUAL DE INSTRU€´ES
+
+
+
+           ARQUIVOS QUE FAZEM PARTE DO PACOTE ORIGINAL ALFA.ARK
+           ----------------------------------------------------
+                   . ALFA.COM -> O programa executavel
+                   . ALFA.MAN -> Este manual de instru‡µes
+
+
+
+                   Carm‚lio Alves Filho - 20/06/1993
+============================================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ALFA Vers±o 1.0
+Manual de instru‡µes                                              P gina:  1
+----------------------------------------------------------------------------
+
+O QUE  O ALFA
+==============
+   ALFA ‚ um utilit rio de dominio publico 100% escrito na linguagem 'C' que
+tem por objetivo eliminar os problemas  que  impedem  que  um  arquivo  .ALF
+(alfabeto) possa ser  carregado  normalmente  atrav‚s  do  MSX-BASIC;  e  em
+particular da aten‡±o  ao  .ALF  gerado  pelo  programa  Professional  Paint
+(PPAINT) vers±o 1.0.
+
+
+
+OS ARQUIVOS ALFABETO/FONTES (.ALF)
+==================================
+   Este tipo de arquivo tem uma estrutura bem simples e direta, ele  tem  um
+tamanho total de 2055 bytes sendo que pode chegar a um m ximo de 2176 bytes,
+isto ocorre porque o MSX-DOS pelo menos at‚ a vers±o  1.xx,  sempre  procura
+gravar um arquivo com tamanho multiplo de 128; mas num arquivo com estrutura
+.ALF esses bytes excedentes  s±o  ignorados,  sendo  somente  utilizados  os
+primeiros 2055 bytes; mas cabe resaltar  que  arquivos  com  estrutura  .ALF
+nunca poder±o ter menos que 2055 bytes.
+   Os primeiros 7 bytes de um .ALF formam na verdade um cabe‡alho de arquivo
+.BIN (carregaveis pelo comando BLOAD do MSX-BASIC), o que explica porque  os
+arquivos .ALF podem ser carregados atrav‚s do MSX-BASIC;  e  os  2048  bytes
+restantes s±o os bytes que formam a imagem de cada  um  dos  256  caracteres
+(0 … 255) apresentaveis na tela.
+
+
+
+O PORQUE DOS PROBLEMAS
+======================
+   A maioria dos problemas com esses arquivos ocorre  justamente  por  causa
+dos dados que s±o gravados nos primeiros 7 bytes dos mesmos; normalmente num
+arquivo .ALF encontramos os seguintes dados nesses primeiros 7 bytes:
+
+   FEH 00H 92H FFH 99H 00H 92H
+
+Bem, j  que esses bytes forman um cabe‡alho de arquivo  .BIN,  j   deu  para
+notar que se trata do byte identificador de arquivo  .BIN  e  dos  endere‡os
+inicial, final e de execu‡±o (nesta ordem), s¢ que os endere‡os j  est±o  no
+formato LSB e  MSB  (baixo/alto)  o  normal  do  Z-80.  Quando  aplicamos  o
+deslocamento correto no comando BLOAD (falaremos sobre isto  mais  adiante),
+ganhamos a possibilidade de em qualquer um dos modos texto, carregar o nosso
+alfabeto diretamente na tabela de imagens da VRAM (Video Ram) ou  at‚  mesmo
+na RAM normal atrav‚s do basic; mas ai ‚ que esta o problema,  por  diversos
+motivos algumas pessoas e/ou empresas gravam nesses primeiros 7 bytes  (mais
+precisamente a partir do segundo) dados diferentes dos aqui apresentados,  o
+que faz com que programas como o MSX PageMaker Deluxe, n±o consigam carregar
+certos .ALF.
+
+
+
+O PROBLEMA COM O PPAINT
+=======================
+  O programa Professional Paint (PPAINT) vers±o 1.0, al‚m de gravar de forma
+totalmente erronea os primeiros 7 bytes de um arquivo  .ALF,  ainda  utiliza
+de forma particular os bytes que forman o caracter de codigo ASCII  0,  isto
+faz com que certos .ALF carreguem  no  PPAINT  mas  na  hora  que  se  tenta
+escrever alguma coisa as letras n±o aparecem.
+
+ALFA Vers±o 1.0
+Manual de instru‡µes                                              P gina:  2
+----------------------------------------------------------------------------
+
+A SOLU€°O
+=========
+   A solu‡±o para todos estes problemas ‚ o utilit rio  ALFA,  ele  alem  de
+consertar os .ALF defeituosos ainda permite que criemos .ALF que funcionar±o
+normalmente no PPAINT vers±o 1.0, repare que falo toda  hora  PPAINT  vers±o
+1.0,tendo em vista que futuras versµes poder±o n±o ter mais estes problemas.
+O ALFA Vers±o 1.0 tem uma interface bem amigavel com  o  usu rio,  por  isso
+quase sempre me limitarei a apresentar cada uma de suas op‡µes, n±o entrando
+em detalhes  sobre  as  mesmas;  mas  explicarei  agora  dois  detalhes  que
+considero importantes:
+
+   . Quando se aciona as op‡µes [1] ou  [2]  sempre  aparecem  as  seguintes
+     mensagens:
+
+        Nome do arquivo (.ALF) sem extensao..:
+        --------------------------------------
+           Deve-se ent±o digitar o nome do arquivo .ALF que ser   consertado
+        ou convertido. Ex: A:CARMELIO
+
+        Nome do arquivo destino sem extensao.:
+        --------------------------------------
+           Deve-se ent±o digitar o nome do arquivo que guardara  o  .ALF  j 
+        convertido ou consertado. Ex: C:CARMELIO
+
+
+vamos ent±o as op‡µes do ALFA Vers±o 1.0:
+
+
+[1] (.ALF) Normal -->  (.ALF) Ppaint 1.0
+----------------------------------------
+   Esta op‡±o cria um .ALF que podera ser carregado e funcionara normalmente
+no PPAINT vers±o 1.0. Repare que o caracter de codigo ASCII 0 ‚  usado  pelo
+PPAINT, portanto ser  redefinido.
+
+   Um .ALF que carrega e funciona no PPAINT 1.0 ‚  igual  a  qualquer  outro
+.ALF normal, a unica diferen‡a est  no caracter ASCII 0, portanto um .ALF ao
+passar por esta op‡±o continuara quase igual ao que estava antes, tendo como
+unica modifica‡±o o caracter ASCII 0.
+
+   Repare tamb‚m que est  op‡±o s¢ faz essa convers±o e n±o conserta o .ALF;
+o conserto caso necessario devera ser feito pela op‡±o [2] que ser  vista  a
+seguir. Esta caracteristica permite por  exemplo  que  vocˆ  tenha  um  .ALF
+particular (com endere‡os inicial, final  e  de  execu‡±o  especificos  para
+funcionar em uma determinada SCREEN), e que tamb‚m possa  ser  carregado  no
+PPAINT 1.0.
+
+
+[2] Consertar (.ALF)
+--------------------
+   Esta op‡±o cria um .ALF que contenha nos seus primeiros 7 bytes os  dados
+normalmente encontrados num arquivo com estrutura .ALF  (ver  O  PORQUE  DOS
+PROBLEMAS). Se vocˆ tem uma copia original do MSX PageMaker Deluxe e  tamb‚m
+tem uma copia original do PPAINT vers±o 1.0 e j  criou alfabetos  no  PPAINT
+para tentar usar no MSX PageMaker Deluxe, viu  que  n±o  funcionou  n‚;  mas
+agora tudo correra bem, crie o seu alfabeto  normalmente  no  PPAINT  1.0  e
+depois conserte-o usando esta op‡±o que ele  ser   carregado  tranquilamente
+pelo MSX PageMaker Deluxe.
+
+ALFA Vers±o 1.0
+Manual de instru‡µes                                              P gina:  3
+----------------------------------------------------------------------------
+
+[3] Fim de programa
+-------------------
+   Finaliza a execu‡±o do ALFA vers±o 1.0 e retorna ao DOS.
+
+
+
+O DESLOCAMENTO
+==============
+   Abaixo apresento os deslocamentos a serem aplicados no comando  BLOAD  do
+MSX-BASIC, visando assim que um .ALF normal possa ser carregado  diretamente
+na tabela de imagens da VRAM em qualquer  modo  texto;  o  que  permite  que
+redefinamos com facilidade os caracteres que ser±o apresentados na tela.
+
+
+SCREEN 0 Modo texto 80 colunas -> BLOAD "xxxxxxxx.ALF",S,&H7E00
+SCREEN 0 Modo texto 40 colunas -> BLOAD "xxxxxxxx.ALF",S,&H7600
+SCREEN 1                       -> BLOAD "xxxxxxxx.ALF",S,&H6E00
+
+
+
+Este manual deve ser impresso com:
+   . Margens -> Superior: 1  Inferior: 2  Direita: 2  Esquerda: 2
+   . P gina: 80 colunas x 65 linhas
+
+
+   Caso por qualquer motivo queira  entrar  em  contato  comigo,  posso  ser
+encontrado nos BBS atrav‚s da rede mundial Fidonet, ‚ s¢ deixar mensagem  de
+preferencia na rede Brasil ou  MSX-FIDONET  para  Carmelio Alves Filho  (sem
+acento no ‚ de Carm‚lio).
+
+
+
+============================================================================
+   Quando Jesus viu a grande multid±o, subiu um monte e sentou-se.  Os  seus
+disc¡pulos chegaram perto dele, e ele come‡ou a ensin -los, dizendo assim:
+
+- Felizes os que sabem que s±o espiritualmente pobres, pois o Reino do c‚u ‚
+deles.
+- Felizes os que choram, pois Deus os consolar .
+- Felizes os humildes, pois receber±o o que Deus tem prometido.
+- Felizes os que tˆm fome e sede de fazer a vontade de  Deus,  pois  ele  os
+deixar  completamente satisfeitos.
+- Felizes os que tˆm miseric¢rdia dos outros, pois  Deus  ter   miseric¢rdia
+deles tamb‚m.
+- Felizes os que tˆm o cora‡±o puro, pois eles ver±o a Deus.
+- Felizes os que trabalham pela paz entre as pessoas, pois Deus  os  tratar 
+como seus filhos.
+- Felizes os que sofrem persegui‡±o por fazerem a vontade de  Deus,  pois  o
+Reino do c‚u ‚ deles.
+
+- Felizes s±o vocˆs quando os insultam,  perseguem  e  dizem  todo  tipo  de
+cal£nia contra vocˆs por serem meus seguidores. Fiquem alegres e  contentes,
+porque est  guardada para vocˆs uma grande recompensa no c‚u. Pois foi assim
+mesmo que perseguiram os profetas que viveram antes de vocˆs.
+
+
+                Origem: Biblia sagrada Mateus 5 … 5:12
+============================================================================
+                               

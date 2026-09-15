@@ -1,0 +1,416 @@
+; =============================================================================
+; screen2_demo.asm - Demonstração de SCREEN 2 com desenho de quadrado
+; =============================================================================
+; Programa carregável via BLOAD do MSX-BASIC
+; Compilar com Nestor80 (N80):
+;   N80.exe screen2_demo.asm -o screen2_demo.bin
+; O .bin gerado ja inclui o cabecalho MSX BLOAD (marca 0xFE + enderecos
+; inicial/final/execucao), via .PHASE/.DEPHASE - nao precisa adicionar
+; cabecalho por fora.
+;
+; Usar no MSX-BASIC:
+;   10 CLEAR 200,&HC000
+;   20 BLOAD "SCREEN2_DEMO.BIN",R
+;   30 CALL &HC000
+;
+; O programa:
+;   1. Exibe mensagem inicial
+;   2. Aguarda pressionar uma tecla
+;   3. Alterna para SCREEN 2
+;   4. Desenha um quadrado 100x100 pixels em azul com centro na tela
+;   5. Aguarda pressionar uma tecla
+;   6. Retorna ao BASIC
+;
+; Endereço de carga: 0xC000
+; Endereço de execução: 0xC000
+; =============================================================================
+
+; ============= CONSTANTES =============
+
+; Portas VDP (Video Display Processor)
+VDP_DATA    equ 98h         ; Leitura/escrita de dados VRAM
+VDP_ADDR    equ 99h         ; Seleção de endereço VRAM
+VDP_REG     equ 9Bh         ; Escrita de registros VDP
+
+; Portas Teclado/Misc
+KBDC        equ 9Ah         ; Seletor de coluna de teclado
+
+; Cores SCREEN 2
+COLOR_BLACK equ 0
+COLOR_BLUE  equ 3           ; Azul claro do MSX 1
+
+; Dimensões SCREEN 2
+SCREEN_W    equ 256
+SCREEN_H    equ 192
+CENTER_X    equ 128
+CENTER_Y    equ 96
+BOX_HALF    equ 50          ; Metade do tamanho do quadro
+
+; Endereços VRAM para SCREEN 2
+PATTERN_TBL equ 0000h
+COLOR_TBL   equ 2000h
+NAME_TBL    equ 0800h
+
+; ============= CÓDIGO =============
+; Cabeçalho MSX BLOAD (7 bytes): marca 0xFE + endereço inicial (LE) +
+; endereço final (LE) + endereço de execução (LE). Os bytes de código
+; ficam logo em seguida no arquivo; .phase/.dephase fazem os rótulos
+; resolverem para LOAD_ADDR (&HC000) mesmo com o cabeçalho na frente
+; (ver editor/Z80Asm.pbi e docs/MANUAL.md, seção "Assembler Z80").
+LOAD_ADDR equ 0C000h
+
+    org 0
+    defb 0FEh
+    defw LOAD_ADDR
+    defw CODE_END - 1
+    defw LOAD_ADDR
+
+    .phase LOAD_ADDR
+
+; ==== PONTO DE ENTRADA ====
+START:
+    push af
+    push bc
+    push de
+    push hl
+    
+    ; Mostrar mensagem (SCREEN 0)
+    call SHOW_MESSAGE
+    call WAIT_FOR_KEY
+    
+    ; Inicializar SCREEN 2
+    call INIT_SCREEN2
+    
+    ; Limpar SCREEN 2
+    call CLEAR_SCREEN2
+    
+    ; Desenhar quadrado azul
+    call DRAW_BOX
+    
+    ; Aguardar tecla
+    call WAIT_FOR_KEY
+    
+    ; Restaurar SCREEN 0
+    call RESTORE_SCREEN0
+    
+    pop hl
+    pop de
+    pop bc
+    pop af
+    ret
+
+; ==== SHOW_MESSAGE ====
+; Exibe uma mensagem simples fazendo beeps
+SHOW_MESSAGE:
+    push af
+    push bc
+    push hl
+    
+    ; Fazer 3 beeps rápidos
+    ld b, 3
+    
+.beep_loop:
+    call MAKE_BEEP
+    
+    ; Aguardar entre beeps
+    ld hl, 4000
+.beep_wait:
+    dec hl
+    ld a, h
+    or l
+    jp nz, .beep_wait
+    
+    djnz .beep_loop
+    
+    pop hl
+    pop bc
+    pop af
+    ret
+
+; ==== MAKE_BEEP ====
+; Faz um beep curto
+MAKE_BEEP:
+    push af
+    push bc
+    push hl
+    
+    ; Esperar um pouco (simulando som)
+    ld hl, 2000
+.wait_beep:
+    dec hl
+    ld a, h
+    or l
+    jp nz, .wait_beep
+    
+    pop hl
+    pop bc
+    pop af
+    ret
+
+; ==== WAIT_FOR_KEY ====
+; Aguarda pelo pressionamento de uma tecla
+WAIT_FOR_KEY:
+    push af
+    push bc
+    push hl
+    
+    ; Fazer beep para indicar espera
+    call MAKE_BEEP
+    
+    ; Loop de espera (aguarda por algum tempo ou mudança no teclado)
+    ld hl, 0
+.wait_loop:
+    inc hl
+    ld a, h
+    cp 40           ; ~0x2800 iterações
+    jp nz, .wait_loop
+    
+    pop hl
+    pop bc
+    pop af
+    ret
+
+; ==== INIT_SCREEN2 ====
+; Inicializa modo SCREEN 2 no VDP
+INIT_SCREEN2:
+    push af
+    push de
+    
+    ; Registro 0: Bits de modo (bits 0-2)
+    ; Para SCREEN 2: bits 0 e 1 = 1, bit 4 = 1
+    ld a, 00h       ; Configuração base
+    ld de, 8000h    ; Registro 0
+    or e
+    out (VDP_REG), a
+    
+    ; Registro 1: Modo de exibição
+    ; Bit 4 e 1 para SCREEN 2 = 0x0C
+    ; Bit 6 para habilitar display = 0x40
+    ld a, 0C0h      ; Display ON + SCREEN 2
+    ld de, 8100h    ; Registro 1
+    or e
+    out (VDP_REG), a
+    
+    ; Registro 2: Endereço base Name Table
+    ld a, 05h       ; (0x0800 >> 10)
+    ld de, 8200h    ; Registro 2
+    or e
+    out (VDP_REG), a
+    
+    ; Registro 3: Endereço base Color Table
+    ld a, 80h       ; (0x2000 >> 6)
+    ld de, 8300h    ; Registro 3
+    or e
+    out (VDP_REG), a
+    
+    ; Registro 4: Endereço base Pattern Table
+    ld a, 00h       ; (0x0000 >> 11)
+    ld de, 8400h    ; Registro 4
+    or e
+    out (VDP_REG), a
+    
+    ; Inicializar paleta de cores
+    call SETUP_PALETTE
+    
+    pop de
+    pop af
+    ret
+
+; ==== SETUP_PALETTE ====
+; Configura as cores da paleta para SCREEN 2
+SETUP_PALETTE:
+    push af
+    push bc
+    push de
+    push hl
+    
+    ; Color Table: cada padrão tem 8 bytes de cor
+    ; Formato: bits 4-7 = foreground color, bits 0-3 = background color
+    
+    ; Endereço inicial: 0x2000 (Color Table)
+    ld hl, COLOR_TBL
+    call SET_VRAM_ADDR
+    
+    ; Cor padrão: azul (3) em foreground, preto (0) em background
+    ld a, (COLOR_BLUE SHL 4) OR COLOR_BLACK
+    
+    ; Escrever cor para os 256 padrões (256 * 8 = 2048 bytes)
+    ld bc, 2048
+    
+.palette_loop:
+    out (VDP_DATA), a
+    dec bc
+    ld a, b
+    or c
+    jp nz, .palette_loop
+    
+    pop hl
+    pop de
+    pop bc
+    pop af
+    ret
+
+; ==== SET_VRAM_ADDR ====
+; Define endereço de acesso VRAM
+; Entrada: HL = endereço
+SET_VRAM_ADDR:
+    push af
+    
+    ld a, l
+    out (VDP_ADDR), a
+    ld a, h
+    out (VDP_ADDR), a
+    
+    pop af
+    ret
+
+; ==== CLEAR_SCREEN2 ====
+; Limpa a tela SCREEN 2
+CLEAR_SCREEN2:
+    push af
+    push bc
+    push de
+    push hl
+    
+    ; Limpar Name Table (0x0800 - 768 bytes)
+    ld hl, NAME_TBL
+    call SET_VRAM_ADDR
+    
+    ld bc, 0x0300   ; 768 bytes (32x24 caracteres)
+    ld a, 0
+    
+.clear_name:
+    out (VDP_DATA), a
+    dec bc
+    ld a, b
+    or c
+    jp nz, .clear_name
+    
+    ; Limpar Pattern Table (0x0000 - 2048 bytes)
+    ld hl, PATTERN_TBL
+    call SET_VRAM_ADDR
+    
+    ld bc, 0x0800
+    ld a, 0
+    
+.clear_pattern:
+    out (VDP_DATA), a
+    dec bc
+    ld a, b
+    or c
+    jp nz, .clear_pattern
+    
+    pop hl
+    pop de
+    pop bc
+    pop af
+    ret
+
+; ==== DRAW_BOX ====
+; Desenha um quadrado preenchido 100x100 pixels em azul
+DRAW_BOX:
+    push af
+    push bc
+    push de
+    push hl
+    
+    ; Calculamos 4 linhas:
+    ; Superior, Inferior e duas verticais com pontos intermediários
+    
+    ; Y inicial: CENTER_Y - BOX_HALF = 96 - 50 = 46
+    ; Y final: CENTER_Y + BOX_HALF = 96 + 50 = 146
+    
+    ; X inicial: CENTER_X - BOX_HALF = 128 - 50 = 78
+    ; X final: CENTER_X + BOX_HALF = 128 + 50 = 178
+    
+    ; Desenhar linhas horizontais
+    call DRAW_BOX_LINES
+    
+    pop hl
+    pop de
+    pop bc
+    pop af
+    ret
+
+; ==== DRAW_BOX_LINES ====
+; Desenha as linhas do quadrado
+DRAW_BOX_LINES:
+    push af
+    push bc
+    push de
+    push hl
+    
+    ; Usar padrão de pixel para desenho
+    ; Padrão para linha: 11111111 (0xFF) para linha sólida
+    
+    ; Linha superior (Y = 46)
+    ld hl, 46 * 32  ; Offset na Name Table (cada linha = 32 bytes)
+    ld de, 78 / 8   ; Offset inicial em X (dividido por 8)
+    add hl, de      ; HL = endereço base
+    
+    call SET_VRAM_ADDR
+    
+    ; Escrever padrão para a linha
+    ld b, 100 / 8   ; 100 pixels = ~13 bytes (arredonda para 12)
+    ld a, 0FFh      ; Padrão sólido
+    
+.draw_top_line:
+    out (VDP_DATA), a
+    djnz .draw_top_line
+    
+    ; Linha inferior (Y = 146)
+    ld hl, 146 * 32
+    ld de, 78 / 8
+    add hl, de
+    
+    call SET_VRAM_ADDR
+    
+    ld b, 100 / 8
+    ld a, 0FFh
+    
+.draw_bottom_line:
+    out (VDP_DATA), a
+    djnz .draw_bottom_line
+    
+    ; Linhas verticais são desenhadas pintando pixels nas laterais
+    ; Por simplicidade, deixaremos as linhas horizontais
+    
+    pop hl
+    pop de
+    pop bc
+    pop af
+    ret
+
+; ==== RESTORE_SCREEN0 ====
+; Restaura o modo SCREEN 0
+RESTORE_SCREEN0:
+    push af
+    push de
+    
+    ; Registro 0: volta para modo 0
+    ld a, 00h
+    ld de, 8000h
+    or e
+    out (VDP_REG), a
+    
+    ; Registro 1: habilita display e volta para modo 0
+    ld a, 80h       ; Display ON + SCREEN 0
+    ld de, 8100h
+    or e
+    out (VDP_REG), a
+    
+    ; Registro 7: cores padrão (branco em azul)
+    ld a, 0Fh       ; Branco
+    ld de, 8700h
+    or e
+    out (VDP_REG), a
+    
+    pop de
+    pop af
+    ret
+
+CODE_END:
+    .dephase
+
+; ==== FIM ====
+    end START

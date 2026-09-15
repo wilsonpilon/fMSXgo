@@ -1,0 +1,9 @@
+1 ' Converted with Basic Dignified (native PureBasic port)
+2 10 print"Teste"
+3 20 a$=input$(1)
+4 30 goto 200
+5 40 end
+6 200 if a$="s"then gosub 1000
+7 210 goto 40
+8 1000 print"XXX"
+9 1010 return

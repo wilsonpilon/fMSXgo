@@ -1,0 +1,11 @@
+{start}
+print "press A to toggle"
+? "press B to exit"
+if inkey$ <> "A" then goto {@}
+loop{
+    a$ = inkey$
+    if a$ = "A" then goto {start}
+    if a$ = "B" goto {@}
+    if a$ = "X" then exit
+}
+end

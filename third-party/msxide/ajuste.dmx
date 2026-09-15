@@ -1,0 +1,70 @@
+include "msxide.dmx"
+maxfiles=1 :
+propaganda$ = "      ALEPH" :
+gosub {desktop} :
+gosub {traca_q1} :
+gosub {traca_c1} :
+goto {animacao} 
+
+{fim}
+    screen 0 :
+    color M_white,M_black,M_black : 
+    cls : 
+    width 40 :
+    key off :
+    end
+
+{desktop}
+    open "grp:" for output as #1 :
+    screen 2,1 :
+    color M_dark_blue,M_cyan,M_light_blue :
+    cls :
+    return
+
+{traca_q1}
+    for cores=0 to 15 :
+        ponto_inicial = cor * 16 : 
+        ponto_final = ponto_inicial + 15 :
+        preset(ponto_inicial + 5 * (ponto_inicial * 0), 168) :
+        print #1, cores :
+        line(ponto_inicial, 176) - (ponto_final, 191), cores, bf :
+    next cores :
+    for colunas = 0 to 256 step 16 :
+        line(colunas, 0) - (colunas, 192) :
+    next colunas :
+    for linhas = 0 to 192 step 16 :
+        line(0, linhas) - (255, linhas) :
+    next linhas :
+    return
+
+{traca_c1}
+    circle(128,88), 58, M_medium_red :
+    paint(128,88), M_cyan :
+    for elipse=57 to 4 step -8 :
+        circle(128,88),57,M_cyan,,,57/elipse :
+        circle(128,88),57,M_cyan,,,elipse/57 :
+    next elipse :
+    return
+        
+{traca_quadro}
+    line(128,30) - (128,160),M_dark_blue :
+    line(71,88) - (184,88),M_dark_blue :
+    circle(128,88),20,M_cyan :
+    paint(128,88),M_cyan :
+    return
+
+{animacao}
+    if temp$<>"" then {@}
+    for tempx = 49 to 56 :
+        for tempy = 65 to 71 :
+            line(108,84) - (150,92), M_cyan, bf :
+            preset(110,84) :
+            temp$ = right$(propaganda$(b$,5) :
+            print #1, temp$
+            propaganda$=right$(propaganda$(b$,1) + left$(propaganda$,10) :
+            tom$="v15O"+chr$(tempx)+chr$(tempy)
+            play tmo$,tom$,tom$ :
+            if temp$<>"" then {fim}
+    next tempy, tempx :
+    goto {animacao}
+    

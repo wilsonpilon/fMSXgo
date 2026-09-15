@@ -1,0 +1,13 @@
+build/*.pyc
+derived/
+build/msvc/.vs/*
+.vscode/
+__pycache__/
+ui_*.h
+moc_*.cpp
+*.o
+*.autosave
+moc_predefs.h
+qrc_resources.cpp
+Makefile
+.*.swp

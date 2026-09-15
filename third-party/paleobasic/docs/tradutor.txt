@@ -1,0 +1,8 @@
+   Classic Basic ASCII characters
+are not supported by the default encoding of the .bad and .asc programs (Western (Windows 1252)). Their representation can be seen and used by opening an ASCII file exported from the computer/emulator and copying/pasting their symbols, but this is far from practical, a bit ugly and prone to problem.
+By using UTF-8 encoding on the .bad file, unicode characters similar to the classic ones can be used on the Dignified code and be translated to their analogue counterparts when converting. This allows for a much cleaner and accurate presentation.
+The supported unicode characters for the MSX ASCII set are:
+   
+   
+   
+ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»ÃãĨĩÕõŨũĲĳ¾∽◇‰¶§▂▚▆▔◾▇▎▞▊▕▉▨▧▼▲▶◀⧗⧓▘▗▝▖▒Δǂω█▄▌▐▀αβΓπΣσμτΦθΩδ∞φ∈∩≡±≥≤⌠⌡÷≈°∙‐√ⁿ²❚■☺☻♥♦♣♠·◘○◙♂♀♪♬☼┿┴┬┤├┼│─┌┐└┘╳╱╲╂

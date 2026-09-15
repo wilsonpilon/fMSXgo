@@ -1,0 +1,11 @@
+1 maxfiles=1:zz$="      ALEPH":gosub3:gosub4:gosub5:goto7
+2 screen0:colorzu,zt,zt:cls:width40:keyoff:end
+3 open"grp:"foroutputas#1:screen2,1:colorzs,zr,zq:cls:return
+4 forzp=0to15:zo=zn*16:zm=zo+15:preset(zo+5*(zo*0),168):?#1,zp:line(zo,176)-(zm,191),zp,bf:nextzp:forzl=0to256step16:line(zl,0)-(zl,192):nextzl:forzk=0to192step16:line(0,zk)-(255,zk):nextzk:return
+5 circle(128,88),58,zj:paint(128,88),zr:forzi=57to4step-8:circle(128,88),57,zr,,,57/zi:circle(128,88),57,zr,,,zi/57:nextzi:return
+6 line(128,30)-(128,160),zs:line(71,88)-(184,88),zs:circle(128,88),20,zr:paint(128,88),zr:return
+7 ifzh$<>""THEN7
+8 forzg=49to56:forzf=65to71:line(108,84)-(150,92),zr,bf:preset(110,84):zh$=right$(zz$(b$,5):?#1,zh$
+9 zz$=right$(zz$(b$,1)+left$(zz$,10):ze$="v15O"+chr$(zg)+chr$(zf)
+10 playzd$,ze$,ze$:ifzh$<>""THEN2
+11 nextzf,zg:goto7

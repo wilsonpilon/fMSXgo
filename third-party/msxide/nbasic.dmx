@@ -1,0 +1,1034 @@
+## ------------------------------------------------------------------
+## nbasic.dmx - biblioteca do NestorBASIC 1.11 (by Nestor Soriano/Konami Man)
+##
+## NestorBASIC e' um conjunto de rotinas em codigo de maquina que da'
+## acesso, direto do MSX BASIC, a memoria mapeada, VRAM, disco (arquivos/
+## setores fisicos), compressao grafica, tocador Moonblaster, efeitos PSG
+## e mais - tudo atraves de UM UNICO comando usr(numero) e dos arrays
+## p() (parametros/retornos inteiros) e f$() (nomes de arquivo/strings).
+## Documentacao completa: pasta NBASIC/ na raiz do projeto (nbas111e.txt/
+## nbas111s.txt = manual original ingles/espanhol, NBASIC.ASM/NBASIC.DAT
+## = fonte).
+##
+## Cada rotina do manual vira uma proto-funcao .NB_Nome(...) (func/ret do
+## Basic Dignified) - chame como .NB_ReadByte(segmento, endereco) direto
+## no meio de uma expressao/atribuicao, exatamente como no manual, sem
+## montar p()/f$() e usr(numero) na mao (mesmo estilo do paleobasic, que
+## serviu de referencia pra esta biblioteca).
+##
+## Como habilitar: marque "NBasic" em Configurar -> MSX Basic - o editor
+## garante o include "nbasic.dmx" e a rotina de carga do nbasic.bin
+## automaticamente (ver M_/msxide.dmx pro mesmo mecanismo de auto-include,
+## e o rotulo {NBasicLoad} logo abaixo de {inicio} num programa novo).
+##
+## IMPORTANTE: NBASIC.BIN precisa estar na mesma pasta do programa (ou no
+## disco) em tempo de execucao - o editor copia nbasic.bin pra raiz do
+## projeto quando NBasic esta' marcado (ver Configurar -> MSX Basic).
+## ------------------------------------------------------------------
+
+' --- Biblioteca NestorBASIC (Tier 1: geral, RAM, VRAM, disco) ---
+' Convencao: cada .NB_* devolve so o(s) valor(es) principal(is) da
+' chamada, sempre com o codigo de erro por ultimo (0 = sem erro; use
+' .NB_ErrorText(codigo) pra mensagem). Os demais resultados documentados
+' no manual continuam em p()/f$() logo apos a chamada.
+
+' --- 10.2 Funcoes gerais ---
+
+' Desinstala o NestorBASIC. liberarRam<>0 libera tambem a RAM ocupada
+' pela rotina de salto (~500 bytes), voltando FRE(0) ao valor de antes
+' de instalar. (S4)
+func .NB_Uninstall(liberarRam)
+  p(0) = liberarRam
+  erro = usr(0)
+ret erro
+
+' Informacoes gerais sobre o NestorBASIC e sobre o segmento indicado.
+' Devolve o numero de segmentos de RAM disponiveis; outros resultados
+' (versao, DOS, VRAM em K, arquivos abertos, slot/segmento fisico,
+' caminho do NBASIC.BIN em f$(0) etc. - ver secao 10.2 do manual)
+' continuam em p()/f$().
+func .NB_GetInfo(segmento)
+  p(0) = segmento
+  erro = usr(1)
+ret p(0), erro
+
+' --- 10.3 Acesso a segmentos (RAM) ---
+
+' Le um byte do segmento/endereco indicado.
+func .NB_ReadByte(segmento, endereco)
+  p(0) = segmento
+  p(1) = endereco
+  erro = usr(2)
+ret p(2), erro
+
+' Le um byte e devolve o endereco seguinte (pra percorrer sequencialmente:
+' byte, endereco = .NB_ReadByteInc(segmento, endereco)).
+func .NB_ReadByteInc(segmento, endereco)
+  p(0) = segmento
+  p(1) = endereco
+  erro = usr(3)
+ret p(2), p(1), erro
+
+' Le um inteiro (2 bytes, low+high) do segmento/endereco indicado.
+func .NB_ReadInt(segmento, endereco)
+  p(0) = segmento
+  p(1) = endereco
+  erro = usr(4)
+ret p(2), erro
+
+' Le um inteiro e devolve o endereco seguinte.
+func .NB_ReadIntInc(segmento, endereco)
+  p(0) = segmento
+  p(1) = endereco
+  erro = usr(5)
+ret p(2), p(1), erro
+
+' Escreve um byte no segmento/endereco indicado.
+func .NB_WriteByte(segmento, endereco, valor)
+  p(0) = segmento
+  p(1) = endereco
+  p(2) = valor
+  erro = usr(6)
+ret erro
+
+' Escreve um byte e devolve o endereco seguinte.
+func .NB_WriteByteInc(segmento, endereco, valor)
+  p(0) = segmento
+  p(1) = endereco
+  p(2) = valor
+  erro = usr(7)
+ret p(1), erro
+
+' Escreve um inteiro (2 bytes) no segmento/endereco indicado.
+func .NB_WriteInt(segmento, endereco, valor)
+  p(0) = segmento
+  p(1) = endereco
+  p(2) = valor
+  erro = usr(8)
+ret erro
+
+' Escreve um inteiro e devolve o endereco seguinte.
+func .NB_WriteIntInc(segmento, endereco, valor)
+  p(0) = segmento
+  p(1) = endereco
+  p(2) = valor
+  erro = usr(9)
+ret p(1), erro
+
+' Copia um bloco de dados entre dois segmentos. incOrigem/incDestino<>0
+' avancam o endereco de origem/destino correspondente (util em loop).
+func .NB_CopySegToSeg(segOrigem, endOrigem, segDestino, endDestino, tamanho, incOrigem, incDestino)
+  p(0) = segOrigem
+  p(1) = endOrigem
+  p(2) = segDestino
+  p(3) = endDestino
+  p(4) = tamanho
+  p(5) = incOrigem
+  p(6) = incDestino
+  erro = usr(10)
+ret p(1), p(3), erro
+
+' Preenche uma area de um segmento com um byte fixo.
+func .NB_FillRam(segmento, endereco, byte, tamanho)
+  p(0) = segmento
+  p(1) = endereco
+  p(2) = byte
+  p(3) = tamanho
+  erro = usr(11)
+ret erro
+
+' Preenche uma area de um segmento com um byte fixo e devolve o
+' endereco seguinte a area preenchida.
+func .NB_FillRamInc(segmento, endereco, byte, tamanho)
+  p(0) = segmento
+  p(1) = endereco
+  p(2) = byte
+  p(3) = tamanho
+  erro = usr(12)
+ret p(1), erro
+
+' --- 10.4 Acesso a VRAM ---
+' bloco = 0 (64K VRAM baixa) ou 1 (64K VRAM alta, so em maquinas com
+' 128K) - endereco 0-&HFFFF; se um autoincremento passar de &HFFFF,
+' o endereco volta a 0 e o bloco se inverte (0<->1).
+
+' Le um byte da VRAM.
+func .NB_VReadByte(bloco, endereco)
+  p(0) = bloco
+  p(1) = endereco
+  erro = usr(13)
+ret p(2), erro
+
+' Le um byte da VRAM e devolve bloco/endereco seguintes.
+func .NB_VReadByteInc(bloco, endereco)
+  p(0) = bloco
+  p(1) = endereco
+  erro = usr(14)
+ret p(2), p(0), p(1), erro
+
+' Le um inteiro (2 bytes) da VRAM.
+func .NB_VReadInt(bloco, endereco)
+  p(0) = bloco
+  p(1) = endereco
+  erro = usr(15)
+ret p(2), erro
+
+' Le um inteiro da VRAM e devolve bloco/endereco seguintes.
+func .NB_VReadIntInc(bloco, endereco)
+  p(0) = bloco
+  p(1) = endereco
+  erro = usr(16)
+ret p(2), p(0), p(1), erro
+
+' Escreve um byte na VRAM.
+func .NB_VWriteByte(bloco, endereco, valor)
+  p(0) = bloco
+  p(1) = endereco
+  p(2) = valor
+  erro = usr(17)
+ret erro
+
+' Escreve um byte na VRAM e devolve bloco/endereco seguintes.
+func .NB_VWriteByteInc(bloco, endereco, valor)
+  p(0) = bloco
+  p(1) = endereco
+  p(2) = valor
+  erro = usr(18)
+ret p(0), p(1), erro
+
+' Escreve um inteiro (2 bytes) na VRAM.
+func .NB_VWriteInt(bloco, endereco, valor)
+  p(0) = bloco
+  p(1) = endereco
+  p(2) = valor
+  erro = usr(19)
+ret erro
+
+' Escreve um inteiro na VRAM e devolve bloco/endereco seguintes.
+func .NB_VWriteIntInc(bloco, endereco, valor)
+  p(0) = bloco
+  p(1) = endereco
+  p(2) = valor
+  erro = usr(20)
+ret p(0), p(1), erro
+
+' Copia um bloco de dados da VRAM pra um segmento de RAM.
+func .NB_CopyVramToRam(blocoOrigem, endOrigem, segDestino, endDestino, tamanho, incOrigem, incDestino)
+  p(0) = blocoOrigem
+  p(1) = endOrigem
+  p(2) = segDestino
+  p(3) = endDestino
+  p(4) = tamanho
+  p(5) = incOrigem
+  p(6) = incDestino
+  erro = usr(21)
+ret p(0), p(1), p(3), erro
+
+' Copia um bloco de dados de um segmento de RAM pra VRAM.
+func .NB_CopyRamToVram(segOrigem, endOrigem, blocoDestino, endDestino, tamanho, incOrigem, incDestino)
+  p(0) = segOrigem
+  p(1) = endOrigem
+  p(2) = blocoDestino
+  p(3) = endDestino
+  p(4) = tamanho
+  p(5) = incOrigem
+  p(6) = incDestino
+  erro = usr(22)
+ret p(1), p(2), p(3), erro
+
+' Copia um bloco de dados entre duas areas da VRAM (maximo &H4000
+' bytes por chamada - pra blocos maiores repita a chamada, ver secao
+' 10.4 do manual).
+func .NB_CopyVramToVram(blocoOrigem, endOrigem, blocoDestino, endDestino, tamanho, incOrigem, incDestino)
+  p(0) = blocoOrigem
+  p(1) = endOrigem
+  p(2) = blocoDestino
+  p(3) = endDestino
+  p(4) = tamanho
+  p(5) = incOrigem
+  p(6) = incDestino
+  erro = usr(23)
+ret p(0), p(1), p(2), p(3), erro
+
+' Preenche uma area da VRAM com um byte fixo (maximo 16K por chamada).
+func .NB_FillVram(bloco, endereco, byte, tamanho)
+  p(0) = bloco
+  p(1) = endereco
+  p(2) = byte
+  p(3) = tamanho
+  erro = usr(24)
+ret erro
+
+' Preenche uma area da VRAM com um byte fixo e devolve bloco/endereco
+' seguintes (maximo 16K por chamada).
+func .NB_FillVramInc(bloco, endereco, byte, tamanho)
+  p(0) = bloco
+  p(1) = endereco
+  p(2) = byte
+  p(3) = tamanho
+  erro = usr(25)
+ret p(0), p(1), erro
+
+' --- 10.5 Acesso a disco ---
+' atributos: R+2*H+4*S+8*V+16*D+32*A (Somente leitura+Oculto+Sistema+
+' Volume+Diretorio+Arquivo). unidade normalmente 0=A:,1=B:,...,7=H: -
+' EXCETO em .NB_GetDiskSpace e .NB_GetDir, onde e 0=unidade padrao,
+' 1=A:,...,8=H: (assim mesmo no manual original, secao 10.5).
+
+' Procura o primeiro arquivo (buscarProximo=0) ou o proximo
+' (buscarProximo=1) que bate com a mascara (vazia = "*.*"). f$(0)
+' devolve so o nome encontrado; hora/data/cluster/unidade/tamanho/
+' contador ficam em p(2) a p(11) - ver secao 10.5 do manual. (S4)
+func .NB_FindFile(mascara$, buscarProximo, atributosBusca)
+  f$(1) = mascara$
+  p(0) = buscarProximo
+  p(1) = atributosBusca
+  erro = usr(26)
+ret f$(0), erro
+
+' Renomeia um arquivo. (S4)
+func .NB_RenameFile(nome$, novoNome$)
+  f$(0) = nome$
+  f$(1) = novoNome$
+  erro = usr(27)
+ret erro
+
+' Apaga um arquivo. (S4)
+func .NB_DeleteFile(nome$)
+  f$(0) = nome$
+  erro = usr(28)
+ret erro
+
+' Move um arquivo/diretorio pra outro local (so DOS 2; novoLocal$ nao
+' pode ter nome de arquivo nem letra de unidade, so o caminho novo).
+func .NB_MoveFile(nome$, novoLocal$)
+  f$(0) = nome$
+  f$(1) = novoLocal$
+  erro = usr(29)
+ret erro
+
+' Cria um arquivo vazio ou subdiretorio.
+func .NB_CreateFile(nome$, atributos)
+  f$(0) = nome$
+  p(0) = atributos
+  erro = usr(30)
+ret erro
+
+' Abre um arquivo e devolve o numero atribuido a ele.
+func .NB_OpenFile(nome$)
+  f$(0) = nome$
+  erro = usr(31)
+ret p(0), erro
+
+' Fecha um arquivo aberto - sempre feche arquivos que nao vai mais usar.
+func .NB_CloseFile(numeroArquivo)
+  p(0) = numeroArquivo
+  erro = usr(32)
+ret erro
+
+' Le do arquivo (a partir da posicao atual do ponteiro) pra um segmento
+' de RAM. incrementar<>0 avanca enderecoDestino pelo numero de bytes
+' lidos. (S4)
+func .NB_ReadFile(numeroArquivo, segDestino, enderecoDestino, tamanho, incrementar)
+  p(0) = numeroArquivo
+  p(2) = segDestino
+  p(3) = enderecoDestino
+  p(4) = tamanho
+  p(6) = incrementar
+  erro = usr(33)
+ret p(7), p(3), erro
+
+' Le do arquivo pra VRAM (maximo &H4000 bytes por chamada). (S4)
+func .NB_ReadFileToVram(numeroArquivo, blocoDestino, enderecoDestino, tamanho, incrementar)
+  p(0) = numeroArquivo
+  p(2) = blocoDestino
+  p(3) = enderecoDestino
+  p(4) = tamanho
+  p(6) = incrementar
+  erro = usr(34)
+ret p(7), p(2), p(3), erro
+
+' Le setores do disco (bruto, sem passar por arquivo) pra um segmento
+' de RAM (maximo 32 setores = 16K por chamada). (S4)
+func .NB_ReadSectors(unidade, primeiroSetor, segDestino, enderecoDestino, numSetores, incrementar)
+  p(0) = unidade
+  p(1) = primeiroSetor
+  p(2) = segDestino
+  p(3) = enderecoDestino
+  p(4) = numSetores
+  p(6) = incrementar
+  erro = usr(35)
+ret p(7), p(3), erro
+
+' Le setores do disco (bruto) pra VRAM (maximo 32 setores = 16K por
+' chamada). (S4)
+func .NB_ReadSectorsToVram(unidade, primeiroSetor, blocoDestino, enderecoDestino, numSetores, incrementar)
+  p(0) = unidade
+  p(1) = primeiroSetor
+  p(2) = blocoDestino
+  p(3) = enderecoDestino
+  p(4) = numSetores
+  p(6) = incrementar
+  erro = usr(36)
+ret p(7), p(2), p(3), erro
+
+' Escreve no arquivo (a partir da posicao atual do ponteiro) a partir
+' de um segmento de RAM. (S4)
+func .NB_WriteFile(numeroArquivo, segOrigem, enderecoOrigem, tamanho, incrementar)
+  p(0) = numeroArquivo
+  p(2) = segOrigem
+  p(3) = enderecoOrigem
+  p(4) = tamanho
+  p(6) = incrementar
+  erro = usr(37)
+ret p(7), p(3), erro
+
+' Escreve no arquivo a partir da VRAM (maximo &H4000 bytes por
+' chamada). (S4)
+func .NB_WriteFileFromVram(numeroArquivo, blocoOrigem, enderecoOrigem, tamanho, incrementar)
+  p(0) = numeroArquivo
+  p(2) = blocoOrigem
+  p(3) = enderecoOrigem
+  p(4) = tamanho
+  p(6) = incrementar
+  erro = usr(38)
+ret p(7), p(2), p(3), erro
+
+' Escreve setores do disco (bruto) a partir de um segmento de RAM
+' (maximo 32 setores = 16K por chamada). (S4)
+func .NB_WriteSectors(unidade, primeiroSetor, segOrigem, enderecoOrigem, numSetores, incrementar)
+  p(0) = unidade
+  p(1) = primeiroSetor
+  p(2) = segOrigem
+  p(3) = enderecoOrigem
+  p(4) = numSetores
+  p(6) = incrementar
+  erro = usr(39)
+ret p(7), p(3), erro
+
+' Escreve setores do disco (bruto) a partir da VRAM (maximo 32
+' setores = 16K por chamada). (S4)
+func .NB_WriteSectorsFromVram(unidade, primeiroSetor, blocoOrigem, enderecoOrigem, numSetores, incrementar)
+  p(0) = unidade
+  p(1) = primeiroSetor
+  p(2) = blocoOrigem
+  p(3) = enderecoOrigem
+  p(4) = numSetores
+  p(6) = incrementar
+  erro = usr(40)
+ret p(7), p(2), p(3), erro
+
+' Preenche um arquivo inteiro com um byte fixo (maximo &H4000 por
+' chamada). (S4)
+func .NB_FillFile(numeroArquivo, byte, tamanho)
+  p(0) = numeroArquivo
+  p(1) = byte
+  p(4) = tamanho
+  erro = usr(41)
+ret p(7), erro
+
+' Move o ponteiro do arquivo. metodo: 0=a partir do inicio, 1=a partir
+' da posicao atual, 2=a partir do fim. offsetBaixo/offsetAlto: deslocamento
+' com sinal, dividido em 2 partes de 16 bits (formula na secao 10.5 do
+' manual pra deslocamentos fora de -32768..32767). Pra saber a posicao
+' atual sem mover: metodo=1, offsetBaixo=0, offsetAlto=0.
+func .NB_SeekFile(numeroArquivo, metodo, offsetBaixo, offsetAlto)
+  p(0) = numeroArquivo
+  p(1) = metodo
+  p(2) = offsetBaixo
+  p(3) = offsetAlto
+  erro = usr(42)
+ret p(4), p(5), erro
+
+' Devolve a unidade padrao e o vetor de unidades disponiveis (bit N = 1
+' se a unidade N existe, bit 0 = A:).
+func .NB_GetDrives()
+  erro = usr(43)
+ret p(0), p(1), erro
+
+' Define a unidade padrao.
+func .NB_SetDrive(unidade)
+  p(0) = unidade
+  erro = usr(44)
+ret erro
+
+' Informacoes de espaco em disco (unidade: 0=padrao,1=A:,...,8=H:,
+' ver nota no topo da secao). Espaco livre em bytes = setoresPorCluster
+' * clustersLivres * 512.
+func .NB_GetDiskSpace(unidade)
+  p(0) = unidade
+  erro = usr(45)
+ret p(1), p(2), p(3), erro
+
+' Devolve o diretorio padrao (so DOS 2; unidade: 0=padrao,1=A:,...,8=H:,
+' ver nota no topo da secao). Sem letra de unidade nem barras nas pontas -
+' raiz = string vazia.
+func .NB_GetDir(unidade)
+  p(0) = unidade
+  erro = usr(46)
+ret f$(0), erro
+
+' Define o diretorio padrao (so DOS 2; nao muda a unidade padrao, use
+' .NB_SetDrive pra isso).
+func .NB_SetDir(caminho$)
+  f$(0) = caminho$
+  erro = usr(47)
+ret erro
+
+' Devolve o tamanho do RAM disk em segmentos de 16K (0 = nao existe;
+' so DOS 2). Tamanho em K = resultado*16.
+func .NB_GetRamDiskSize()
+  erro = usr(48)
+ret p(0), erro
+
+' Cria o RAM disk com o tamanho pedido, em segmentos de 16K (so DOS 2;
+' o NestorBASIC toma pra si todos os segmentos livres ao instalar - ver
+' funcao 80 do manual pra liberar segmentos antes de criar o RAM disk).
+' Devolve o tamanho realmente criado (pode ser menor que o pedido).
+func .NB_CreateRamDisk(tamanho16k)
+  p(0) = tamanho16k
+  erro = usr(49)
+ret p(0), erro
+
+' Devolve os atributos de um arquivo ja aberto (so DOS 2).
+func .NB_GetAttrByHandle(numeroArquivo)
+  p(0) = numeroArquivo
+  erro = usr(50)
+ret p(1), erro
+
+' Devolve os atributos de um arquivo pelo nome, sem precisar abri-lo
+' (so DOS 2).
+func .NB_GetAttrByName(nome$)
+  p(0) = 255
+  f$(0) = nome$
+  erro = usr(50)
+ret p(1), erro
+
+' Define os atributos de um arquivo ja aberto (so DOS 2; nao da pra
+' mudar atributo de arquivo aberto pelo nome, por isso o numero aqui).
+func .NB_SetAttrByHandle(numeroArquivo, atributos)
+  p(0) = numeroArquivo
+  p(1) = atributos
+  erro = usr(51)
+ret p(1), erro
+
+' Define os atributos de um arquivo pelo nome, sem precisar abri-lo
+' (so DOS 2; nao pode ser um arquivo ja aberto).
+func .NB_SetAttrByName(nome$, atributos)
+  p(0) = 255
+  f$(0) = nome$
+  p(1) = atributos
+  erro = usr(51)
+ret p(1), erro
+
+' Interpreta um caminho (so DOS 2, nao acessa o disco): devolve o
+' ultimo item (arquivo/diretorio) do caminho e a unidade logica; os
+' demais resultados (contem diretorio/unidade/nome/extensao, item
+' ambiguo, se e "." ou ".." etc., todos -1/0) ficam em p(0) a p(7).
+func .NB_ParsePath(caminho$, ehVolume)
+  f$(0) = caminho$
+  p(10) = ehVolume
+  erro = usr(52)
+ret f$(1), p(8), erro
+
+' Traduz um codigo de erro (devolvido por usr()/pelos .NB_* acima) pra
+' uma mensagem. Cobre o erro generico -1, os erros de disco (secao 4 do
+' manual) e os erros especificos de compressao grafica/codigo de
+' maquina/PSG/Moonblaster (Tier 2).
+func .NB_ErrorText(codigo)
+  msg$ = "Erro desconhecido"
+  if codigo = 0 then msg$ = "Sem erro"
+  if codigo = -2 then msg$ = "RAM principal do BASIC insuficiente pro novo programa"
+  if codigo = -1 then msg$ = "Segmento ou endereco VRAM invalido"
+  if codigo = 1 then msg$ = "Erro geral de disco (DOS 1)"
+  if codigo = 2 then msg$ = "Numero de arquivo invalido"
+  if codigo = 3 then msg$ = "Excesso de arquivos abertos (DOS 1)"
+  if codigo = 5 then msg$ = "Erro ao comprimir: segmentos esgotados antes de terminar"
+  if codigo = 6 then msg$ = "Erro ao descomprimir: dado invalido ou segmentos esgotados"
+  if codigo = 7 then msg$ = "Parametro invalido"
+  if codigo = 8 then msg$ = "Formato de efeitos sonoros invalido"
+  if codigo = 9 then msg$ = "Efeito sonoro nao definido"
+  if codigo = 10 then msg$ = "Efeito sonoro nao existe"
+  if codigo = 11 then msg$ = "Outro efeito de prioridade maior ja esta tocando"
+  if codigo = 12 then msg$ = "Tocador nao instalado/inicializado"
+  if codigo = 13 then msg$ = "Musica salva em modo EDIT, ou sem musica valida no endereco"
+  if codigo = 14 then msg$ = "Outra musica ja esta tocando"
+  if codigo = 15 then msg$ = "Sem wavekit valido nessa posicao do arquivo, ou nao esta em modo USER"
+  if codigo = 60 then msg$ = "FAT invalida"
+  if codigo = 62 then msg$ = "Unidade invalida"
+  if codigo = 68 then msg$ = "Disco protegido contra gravacao"
+  if codigo = 69 then msg$ = "Erro fisico de disco"
+  if codigo = 70 then msg$ = "Disco offline"
+  if codigo = 187 then msg$ = "RAM disk nao existe"
+  if codigo = 188 then msg$ = "RAM disk ja existe"
+  if codigo = 194 then msg$ = "Numero de arquivo invalido (nao atribuido)"
+  if codigo = 195 then msg$ = "Numero de arquivo invalido (maior que 63)"
+  if codigo = 196 then msg$ = "Excesso de arquivos abertos"
+  if codigo = 199 then msg$ = "Fim de arquivo encontrado"
+  if codigo = 202 then msg$ = "Arquivo esta aberto"
+  if codigo = 203 then msg$ = "Arquivo ja existe (criar diretorio)"
+  if codigo = 204 then msg$ = "Diretorio ja existe"
+  if codigo = 205 then msg$ = "Arquivo de sistema existe"
+  if codigo = 206 then msg$ = "Operacao invalida com . ou .."
+  if codigo = 207 then msg$ = "Atributos invalidos"
+  if codigo = 208 then msg$ = "Diretorio nao esta vazio"
+  if codigo = 209 then msg$ = "Arquivo somente leitura"
+  if codigo = 210 then msg$ = "Movimento de diretorio invalido"
+  if codigo = 211 then msg$ = "Arquivo ja existe (renomear/mover)"
+  if codigo = 212 then msg$ = "Disco cheio"
+  if codigo = 213 then msg$ = "Diretorio raiz cheio"
+  if codigo = 214 then msg$ = "Diretorio nao encontrado"
+  if codigo = 215 then msg$ = "Arquivo nao encontrado"
+  if codigo = 217 then msg$ = "Caminho invalido"
+  if codigo = 218 then msg$ = "Nome de arquivo invalido"
+  if codigo = 219 then msg$ = "Unidade invalida"
+  if codigo = 222 then msg$ = "Memoria interna do DOS 2 insuficiente"
+ret msg$
+
+' --- 10.6 Compressao e descompressao grafica (formato Sunrise) ---
+
+' Comprime dados graficos da VRAM pra um ou mais segmentos consecutivos
+' de RAM. Se a compressao encher um segmento, continua sozinha no
+' proximo (por isso segDestino/endDestino podem voltar diferentes do
+' que foi passado). Nao suporta segmentos VRAM nem o 255 como destino.
+func .NB_CompressGraphics(blocoOrigem, endOrigem, segDestino, endDestino, tamanho, incOrigem, incDestino)
+  p(0) = blocoOrigem
+  p(1) = endOrigem
+  p(2) = segDestino
+  p(3) = endDestino
+  p(4) = tamanho
+  p(5) = incOrigem
+  p(6) = incDestino
+  erro = usr(53)
+ret p(7), p(8), p(0), p(1), p(2), p(3), erro
+
+' Descomprime dados de um ou mais segmentos consecutivos de RAM pra
+' VRAM (mesma logica de continuar sozinha no proximo segmento). Nao
+' suporta segmentos VRAM nem o 255 como origem.
+func .NB_DecompressGraphics(blocoDestino, endDestino, segOrigem, endOrigem, incDestino, incOrigem)
+  p(0) = blocoDestino
+  p(1) = endDestino
+  p(2) = segOrigem
+  p(3) = endOrigem
+  p(5) = incDestino
+  p(6) = incOrigem
+  erro = usr(54)
+ret p(7), p(8), p(0), p(1), p(2), p(3), erro
+
+' --- 10.7 Execucao de programas BASIC guardados em RAM ---
+' ATENCAO: pra usar as 3 funcoes desta secao, o endereco inicial dos
+' programas BASIC precisa ter sido trocado de &H8000 pra &H8003 ANTES
+' de instalar o NestorBASIC (poke &Hf676,4:poke &H8003,0:new - so uma
+' vez, no programa que faz isso e depois carrega o NestorBASIC - ver
+' secao 6 do manual).
+
+' Executa um programa BASIC guardado no segmento/endereco indicado
+' (formato especial - ver .NB_SaveBasicProgram). Se der certo, o
+' programa atual NUNCA retorna daqui (o novo programa roda da linha 1,
+' com as variaveis do programa atual preservadas); so retorna em caso
+' de erro. (S4)
+func .NB_RunBasicProgram(segmento, endereco)
+  p(0) = segmento
+  p(1) = endereco
+  erro = usr(55)
+ret erro
+
+' Igual a .NB_RunBasicProgram, mas ao inves de rodar da linha 1, larga
+' no modo direto (programa carregado e pronto, mas parado). Se der
+' certo tambem nunca retorna daqui. (S4)
+func .NB_ActivateBasicProgram(segmento, endereco)
+  p(0) = segmento
+  p(1) = endereco
+  erro = usr(56)
+ret erro
+
+' Salva o programa BASIC ativo num arquivo, com o cabecalho especial
+' que .NB_RunBasicProgram/.NB_ActivateBasicProgram esperam (depois so
+' carregar esse arquivo num segmento com .NB_ReadFile e chamar uma das
+' duas). p(1) devolve -1 se nao deu erro, ou o numero do arquivo (ainda
+' aberto) se deu erro de disco - feche com .NB_CloseFile(p(1)) nesse
+' caso. (S4)
+func .NB_SaveBasicProgram(byteCabecalho, nome$)
+  p(0) = byteCabecalho
+  f$(0) = nome$
+  erro = usr(57)
+ret p(1), erro
+
+' --- 10.8 Funcoes diversas ---
+
+' Executa uma rotina de codigo de maquina na BIOS/SUB-BIOS/RAM
+' principal do BASIC/area de trabalho do sistema. subBios=0 executa
+' direto (BIOS, RAM principal via BLOAD, ou area de sistema como o
+' hook &HFFCA); subBios<>0 chama via EXTROM (so enderecos ate &H3FFF).
+' Registradores de entrada default 0 - so preencha os que a rotina
+' precisar. Devolve os registradores de saida (af,bc,de,hl,ix,iy e os
+' pares linha), mais a e as flags Cy/Z ja separadas de af (mais
+' conveniente que decompor af na mao).
+func .NB_ExecCode(subBios, endereco, regAf, regBc, regDe, regHl, regIx, regIy, regAf2, regBc2, regDe2, regHl2)
+  p(0) = subBios
+  p(1) = endereco
+  p(2) = regAf
+  p(3) = regBc
+  p(4) = regDe
+  p(5) = regHl
+  p(6) = regIx
+  p(7) = regIy
+  p(8) = regAf2
+  p(9) = regBc2
+  p(10) = regDe2
+  p(11) = regHl2
+  erro = usr(58)
+ret p(2), p(3), p(4), p(5), p(6), p(7), p(8), p(9), p(10), p(11), p(12), p(13), p(14), erro
+
+' Executa uma rotina de codigo de maquina guardada num segmento de RAM
+' (precisa estar montada no intervalo &H8000-&HBFFF - o segmento e
+' trocado pra pagina 2 antes de chamar). Mesmos registradores de
+' .NB_ExecCode. Nao suporta segmentos VRAM nem o 255.
+func .NB_ExecCodeInSegment(segmento, endereco, regAf, regBc, regDe, regHl, regIx, regIy, regAf2, regBc2, regDe2, regHl2)
+  p(0) = segmento
+  p(1) = endereco
+  p(2) = regAf
+  p(3) = regBc
+  p(4) = regDe
+  p(5) = regHl
+  p(6) = regIx
+  p(7) = regIy
+  p(8) = regAf2
+  p(9) = regBc2
+  p(10) = regDe2
+  p(11) = regHl2
+  erro = usr(59)
+ret p(2), p(3), p(4), p(5), p(6), p(7), p(8), p(9), p(10), p(11), p(12), p(13), p(14), erro
+
+' Imprime uma string em modo grafico (SCREEN 5 a 11) - equivalente a
+' PRINT#1,texto$ com OPEN "GRP:"AS#1 ja feito, mas compativel com
+' TurboBASIC. Nao faz nada (sem erro) fora dessas SCREENs. Maximo 80
+' caracteres; nao pode conter o caractere 0 (chr$(0)).
+func .NB_PrintGraphic(texto$)
+  f$(0) = texto$
+  erro = usr(60)
+ret erro
+
+' Guarda uma string num segmento (termina com um byte 0). Maximo 80
+' caracteres; nao pode conter o caractere 0.
+func .NB_StoreString(texto$, segmento, endereco, incrementar)
+  f$(0) = texto$
+  p(0) = segmento
+  p(1) = endereco
+  p(2) = incrementar
+  erro = usr(61)
+ret p(1), erro
+
+' Le uma string guardada num segmento (ate achar um byte 0, ou 80
+' caracteres). Fora de TurboBASIC, um caractere 255 na string vira 34
+' (aspas) por causa de como o BASIC classico atribui strings.
+func .NB_RestoreString(segmento, endereco, incrementar)
+  p(0) = segmento
+  p(1) = endereco
+  p(2) = incrementar
+  erro = usr(62)
+ret f$(1), p(1), erro
+
+' Inicializa o modo de "piscar" texto na SCREEN 0 (habilita cores e
+' tempos, e limpa a area de VRAM do blink). tempoLigado/tempoDesligado
+' (0 a 15) ambos 0 so limpa a area, sem mudar cores/tempos. So funciona
+' em SCREEN 0 com pelo menos 41 colunas.
+func .NB_InitBlink(corFrente, corFundo, tempoLigado, tempoDesligado)
+  p(0) = corFrente
+  p(1) = corFundo
+  p(2) = tempoLigado
+  p(3) = tempoDesligado
+  erro = usr(63)
+ret erro
+
+' Cria (criar<>0) ou apaga (criar=0) um bloco de texto piscando, na
+' coluna/linha indicada (0-79/0-27) - chame .NB_InitBlink antes. So
+' funciona em SCREEN 0 com pelo menos 41 colunas (nao faz nada, sem
+' erro, fora disso).
+func .NB_SetBlinkBlock(criar, coluna, linha, largura, altura, incColuna, incLinha)
+  p(0) = criar
+  p(1) = coluna
+  p(2) = linha
+  p(3) = largura
+  p(4) = altura
+  p(5) = incColuna
+  p(6) = incLinha
+  erro = usr(64)
+ret p(1), p(2), erro
+
+' Informacoes sobre os processos de interrupcao ativos (interrupcao do
+' usuario, efeito PSG, musica). p(2)/p(3) (segmento/endereco da
+' interrupcao do usuario, validos mesmo se ela estiver parada) ficam
+' em p().
+func .NB_GetInterruptInfo()
+  erro = usr(65)
+ret p(0), p(1), p(4), p(5), erro
+
+' Define/ativa (acao=1, com segmento+endereco), para (acao=0) ou
+' inverte o estado atual (acao=-1) de uma rotina de interrupcao do
+' usuario (roda a 50/60Hz). A rotina precisa estar montada em
+' &H8000-&HBFFF do segmento indicado. Erro 7 = acao invalida; erro -1
+' = segmento invalido/VRAM/255.
+func .NB_SetUserInterrupt(acao, segmento, endereco)
+  p(0) = acao
+  p(1) = segmento
+  p(2) = endereco
+  erro = usr(66)
+ret erro
+
+' --- 10.9 Efeitos sonoros PSG ---
+
+' Informacoes sobre os efeitos sonoros PSG (o conjunto precisa ter
+' sido inicializado com .NB_InitSfxSet). volumeMaximo novo (-1 = nao
+' muda; >15 vira 15). Nunca retorna erro.
+func .NB_GetSfxInfo(volumeMaximo)
+  p(0) = volumeMaximo
+  erro = usr(67)
+ret p(1), p(2), p(7), erro
+
+' Inicializa um conjunto de efeitos sonoros PSG (criado no editor SEE
+' v3.xx) guardado no segmento/endereco indicado, deixando pronto pra
+' usar com .NB_PlaySfx. Erro 8 = formato invalido; erro -1 = segmento
+' invalido/VRAM/255.
+func .NB_InitSfxSet(segmento, endereco)
+  p(0) = segmento
+  p(1) = endereco
+  erro = usr(68)
+ret erro
+
+' Toca o efeito sonoro PSG indicado. Erro 9 = efeito nao definido
+' (trilha em OFF no editor); erro 10 = efeito nao existe (numero maior
+' que o maximo); erro 11 = outro efeito de prioridade maior ja esta
+' tocando.
+func .NB_PlaySfx(efeito, prioridade)
+  p(0) = efeito
+  p(1) = prioridade
+  erro = usr(69)
+ret erro
+
+' Para o efeito sonoro PSG em execucao e silencia o PSG. Nunca retorna
+' erro.
+func .NB_StopSfx()
+  erro = usr(70)
+ret erro
+
+' --- 10.10 Tocador Moonblaster ---
+
+' Carrega e inicializa (ou desinstala, acao=-1) o tocador Moonblaster
+' no segmento 5 (so existe se o segmento 5 existir e for do mapper
+' primario - senao erro -1). acao: 0=Moonblaster 1.4, 1=Moonblaster
+' Wave 1.05, 3=autodetectar (Wave se achar Moonsound, senao 1.4).
+' p(1) devolve -1 se nao deu erro, ou o numero do arquivo NBASIC.BIN
+' (ainda aberto) se deu erro de disco - feche com
+' .NB_CloseFile(p(1)) nesse caso. (S4)
+func .NB_LoadPlayer(acao)
+  p(0) = acao
+  erro = usr(71)
+ret p(0), p(1), erro
+
+' Informacoes sobre a musica Moonblaster em execucao/pausada e sobre o
+' tocador. p(12)=0 se nenhum tocador foi carregado (os demais
+' resultados, exceto deteccao de chips de som, ficam invalidos nesse
+' caso); f$(0)/f$(1) (nome da musica/samplekit ou wavekit) so valem se
+' p(0)<>0. Nunca retorna erro.
+func .NB_GetMusicInfo()
+  erro = usr(72)
+ret p(0), p(4), f$(0), erro
+
+' Habilita/desabilita os chips de som (MSX-MUSIC/MSX-AUDIO/OPL4).
+' acao: 0=so consultar, 1=aplicar msxMusica/msxAudio/opl4 (cada um:
+' 0=nao mexe,1=desabilita,2=habilita,-1=inverte), 2=habilitar todos os
+' encontrados. So tem efeito na proxima musica tocada
+' (.NB_PlayMusic) ou apos parar/reiniciar a atual. Erro 7 = parametro
+' invalido; erro 12 = tocador nao instalado.
+func .NB_SetSoundChips(acao, msxMusica, msxAudio, opl4)
+  p(0) = acao
+  p(1) = msxMusica
+  p(2) = msxAudio
+  p(3) = opl4
+  erro = usr(73)
+ret p(4), p(5), p(6), erro
+
+' Comeca a tocar uma musica Moonblaster guardada no segmento/endereco
+' indicado (Moonblaster Wave pode ocupar ate 3 segmentos
+' consecutivos). Erro -1 = segmento invalido/VRAM/255; erro 12 =
+' tocador nao inicializado; erro 13 = musica salva em modo EDIT (nao
+' da pra tocar) ou endereco sem musica Moonblaster Wave valida; erro
+' 14 = ja tem outra musica tocando.
+func .NB_PlayMusic(segmento, endereco)
+  p(0) = segmento
+  p(1) = endereco
+  erro = usr(74)
+ret erro
+
+' Para a musica Moonblaster em execucao e silencia os chips de som.
+' Nunca retorna erro (nao faz nada se nao tiver musica tocando/tocador
+' nao inicializado).
+func .NB_StopMusic()
+  erro = usr(75)
+ret erro
+
+' Pausa (acao=0), continua (acao=1) ou inverte (acao=-1) a musica
+' Moonblaster em execucao/pausada. Erro 7 = parametro invalido; nao
+' faz nada (sem erro) se nao tiver musica tocando/pausada ou tocador
+' nao inicializado.
+func .NB_PauseMusic(acao)
+  p(0) = acao
+  erro = usr(76)
+ret erro
+
+' Inicia/continua (delay 1-254, quanto menor mais rapido) ou pausa
+' (delay=-1) o fade-out da musica Moonblaster em execucao - ao
+' completar, a musica para sozinha. delay=0 so consulta o estado
+' atual. Nunca retorna erro (nao faz nada se nao tiver musica
+' tocando/tocador nao inicializado).
+func .NB_FadeMusic(delay)
+  p(0) = delay
+  erro = usr(77)
+ret p(1), p(2), erro
+
+' Le um samplekit Music Module (formato Moonblaster: 56 bytes de
+' cabecalho + 32K de amostras) de um arquivo ja aberto, na posicao
+' atual do ponteiro. Se o retorno vier maior que 16K, so os primeiros
+' 16K foram transferidos pra RAM de amostras; se vier exatamente
+' 32824, o valor verdadeiro nao cabe em inteiro e volta como -32712
+' (limite do BASIC). Nao faz nada (sem erro) se o tocador nao foi
+' inicializado ou nao ha Music Module.
+func .NB_LoadSamplekit(numeroArquivo)
+  p(0) = numeroArquivo
+  erro = usr(78)
+ret p(7), erro
+
+' Le um wavekit Moonsound (formato Moonblaster Wave, precisa estar
+' salvo em modo USER - senao erro 15) de um arquivo ja aberto, na
+' posicao atual do ponteiro. Tamanho lido = bytesAlto*65536+bytesBaixo
+' (ver formula de conversao na secao 10.10 do manual se precisar
+' imprimir esse valor). Nao faz nada (sem erro) se o tocador Wave nao
+' foi inicializado ou nao ha Moonsound.
+func .NB_LoadWavekit(numeroArquivo)
+  p(0) = numeroArquivo
+  erro = usr(79)
+ret p(6), p(7), erro
+
+' --- 10.11 Controle de uso de segmentos ---
+
+' Consulta (numSegmentos=0) ou define quantos segmentos o NestorBASIC
+' vai usar pra si mesmo - o resto fica livre pra outros programas que
+' tambem alocam segmentos (RAM disk do DOS 2, NestorMan, InterNestor
+' Suite). Se pedir menos de 6, o NestorBASIC usa 5 (ou 6 se o tocador
+' Moonblaster estiver carregado) mesmo assim; se pedir mais que o
+' disponivel, aloca o maximo possivel (ate 247). Nunca retorna erro.
+func .NB_SetSegmentCount(numSegmentos)
+  p(0) = numSegmentos
+  erro = usr(80)
+ret p(0), p(1), erro
+
+' --- 10.12 Interacao com NestorMan e InterNestor Suite/Lite ---
+
+' Informacoes sobre a presenca do NestorMan e do InterNestor Suite.
+' status: 0=NestorMan nao instalado, 1=NestorMan instalado,
+' 3=NestorMan e InterNestor Suite instalados. Os segmentos NestorMan
+' de cada modulo do InterNestor Suite (1 a 4) ficam em p(1) a p(4) (so
+' validos se status=3); o segmento NestorMan do segmento 4 do
+' NestorBASIC (usado como buffer intermediario por
+' .NB_CopyFromNestorMan/.NB_CopyToNestorMan) e devolvido aqui - so
+' valido se status=1 ou 3. Nunca retorna erro.
+func .NB_GetNestorManInfo()
+  erro = usr(81)
+ret p(0), p(5), erro
+
+' Executa a funcao do NestorMan indicada (numero de funcao - ver o
+' manual do NestorMan) por chamada indireta (hook estendido da BIOS).
+' Mesmos registradores de .NB_ExecCode. NOTA: a secao 9.5 do manual diz
+' que esta funcao nunca retorna erro, mas a descricao dela propria (secao
+' 10.12) diz erro -1 se o NestorMan nao estiver instalado - o manual
+' original se contradiz aqui; teste na pratica se depender disso. De
+' qualquer forma, nao verifica se a funcao pedida realmente existe no
+' NestorMan.
+func .NB_CallNestorMan(funcao, regAf, regBc, regDe, regHl, regIx, regIy, regAf2, regBc2, regDe2, regHl2)
+  p(0) = funcao
+  p(2) = regAf
+  p(3) = regBc
+  p(4) = regDe
+  p(5) = regHl
+  p(6) = regIx
+  p(7) = regIy
+  p(8) = regAf2
+  p(9) = regBc2
+  p(10) = regDe2
+  p(11) = regHl2
+  erro = usr(82)
+ret p(2), p(3), p(4), p(5), p(6), p(7), p(8), p(9), p(10), p(11), p(12), p(13), p(14), erro
+
+' Copia um bloco de dados de um segmento do NestorMan pro NestorBASIC.
+' segDestino nao pode ser o segmento 1 (TurboBASIC) - copie primeiro
+' pra outro segmento (ex.: o 4) se precisar. Erro -1 = segmento
+' invalido.
+func .NB_CopyFromNestorMan(segOrigemNestorMan, endOrigem, segDestino, endDestino, tamanho, incOrigem, incDestino)
+  p(0) = segOrigemNestorMan
+  p(1) = endOrigem
+  p(2) = segDestino
+  p(3) = endDestino
+  p(4) = tamanho
+  p(5) = incOrigem
+  p(6) = incDestino
+  erro = usr(83)
+ret p(1), p(3), erro
+
+' Copia um bloco de dados do NestorBASIC pra um segmento do NestorMan.
+' segOrigem nao pode ser o segmento 1 (TurboBASIC). Erro -1 = segmento
+' invalido.
+func .NB_CopyToNestorMan(segOrigem, endOrigem, segDestinoNestorMan, endDestino, tamanho, incOrigem, incDestino)
+  p(0) = segOrigem
+  p(1) = endOrigem
+  p(2) = segDestinoNestorMan
+  p(3) = endDestino
+  p(4) = tamanho
+  p(5) = incOrigem
+  p(6) = incDestino
+  erro = usr(84)
+ret p(1), p(3), erro
+
+' Executa uma rotina de qualquer modulo do InterNestor Suite (1 a 4).
+' Mesmos registradores de .NB_ExecCode. Pra ler/escrever as
+' constantes/variaveis de configuracao dos modulos, use
+' .NB_GetNestorManInfo (segmentos NestorMan de cada modulo) e depois
+' .NB_CopyFromNestorMan/.NB_CopyToNestorMan. Erro -1 = InterNestor
+' Suite nao instalado, ou numero de modulo invalido.
+func .NB_CallInterNestorSuite(modulo, endereco, regAf, regBc, regDe, regHl, regIx, regIy, regAf2, regBc2, regDe2, regHl2)
+  p(0) = modulo
+  p(1) = endereco
+  p(2) = regAf
+  p(3) = regBc
+  p(4) = regDe
+  p(5) = regHl
+  p(6) = regIx
+  p(7) = regIy
+  p(8) = regAf2
+  p(9) = regBc2
+  p(10) = regDe2
+  p(11) = regHl2
+  erro = usr(85)
+ret p(2), p(3), p(4), p(5), p(6), p(7), p(8), p(9), p(10), p(11), p(12), p(13), p(14), erro
+
+' Executa uma rotina do InterNestor Lite (endereco da rotina - ver o
+' manual do InterNestor Lite pra lista de rotinas). Mesmos
+' registradores de .NB_ExecCode (sem selecao de modulo - so existe uma
+' instancia). Erro -1 = InterNestor Lite nao instalado - pra checar
+' antes, sem chamar esta funcao: p(0)=0:p(1)=&Hffca:p(2)=0:p(4)=&H2203:
+' e=usr(58):if p(12)=0 then (nao instalado) - ver .NB_ExecCode/funcao
+' 58 do manual (registrador A na saida).
+func .NB_CallInterNestorLite(endereco, regAf, regBc, regDe, regHl, regIx, regIy, regAf2, regBc2, regDe2, regHl2)
+  p(1) = endereco
+  p(2) = regAf
+  p(3) = regBc
+  p(4) = regDe
+  p(5) = regHl
+  p(6) = regIx
+  p(7) = regIy
+  p(8) = regAf2
+  p(9) = regBc2
+  p(10) = regDe2
+  p(11) = regHl2
+  erro = usr(86)
+ret p(2), p(3), p(4), p(5), p(6), p(7), p(8), p(9), p(10), p(11), p(12), p(13), p(14), erro

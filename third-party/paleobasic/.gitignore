@@ -1,0 +1,151 @@
+# Pacotes .zip de release (paleobasic-vXXXXXX.zip, gerados manualmente pra
+# subir como asset de release do GitHub, nunca fazem parte do repositorio em
+# si) - ja aconteceu de 3 desses ficarem rastreados por engano e precisarem de
+# limpeza depois (ver CHANGELOG.md, 2026-08-19); regra aqui evita repetir.
+/paleobasic-v*.zip
+
+# Instalador standalone (build-installer.ps1, ver docs/SPEC.md) - artefatos
+# de build, nunca versionados: payload.zip embutido no instalador via
+# IncludeBinary (~100+ MB, seria catastrofico no historico do git), o
+# manifesto que o gera, a ferramenta de empacotamento compilada, e o proprio
+# instalador final (installer\PaleoBasicSetup.exe, tambem grande por embutir
+# o payload) - so o FONTE (src\installer\*.pb) fica rastreado.
+/src/installer/payload.zip
+/src/installer/payload.zip.build.log
+/src/installer/payload_manifest.txt
+/src/installer/tools/BuildPayloadZip.exe
+/installer/
+
+# Copia local do toolchain Basic Dignified Suite - referencia de comportamento
+# a ser portada nativamente (ver docs/SPEC.md), nao dependencia de runtime.
+# Baixavel via Configurar -> Basic Dignified... -> "Baixar Basic Dignified Suite..."
+# (nome do diretorio default e "badig", mas o .zip/clone do GitHub tambem pode
+# cair como "basic-dignified" dependendo de como foi baixado manualmente -
+# a documentacao usada por Ajuda -> Basic Dignified... foi lida de uma copia
+# baixada assim, ver src/editor/help/BasicDignifiedHelpData.pbi).
+/badig/
+/basic-dignified/
+
+# Copia local do Nestor80 (Konamiman) - referencia de comportamento (fonte C#
+# do N80/LK80, compativel M80/L80) a ser portada nativamente para o assembler
+# Z80 (modulo 2, ver docs/SPEC.md), nao dependencia de runtime.
+/nestor80/
+
+# Copia local do Graphos IV (Python) - referencia de leitura dos formatos
+# nativos do Graphos III (.ALF/.LAY/.SCR/.SHP), incluindo os viewers
+# alphabetV.py/layoutV.py/screenV.py/shapeV_2.py e as fontes Pascal originais
+# de CyberKnight (readers/*.pas, g3viewer.doc) - especificacao de formato a
+# portar nativamente pro modulo 14 (Graphos III), nao dependencia de runtime.
+/graphos-IV/
+
+# Cache local de fontes baixadas via Configurar -> Editor... -> Baixar fontes
+# (FontDownloader.pbi, destino "<exe>\..\fonts" = dist\fonts\ agora que o exe
+# vive em dist\editor\) - exceto Source Code Pro, que e sincronizada com o
+# GitHub (fonte usada/testada pelo editor). NAO confundir com
+# dist\editor\fonts\ (fonte padrao embutida, copiada de resource\fonts\ pelo
+# build -D, essa sim rastreada).
+/dist/fonts/*
+!/dist/fonts/Source_Code_Pro.zip
+
+# Copia local do SEE (Sound Effect Editor, Fuzzy Logic 1991/95) - shareware,
+# nao dominio publico (uso comercial exige pagamento aos autores, ver
+# see/SEE3HELP.TXT) - referencia de leitura do formato .SEE/driver de replay
+# (see/SEE3PLAY.ASC) a portar nativamente pro futuro tracker de SFX
+# compativel (ver docs/SPEC.md modulo 23, src/editor/visual_editors/SeeTrackerHelpData.pbi),
+# nao dependencia de runtime nem material pra distribuir com o repositorio.
+/see/
+
+# Copia local de sc2/ (projeto Go pessoal do usuario, sc2msx, reescrita do
+# SuperCalc 2) - a pasta sc2/msx/ carrega software original de terceiros
+# (SuperCalc 2 MSX: SC2*.COM/.OVL, PDFs de manuais com copyright, dumps de
+# disquete supercalc2*.dsk) - referencia de leitura/engenharia reversa do
+# formato .CAL (ver docs/reference/supercalc2-cal-format.md, modulo 17 do
+# SPEC.md), nao dependencia de runtime nem material pra distribuir com o
+# repositorio.
+/sc2/
+
+# Caminho do JOE
+/joewin/
+
+#Caminho do MSXBAS2ROM
+/msxbas2rom/
+
+# Copia local do asMSX (github.com/Fubukimaru/asMSX) - Z80 cross-assembler pra
+# MSX, terceiro assembler suportado (alem do nativo Z80Asm.pbi e do N80/
+# Nestor80) - referencia pra extrair Ajuda -> asMSX... (asmsx/doc/asmsx.md),
+# nao dependencia de runtime nem material pra distribuir com o repositorio.
+# Baixavel via Configurar -> asMSX... -> "Baixar versao mais recente".
+/asmsx/
+
+# Copia local do fMSX (Marat Fayzullin) - emulador MSX portatil, fonte do
+# nucleo Z80 e do hardware MSX (VDP/PSG/FDC) estudado como referencia de
+# comportamento para o debugger visual Z80 planejado (ver docs/SPEC.md,
+# modulo 32), nao dependencia de runtime. Inclui ROMs de sistema com
+# copyright proprio (MSX.ROM/MSX2*.ROM/DISK.ROM/FMPAC.ROM/PAINTER.ROM) e o
+# fMSX.exe - nada disso deve ser distribuido com o repositorio; licenca
+# propria nao-comercial do fMSX tambem impede copiar/adaptar codigo dele
+# direto para este projeto (GPL v3), ver nota no modulo 32.
+/fMSX/
+/fmsx/
+
+# src/fossauro/ (fonte movido de fossauro/ pra src/fossauro/ na reorganizacao
+# de diretorios, ver docs/SPEC.md) - port nativo em PureBasic do fMSX (Z80/
+# MSX/V9938), decisao explicita do usuario: o FONTE do port
+# (src/fossauro/*.pbi, *.pb, *.md, LICENSE, build.ps1, translate.py) e parte
+# do projeto e fica versionado normalmente - NAO adicionar "/src/fossauro/"
+# aqui. As linhas abaixo excluem so o que nunca deveria ter sido commitado: a
+# copia vendorizada do fMSX original em C (src/fossauro/fMSX/ - mesmo
+# material/mesma licenca ja excluida em /fmsx/ acima, so que apareceu de novo
+# por engano), os binarios de ROM do sistema MSX (copyright proprio, nao
+# redistribuivel, independente da licenca do fMSX) e artefatos de build/teste
+# (.exe/log, regenerados por src/fossauro/build.ps1, nao sao fonte).
+/src/fossauro/fMSX/
+/src/fossauro/fMSX.exe
+/src/fossauro/fMSX.html
+/src/fossauro/*.ROM
+/src/fossauro/*.exe
+/src/fossauro/debug.log
+/src/fossauro/fossauro.log
+/src/fossauro/fossauro.log.*
+
+# fossauro.exe/ROMs distribuidos NUNCA sao rastreados aqui tambem, mesmo
+# motivo acima (licenca propria nao-comercial/copyright de ROM). Pedido
+# explicito do usuario (2026-08-19): os dois executaveis ficam na RAIZ de
+# dist/ (dist/PaleoBasic.exe, dist/fossauro.exe), cada um busca help/config
+# na subpasta com seu nome (dist/editor/, dist/fossauro/) - src/fossauro/
+# build.ps1 grava dist/fossauro.exe direto. ROMs do sistema MSX: fonte
+# canonica em resource/roms/*.ROM (tambem nunca rastreado, mesmo motivo;
+# renomeado de resource/fmsx/ - "fMSX" era o nome do emulador original, nao
+# do que a pasta guarda), copiado por build.ps1/build.sh -D pra dist/roms/
+# (fossauro.exe roda com CWD = dist/, carrega "roms/MSX.ROM" relativo a
+# isso - nao pra dist/fossauro/roms/, que so' tem help/config).
+/dist/fossauro.exe
+/dist/roms/
+/resource/roms/*.ROM
+
+# Preferencias locais de cada maquina/usuario - nunca fazem parte do pacote
+# versionado em dist/ (mesmo espirito de badig_settings.json etc abaixo).
+/dist/editor/*_settings.json
+/dist/editor/editor_settings.json
+/dist/editor/hexeditor_templates.json
+
+# Projeto implicito "sem projeto especificado" (ProjectDB::NewTempPath(),
+# src/editor/core/ProjectDB.pbi) - criado sozinho na primeira vez que o
+# editor precisa dele, muda a cada sessao de uso, nao e' conteudo fixo pra
+# versionar (mesmo espirito dos *_settings.json acima). A pasta dist/projects/
+# em si fica rastreada (dist/projects/README.md) pra sobreviver a um clone.
+/dist/projects/noname.msxproject
+
+# Caminho local do pbcompiler.exe, gravado por build.ps1 (-Compiler/-C)
+/build.config.json
+
+# Caminho local do pbcompiler (Linux), gravado por build.sh (-C/--compiler) -
+# arquivo separado do build.config.json do Windows de proposito, pra nao um
+# script pisar na config do outro.
+/build.config.linux.json
+
+# Executavel Linux gerado por build.sh (equivalente ao dist/PaleoBasic.exe
+# do Windows, sem extensao) - dist/PaleoBasic.exe (Windows) FICA
+# rastreado de proposito (mesma convencao de release ja usada neste projeto -
+# ver docs/RELEASE_NOTES.md), so o binario Linux e' local/nao versionado.
+/dist/PaleoBasic

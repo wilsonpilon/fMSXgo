@@ -1,0 +1,589 @@
+' ------------------------------------------------------------
+'  Suporte ao NestorBASIC 1.11 (by Nestor Soriano / Konami Man)
+'
+'  NestorBASIC da acesso a memoria mapeada, VRAM, disco, compressao
+'  grafica, tocador Moonblaster, efeitos PSG e mais, tudo atraves de
+'  usr(numero_funcao) e dos arrays p() (parametros/retornos inteiros)
+'  e f$() (nomes de arquivo/strings, quando a funcao usa).
+'
+'  NBASIC.BIN precisa estar no disco/pasta do programa em tempo de
+'  execucao. O carregador logo abaixo (via GOTO, ver comentario perto
+'  de {NBasicLoad} - NAO pode ser func/ret) carrega e mostra o erro
+'  (se houver).
+'  Os wrappers .NB_* (mais abaixo) dao nome as funcoes mais comuns do
+'  NestorBASIC (geral, RAM, VRAM, disco) - use-os ao inves de usr()
+'  cru sempre que possivel.
+' ------------------------------------------------------------
+
+{inicio}
+defint p
+dim p(15)
+dim f$(1)
+
+goto {NBasicLoad}
+{VoltaNBasicLoad}
+
+' NestorBASIC instalado - p(0) tem o numero de segmentos de RAM
+' disponiveis (sempre >=5 se chegou ate aqui). Use os wrappers .NB_*
+' abaixo (ou usr(numero_funcao) direto) para chamar as funcoes do
+' NestorBASIC.
+
+end
+
+{NBasicLoad}
+bload "nbasic.bin",r
+if p(0) >= 5 then goto {VoltaNBasicLoad}
+print "Erro ao carregar o NestorBASIC: ";
+if p(0) = 0 then print "computador sem RAM mapeada (minimo 128K)."
+if p(0) = 1 then print "erro de disco ao ler NBASIC.BIN."
+if p(0) = 2 then print "sem segmentos livres no mapper primario (DOS 2)."
+if p(0) = 3 then print "o NestorBASIC ja estava instalado."
+if p(0) = 4 then print "erro nao definido nesta versao."
+end
+
+' --- Biblioteca NestorBASIC (Tier 1: geral, RAM, VRAM, disco) ---
+' Convencao: cada .NB_* devolve so o(s) valor(es) principal(is) da
+' chamada, sempre com o codigo de erro por ultimo (0 = sem erro; use
+' .NB_ErrorText(codigo) pra mensagem). Os demais resultados documentados
+' no manual continuam em p()/f$() logo apos a chamada.
+
+' --- 10.2 Funcoes gerais ---
+
+' Desinstala o NestorBASIC. liberarRam<>0 libera tambem a RAM ocupada
+' pela rotina de salto (~500 bytes), voltando FRE(0) ao valor de antes
+' de instalar. (S4)
+func .NB_Uninstall(liberarRam)
+  p(0) = liberarRam
+  erro = usr(0)
+ret erro
+
+' Informacoes gerais sobre o NestorBASIC e sobre o segmento indicado.
+' Devolve o numero de segmentos de RAM disponiveis; outros resultados
+' (versao, DOS, VRAM em K, arquivos abertos, slot/segmento fisico,
+' caminho do NBASIC.BIN em f$(0) etc. - ver secao 10.2 do manual)
+' continuam em p()/f$().
+func .NB_GetInfo(segmento)
+  p(0) = segmento
+  erro = usr(1)
+ret p(0), erro
+
+' --- 10.3 Acesso a segmentos (RAM) ---
+
+' Le um byte do segmento/endereco indicado.
+func .NB_ReadByte(segmento, endereco)
+  p(0) = segmento
+  p(1) = endereco
+  erro = usr(2)
+ret p(2), erro
+
+' Le um byte e devolve o endereco seguinte (pra percorrer sequencialmente:
+' byte, endereco = .NB_ReadByteInc(segmento, endereco)).
+func .NB_ReadByteInc(segmento, endereco)
+  p(0) = segmento
+  p(1) = endereco
+  erro = usr(3)
+ret p(2), p(1), erro
+
+' Le um inteiro (2 bytes, low+high) do segmento/endereco indicado.
+func .NB_ReadInt(segmento, endereco)
+  p(0) = segmento
+  p(1) = endereco
+  erro = usr(4)
+ret p(2), erro
+
+' Le um inteiro e devolve o endereco seguinte.
+func .NB_ReadIntInc(segmento, endereco)
+  p(0) = segmento
+  p(1) = endereco
+  erro = usr(5)
+ret p(2), p(1), erro
+
+' Escreve um byte no segmento/endereco indicado.
+func .NB_WriteByte(segmento, endereco, valor)
+  p(0) = segmento
+  p(1) = endereco
+  p(2) = valor
+  erro = usr(6)
+ret erro
+
+' Escreve um byte e devolve o endereco seguinte.
+func .NB_WriteByteInc(segmento, endereco, valor)
+  p(0) = segmento
+  p(1) = endereco
+  p(2) = valor
+  erro = usr(7)
+ret p(1), erro
+
+' Escreve um inteiro (2 bytes) no segmento/endereco indicado.
+func .NB_WriteInt(segmento, endereco, valor)
+  p(0) = segmento
+  p(1) = endereco
+  p(2) = valor
+  erro = usr(8)
+ret erro
+
+' Escreve um inteiro e devolve o endereco seguinte.
+func .NB_WriteIntInc(segmento, endereco, valor)
+  p(0) = segmento
+  p(1) = endereco
+  p(2) = valor
+  erro = usr(9)
+ret p(1), erro
+
+' Copia um bloco de dados entre dois segmentos. incOrigem/incDestino<>0
+' avancam o endereco de origem/destino correspondente (util em loop).
+func .NB_CopySegToSeg(segOrigem, endOrigem, segDestino, endDestino, tamanho, incOrigem, incDestino)
+  p(0) = segOrigem
+  p(1) = endOrigem
+  p(2) = segDestino
+  p(3) = endDestino
+  p(4) = tamanho
+  p(5) = incOrigem
+  p(6) = incDestino
+  erro = usr(10)
+ret p(1), p(3), erro
+
+' Preenche uma area de um segmento com um byte fixo.
+func .NB_FillRam(segmento, endereco, byte, tamanho)
+  p(0) = segmento
+  p(1) = endereco
+  p(2) = byte
+  p(3) = tamanho
+  erro = usr(11)
+ret erro
+
+' Preenche uma area de um segmento com um byte fixo e devolve o
+' endereco seguinte a area preenchida.
+func .NB_FillRamInc(segmento, endereco, byte, tamanho)
+  p(0) = segmento
+  p(1) = endereco
+  p(2) = byte
+  p(3) = tamanho
+  erro = usr(12)
+ret p(1), erro
+
+' --- 10.4 Acesso a VRAM ---
+' bloco = 0 (64K VRAM baixa) ou 1 (64K VRAM alta, so em maquinas com
+' 128K) - endereco 0-&HFFFF; se um autoincremento passar de &HFFFF,
+' o endereco volta a 0 e o bloco se inverte (0<->1).
+
+' Le um byte da VRAM.
+func .NB_VReadByte(bloco, endereco)
+  p(0) = bloco
+  p(1) = endereco
+  erro = usr(13)
+ret p(2), erro
+
+' Le um byte da VRAM e devolve bloco/endereco seguintes.
+func .NB_VReadByteInc(bloco, endereco)
+  p(0) = bloco
+  p(1) = endereco
+  erro = usr(14)
+ret p(2), p(0), p(1), erro
+
+' Le um inteiro (2 bytes) da VRAM.
+func .NB_VReadInt(bloco, endereco)
+  p(0) = bloco
+  p(1) = endereco
+  erro = usr(15)
+ret p(2), erro
+
+' Le um inteiro da VRAM e devolve bloco/endereco seguintes.
+func .NB_VReadIntInc(bloco, endereco)
+  p(0) = bloco
+  p(1) = endereco
+  erro = usr(16)
+ret p(2), p(0), p(1), erro
+
+' Escreve um byte na VRAM.
+func .NB_VWriteByte(bloco, endereco, valor)
+  p(0) = bloco
+  p(1) = endereco
+  p(2) = valor
+  erro = usr(17)
+ret erro
+
+' Escreve um byte na VRAM e devolve bloco/endereco seguintes.
+func .NB_VWriteByteInc(bloco, endereco, valor)
+  p(0) = bloco
+  p(1) = endereco
+  p(2) = valor
+  erro = usr(18)
+ret p(0), p(1), erro
+
+' Escreve um inteiro (2 bytes) na VRAM.
+func .NB_VWriteInt(bloco, endereco, valor)
+  p(0) = bloco
+  p(1) = endereco
+  p(2) = valor
+  erro = usr(19)
+ret erro
+
+' Escreve um inteiro na VRAM e devolve bloco/endereco seguintes.
+func .NB_VWriteIntInc(bloco, endereco, valor)
+  p(0) = bloco
+  p(1) = endereco
+  p(2) = valor
+  erro = usr(20)
+ret p(0), p(1), erro
+
+' Copia um bloco de dados da VRAM pra um segmento de RAM.
+func .NB_CopyVramToRam(blocoOrigem, endOrigem, segDestino, endDestino, tamanho, incOrigem, incDestino)
+  p(0) = blocoOrigem
+  p(1) = endOrigem
+  p(2) = segDestino
+  p(3) = endDestino
+  p(4) = tamanho
+  p(5) = incOrigem
+  p(6) = incDestino
+  erro = usr(21)
+ret p(0), p(1), p(3), erro
+
+' Copia um bloco de dados de um segmento de RAM pra VRAM.
+func .NB_CopyRamToVram(segOrigem, endOrigem, blocoDestino, endDestino, tamanho, incOrigem, incDestino)
+  p(0) = segOrigem
+  p(1) = endOrigem
+  p(2) = blocoDestino
+  p(3) = endDestino
+  p(4) = tamanho
+  p(5) = incOrigem
+  p(6) = incDestino
+  erro = usr(22)
+ret p(1), p(2), p(3), erro
+
+' Copia um bloco de dados entre duas areas da VRAM (maximo &H4000
+' bytes por chamada - pra blocos maiores repita a chamada, ver secao
+' 10.4 do manual).
+func .NB_CopyVramToVram(blocoOrigem, endOrigem, blocoDestino, endDestino, tamanho, incOrigem, incDestino)
+  p(0) = blocoOrigem
+  p(1) = endOrigem
+  p(2) = blocoDestino
+  p(3) = endDestino
+  p(4) = tamanho
+  p(5) = incOrigem
+  p(6) = incDestino
+  erro = usr(23)
+ret p(0), p(1), p(2), p(3), erro
+
+' Preenche uma area da VRAM com um byte fixo (maximo 16K por chamada).
+func .NB_FillVram(bloco, endereco, byte, tamanho)
+  p(0) = bloco
+  p(1) = endereco
+  p(2) = byte
+  p(3) = tamanho
+  erro = usr(24)
+ret erro
+
+' Preenche uma area da VRAM com um byte fixo e devolve bloco/endereco
+' seguintes (maximo 16K por chamada).
+func .NB_FillVramInc(bloco, endereco, byte, tamanho)
+  p(0) = bloco
+  p(1) = endereco
+  p(2) = byte
+  p(3) = tamanho
+  erro = usr(25)
+ret p(0), p(1), erro
+
+' --- 10.5 Acesso a disco ---
+' atributos: R+2*H+4*S+8*V+16*D+32*A (Somente leitura+Oculto+Sistema+
+' Volume+Diretorio+Arquivo). unidade normalmente 0=A:,1=B:,...,7=H: -
+' EXCETO em .NB_GetDiskSpace e .NB_GetDir, onde e 0=unidade padrao,
+' 1=A:,...,8=H: (assim mesmo no manual original, secao 10.5).
+
+' Procura o primeiro arquivo (buscarProximo=0) ou o proximo
+' (buscarProximo=1) que bate com a mascara (vazia = "*.*"). f$(0)
+' devolve so o nome encontrado; hora/data/cluster/unidade/tamanho/
+' contador ficam em p(2) a p(11) - ver secao 10.5 do manual. (S4)
+func .NB_FindFile(mascara$, buscarProximo, atributosBusca)
+  f$(1) = mascara$
+  p(0) = buscarProximo
+  p(1) = atributosBusca
+  erro = usr(26)
+ret f$(0), erro
+
+' Renomeia um arquivo. (S4)
+func .NB_RenameFile(nome$, novoNome$)
+  f$(0) = nome$
+  f$(1) = novoNome$
+  erro = usr(27)
+ret erro
+
+' Apaga um arquivo. (S4)
+func .NB_DeleteFile(nome$)
+  f$(0) = nome$
+  erro = usr(28)
+ret erro
+
+' Move um arquivo/diretorio pra outro local (so DOS 2; novoLocal$ nao
+' pode ter nome de arquivo nem letra de unidade, so o caminho novo).
+func .NB_MoveFile(nome$, novoLocal$)
+  f$(0) = nome$
+  f$(1) = novoLocal$
+  erro = usr(29)
+ret erro
+
+' Cria um arquivo vazio ou subdiretorio.
+func .NB_CreateFile(nome$, atributos)
+  f$(0) = nome$
+  p(0) = atributos
+  erro = usr(30)
+ret erro
+
+' Abre um arquivo e devolve o numero atribuido a ele.
+func .NB_OpenFile(nome$)
+  f$(0) = nome$
+  erro = usr(31)
+ret p(0), erro
+
+' Fecha um arquivo aberto - sempre feche arquivos que nao vai mais usar.
+func .NB_CloseFile(numeroArquivo)
+  p(0) = numeroArquivo
+  erro = usr(32)
+ret erro
+
+' Le do arquivo (a partir da posicao atual do ponteiro) pra um segmento
+' de RAM. incrementar<>0 avanca enderecoDestino pelo numero de bytes
+' lidos. (S4)
+func .NB_ReadFile(numeroArquivo, segDestino, enderecoDestino, tamanho, incrementar)
+  p(0) = numeroArquivo
+  p(2) = segDestino
+  p(3) = enderecoDestino
+  p(4) = tamanho
+  p(6) = incrementar
+  erro = usr(33)
+ret p(7), p(3), erro
+
+' Le do arquivo pra VRAM (maximo &H4000 bytes por chamada). (S4)
+func .NB_ReadFileToVram(numeroArquivo, blocoDestino, enderecoDestino, tamanho, incrementar)
+  p(0) = numeroArquivo
+  p(2) = blocoDestino
+  p(3) = enderecoDestino
+  p(4) = tamanho
+  p(6) = incrementar
+  erro = usr(34)
+ret p(7), p(2), p(3), erro
+
+' Le setores do disco (bruto, sem passar por arquivo) pra um segmento
+' de RAM (maximo 32 setores = 16K por chamada). (S4)
+func .NB_ReadSectors(unidade, primeiroSetor, segDestino, enderecoDestino, numSetores, incrementar)
+  p(0) = unidade
+  p(1) = primeiroSetor
+  p(2) = segDestino
+  p(3) = enderecoDestino
+  p(4) = numSetores
+  p(6) = incrementar
+  erro = usr(35)
+ret p(7), p(3), erro
+
+' Le setores do disco (bruto) pra VRAM (maximo 32 setores = 16K por
+' chamada). (S4)
+func .NB_ReadSectorsToVram(unidade, primeiroSetor, blocoDestino, enderecoDestino, numSetores, incrementar)
+  p(0) = unidade
+  p(1) = primeiroSetor
+  p(2) = blocoDestino
+  p(3) = enderecoDestino
+  p(4) = numSetores
+  p(6) = incrementar
+  erro = usr(36)
+ret p(7), p(2), p(3), erro
+
+' Escreve no arquivo (a partir da posicao atual do ponteiro) a partir
+' de um segmento de RAM. (S4)
+func .NB_WriteFile(numeroArquivo, segOrigem, enderecoOrigem, tamanho, incrementar)
+  p(0) = numeroArquivo
+  p(2) = segOrigem
+  p(3) = enderecoOrigem
+  p(4) = tamanho
+  p(6) = incrementar
+  erro = usr(37)
+ret p(7), p(3), erro
+
+' Escreve no arquivo a partir da VRAM (maximo &H4000 bytes por
+' chamada). (S4)
+func .NB_WriteFileFromVram(numeroArquivo, blocoOrigem, enderecoOrigem, tamanho, incrementar)
+  p(0) = numeroArquivo
+  p(2) = blocoOrigem
+  p(3) = enderecoOrigem
+  p(4) = tamanho
+  p(6) = incrementar
+  erro = usr(38)
+ret p(7), p(2), p(3), erro
+
+' Escreve setores do disco (bruto) a partir de um segmento de RAM
+' (maximo 32 setores = 16K por chamada). (S4)
+func .NB_WriteSectors(unidade, primeiroSetor, segOrigem, enderecoOrigem, numSetores, incrementar)
+  p(0) = unidade
+  p(1) = primeiroSetor
+  p(2) = segOrigem
+  p(3) = enderecoOrigem
+  p(4) = numSetores
+  p(6) = incrementar
+  erro = usr(39)
+ret p(7), p(3), erro
+
+' Escreve setores do disco (bruto) a partir da VRAM (maximo 32
+' setores = 16K por chamada). (S4)
+func .NB_WriteSectorsFromVram(unidade, primeiroSetor, blocoOrigem, enderecoOrigem, numSetores, incrementar)
+  p(0) = unidade
+  p(1) = primeiroSetor
+  p(2) = blocoOrigem
+  p(3) = enderecoOrigem
+  p(4) = numSetores
+  p(6) = incrementar
+  erro = usr(40)
+ret p(7), p(2), p(3), erro
+
+' Preenche um arquivo inteiro com um byte fixo (maximo &H4000 por
+' chamada). (S4)
+func .NB_FillFile(numeroArquivo, byte, tamanho)
+  p(0) = numeroArquivo
+  p(1) = byte
+  p(4) = tamanho
+  erro = usr(41)
+ret p(7), erro
+
+' Move o ponteiro do arquivo. metodo: 0=a partir do inicio, 1=a partir
+' da posicao atual, 2=a partir do fim. offsetBaixo/offsetAlto: deslocamento
+' com sinal, dividido em 2 partes de 16 bits (formula na secao 10.5 do
+' manual pra deslocamentos fora de -32768..32767). Pra saber a posicao
+' atual sem mover: metodo=1, offsetBaixo=0, offsetAlto=0.
+func .NB_SeekFile(numeroArquivo, metodo, offsetBaixo, offsetAlto)
+  p(0) = numeroArquivo
+  p(1) = metodo
+  p(2) = offsetBaixo
+  p(3) = offsetAlto
+  erro = usr(42)
+ret p(4), p(5), erro
+
+' Devolve a unidade padrao e o vetor de unidades disponiveis (bit N = 1
+' se a unidade N existe, bit 0 = A:).
+func .NB_GetDrives()
+  erro = usr(43)
+ret p(0), p(1), erro
+
+' Define a unidade padrao.
+func .NB_SetDrive(unidade)
+  p(0) = unidade
+  erro = usr(44)
+ret erro
+
+' Informacoes de espaco em disco (unidade: 0=padrao,1=A:,...,8=H:,
+' ver nota no topo da secao). Espaco livre em bytes = setoresPorCluster
+' * clustersLivres * 512.
+func .NB_GetDiskSpace(unidade)
+  p(0) = unidade
+  erro = usr(45)
+ret p(1), p(2), p(3), erro
+
+' Devolve o diretorio padrao (so DOS 2; unidade: 0=padrao,1=A:,...,8=H:,
+' ver nota no topo da secao). Sem letra de unidade nem barras nas pontas -
+' raiz = string vazia.
+func .NB_GetDir(unidade)
+  p(0) = unidade
+  erro = usr(46)
+ret f$(0), erro
+
+' Define o diretorio padrao (so DOS 2; nao muda a unidade padrao, use
+' .NB_SetDrive pra isso).
+func .NB_SetDir(caminho$)
+  f$(0) = caminho$
+  erro = usr(47)
+ret erro
+
+' Devolve o tamanho do RAM disk em segmentos de 16K (0 = nao existe;
+' so DOS 2). Tamanho em K = resultado*16.
+func .NB_GetRamDiskSize()
+  erro = usr(48)
+ret p(0), erro
+
+' Cria o RAM disk com o tamanho pedido, em segmentos de 16K (so DOS 2;
+' o NestorBASIC toma pra si todos os segmentos livres ao instalar - ver
+' funcao 80 do manual pra liberar segmentos antes de criar o RAM disk).
+' Devolve o tamanho realmente criado (pode ser menor que o pedido).
+func .NB_CreateRamDisk(tamanho16k)
+  p(0) = tamanho16k
+  erro = usr(49)
+ret p(0), erro
+
+' Devolve os atributos de um arquivo ja aberto (so DOS 2).
+func .NB_GetAttrByHandle(numeroArquivo)
+  p(0) = numeroArquivo
+  erro = usr(50)
+ret p(1), erro
+
+' Devolve os atributos de um arquivo pelo nome, sem precisar abri-lo
+' (so DOS 2).
+func .NB_GetAttrByName(nome$)
+  p(0) = 255
+  f$(0) = nome$
+  erro = usr(50)
+ret p(1), erro
+
+' Define os atributos de um arquivo ja aberto (so DOS 2; nao da pra
+' mudar atributo de arquivo aberto pelo nome, por isso o numero aqui).
+func .NB_SetAttrByHandle(numeroArquivo, atributos)
+  p(0) = numeroArquivo
+  p(1) = atributos
+  erro = usr(51)
+ret p(1), erro
+
+' Define os atributos de um arquivo pelo nome, sem precisar abri-lo
+' (so DOS 2; nao pode ser um arquivo ja aberto).
+func .NB_SetAttrByName(nome$, atributos)
+  p(0) = 255
+  f$(0) = nome$
+  p(1) = atributos
+  erro = usr(51)
+ret p(1), erro
+
+' Interpreta um caminho (so DOS 2, nao acessa o disco): devolve o
+' ultimo item (arquivo/diretorio) do caminho e a unidade logica; os
+' demais resultados (contem diretorio/unidade/nome/extensao, item
+' ambiguo, se e "." ou ".." etc., todos -1/0) ficam em p(0) a p(7).
+func .NB_ParsePath(caminho$, ehVolume)
+  f$(0) = caminho$
+  p(10) = ehVolume
+  erro = usr(52)
+ret f$(1), p(8), erro
+
+' Traduz um codigo de erro (devolvido por usr()/pelos .NB_* acima) pra
+' uma mensagem. Cobre o erro generico -1 e os erros de disco (secao 4
+' do manual) - nao cobre erros especificos de compressao grafica/PSG/
+' Moonblaster (Tier 2, ainda nao implementada).
+func .NB_ErrorText(codigo)
+  msg$ = "Erro desconhecido"
+  if codigo = 0 then msg$ = "Sem erro"
+  if codigo = -1 then msg$ = "Segmento ou endereco VRAM invalido"
+  if codigo = 1 then msg$ = "Erro geral de disco (DOS 1)"
+  if codigo = 2 then msg$ = "Numero de arquivo invalido"
+  if codigo = 3 then msg$ = "Excesso de arquivos abertos (DOS 1)"
+  if codigo = 60 then msg$ = "FAT invalida"
+  if codigo = 62 then msg$ = "Unidade invalida"
+  if codigo = 68 then msg$ = "Disco protegido contra gravacao"
+  if codigo = 69 then msg$ = "Erro fisico de disco"
+  if codigo = 70 then msg$ = "Disco offline"
+  if codigo = 187 then msg$ = "RAM disk nao existe"
+  if codigo = 188 then msg$ = "RAM disk ja existe"
+  if codigo = 194 then msg$ = "Numero de arquivo invalido (nao atribuido)"
+  if codigo = 195 then msg$ = "Numero de arquivo invalido (maior que 63)"
+  if codigo = 196 then msg$ = "Excesso de arquivos abertos"
+  if codigo = 199 then msg$ = "Fim de arquivo encontrado"
+  if codigo = 202 then msg$ = "Arquivo esta aberto"
+  if codigo = 203 then msg$ = "Arquivo ja existe (criar diretorio)"
+  if codigo = 204 then msg$ = "Diretorio ja existe"
+  if codigo = 205 then msg$ = "Arquivo de sistema existe"
+  if codigo = 206 then msg$ = "Operacao invalida com . ou .."
+  if codigo = 207 then msg$ = "Atributos invalidos"
+  if codigo = 208 then msg$ = "Diretorio nao esta vazio"
+  if codigo = 209 then msg$ = "Arquivo somente leitura"
+  if codigo = 210 then msg$ = "Movimento de diretorio invalido"
+  if codigo = 211 then msg$ = "Arquivo ja existe (renomear/mover)"
+  if codigo = 212 then msg$ = "Disco cheio"
+  if codigo = 213 then msg$ = "Diretorio raiz cheio"
+  if codigo = 214 then msg$ = "Diretorio nao encontrado"
+  if codigo = 215 then msg$ = "Arquivo nao encontrado"
+  if codigo = 217 then msg$ = "Caminho invalido"
+  if codigo = 218 then msg$ = "Nome de arquivo invalido"
+  if codigo = 219 then msg$ = "Unidade invalida"
+  if codigo = 222 then msg$ = "Memoria interna do DOS 2 insuficiente"
+ret msg$

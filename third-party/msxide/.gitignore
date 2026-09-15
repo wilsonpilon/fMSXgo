@@ -1,0 +1,15 @@
+msxide.exe
+installer.exe
+distribute/
+msxide.db
+msxide.db-shm
+msxide.db-wal
+msxide_mamute_smoke.db*
+sqlite3.dll
+third_party/sqlite/extract/
+disk/
+~tmppre.*
+*.bin
+*.sym
+*.msxproj-shm
+*.msxproj-wal

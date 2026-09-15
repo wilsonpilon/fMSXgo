@@ -1,0 +1,138 @@
+{
+  "Cells"   : [
+      {
+        "Pagina" : 0,
+        "Tipo"   : 2,
+        "Slot"   : 0,
+        "Arquivo": "E:\\paleobasic\\fMSX\\MSX.ROM",
+        "Offset" : 0
+      },
+      {
+        "Pagina" : 1,
+        "Tipo"   : 3,
+        "Slot"   : 0,
+        "Arquivo": "E:\\paleobasic\\fMSX\\MSX.ROM",
+        "Offset" : 16384
+      },
+      {
+        "Pagina" : 2,
+        "Tipo"   : 0,
+        "Slot"   : 0,
+        "Arquivo": "",
+        "Offset" : 0
+      },
+      {
+        "Pagina" : 3,
+        "Tipo"   : 0,
+        "Slot"   : 0,
+        "Arquivo": "",
+        "Offset" : 0
+      },
+      {
+        "Pagina" : 0,
+        "Tipo"   : 0,
+        "Slot"   : 1,
+        "Arquivo": "",
+        "Offset" : 0
+      },
+      {
+        "Pagina" : 1,
+        "Tipo"   : 0,
+        "Slot"   : 1,
+        "Arquivo": "",
+        "Offset" : 0
+      },
+      {
+        "Pagina" : 2,
+        "Tipo"   : 0,
+        "Slot"   : 1,
+        "Arquivo": "",
+        "Offset" : 0
+      },
+      {
+        "Pagina" : 3,
+        "Tipo"   : 0,
+        "Slot"   : 1,
+        "Arquivo": "",
+        "Offset" : 0
+      },
+      {
+        "Pagina" : 0,
+        "Tipo"   : 0,
+        "Slot"   : 2,
+        "Arquivo": "",
+        "Offset" : 0
+      },
+      {
+        "Pagina" : 1,
+        "Tipo"   : 0,
+        "Slot"   : 2,
+        "Arquivo": "",
+        "Offset" : 0
+      },
+      {
+        "Pagina" : 2,
+        "Tipo"   : 0,
+        "Slot"   : 2,
+        "Arquivo": "",
+        "Offset" : 0
+      },
+      {
+        "Pagina" : 3,
+        "Tipo"   : 0,
+        "Slot"   : 2,
+        "Arquivo": "",
+        "Offset" : 0
+      },
+      {
+        "Pagina" : 0,
+        "Tipo"   : 1,
+        "Slot"   : 3,
+        "Arquivo": "",
+        "Offset" : 0
+      },
+      {
+        "Pagina" : 1,
+        "Tipo"   : 1,
+        "Slot"   : 3,
+        "Arquivo": "",
+        "Offset" : 0
+      },
+      {
+        "Pagina" : 2,
+        "Tipo"   : 1,
+        "Slot"   : 3,
+        "Arquivo": "",
+        "Offset" : 0
+      },
+      {
+        "Pagina" : 3,
+        "Tipo"   : 1,
+        "Slot"   : 3,
+        "Arquivo": "",
+        "Offset" : 0
+      }
+    ],
+  "FontBold": true,
+  "SKeys"   : [
+      "V",
+      "1",
+      "2",
+      "3",
+      "4",
+      "Q",
+      "W",
+      "E",
+      "R",
+      "A",
+      "S",
+      "D",
+      "F",
+      "Z",
+      "X",
+      "C"
+    ],
+  "VramSize": 16384,
+  "FontSize": 16,
+  "FontName": "Consolas"
+}

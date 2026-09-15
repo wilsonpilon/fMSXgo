@@ -1,0 +1,46 @@
+# custom .gitignore file for asMSX project
+
+# GCC compilation derivate files
+bin/
+asmsx.exe
+/asmsx
+/asmsx-debug
+*.o
+*.dot
+*.gv
+*.tab.h
+*.tab.c
+lex.*.c
+*.output
+*.error
+warn*.txt
+
+# asMSX output files
+~*.*
+*.bin
+*.cas
+code/**/*.txt
+code/**/*.z80
+*.wav
+*.sym
+*.rom
+
+# Test artifacts
+/behave_test/
+
+# Private code for testing that cannot be in the repo
+
+private/
+
+# add random junk that made it into repo here
+.Rhistory
+
+# Visual Studio
+Debug/
+Release/
+*.VC.db
+*.VC.opendb
+*.vcxproj.user
+build/vs2019/*.txt
+packages/
+.vs/

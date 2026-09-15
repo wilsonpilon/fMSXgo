@@ -1,0 +1,44 @@
+include "nbasic.dmx"
+include "msxide.dmx"
+maxfiles=1 :
+gosub {desktop} :
+gosub {traca_q1} :
+temp$ = input$(1) :
+gosub {fim}
+
+
+
+{fim}
+    screen 0 :
+    color M_white,M_black,M_black : 
+    cls : 
+    width 40 :
+    key off :
+    end
+
+
+
+{desktop}
+    open "grp:" for output as #1 :
+    screen 2,1 :
+    color 4,7,5 :
+    cls :
+    return
+
+
+{traca_q1}
+    for cores=0 to 15 :
+        ponto_inicial = cor * 16 : 
+        ponto_final = ponto_inicial + 15 :
+        preset(ponto_inicial + 5 * (ponto_inicial * 0), 168) :
+        print #1, cores :
+        line(ponto_inicial, 176) - (ponto_final, 191), cores, bf :
+    next cores :
+    for colunas = 0 to 256 step 16 :
+        line(colunas, 0) - (colunas, 192) :
+    next colunas :
+    for linhas = 0 to 192 step 16 :
+        line(0, linhas) - (255, linhas) :
+    next linhas :
+    return
+

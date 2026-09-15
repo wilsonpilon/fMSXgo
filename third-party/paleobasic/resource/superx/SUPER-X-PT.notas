@@ -1,0 +1,471 @@
+﻿0000;0;1;Verifica a RAM e configura o slot de RAM do sistema.
+0008;0;1;Verifica se o caractere em (HL) e' o especificado. Se diferente: Syntax error. Se igual: salta para 0010H.
+000C;0;1;Le 1 byte do endereco (HL) no slot indicado por A. Interrupcoes ficam desabilitadas durante a chamada.
+0010;0;1;Extrai um caractere (ou token) do texto do BASIC.
+0014;0;1;Escreve o byte E no endereco (HL) do slot indicado por A. Interrupcoes ficam desabilitadas durante a chamada.
+0018;0;1;Envia A para o dispositivo em uso no momento.
+001C;0;1;Chama (IX) no slot especificado pelos 8 bits superiores de IY.
+0020;0;1;Compara o conteudo de HL e DE. HL=DE ativa a flag Z, HL<DE ativa a flag C.
+0024;0;1;A partir dos 2 bits superiores de HL, retorna a pagina correspondente ao slot indicado por A.
+0028;0;1;Devolve o tipo do DAC (acumulador decimal).
+0030;0;1;Chamada inter-slot pelo metodo: RST 30H, DB slot, DW endereco.
+0038;0;1;Executa a rotina de interrupcao do timer.
+003B;0;1;Inicializa o dispositivo.
+003E;0;1;Inicializa o conteudo das teclas de funcao.
+0041;0;1;Desabilita a exibicao de tela - o processamento fica um pouco mais rapido.
+0044;0;1;Exibicao da tela.
+0047;0;1;Escreve o dado B no registrador C do VDP.
+004A;0;1;Le (HL) da VRAM para A. Endereco da VRAM valido so ate 14 bits.
+004D;0;1;Escreve A na VRAM(HL). Endereco valido so ate 14 bits.
+0050;0;1;Define o endereco HL no VDP e coloca-o em estado de leitura. Endereco valido ate 14 bits.
+0053;0;1;Define o endereco HL no VDP e coloca-o em estado de escrita. Endereco valido ate 14 bits.
+0056;0;1;Preenche BC bytes a partir de VRAM(HL) com A. Endereco valido ate 14 bits.
+0059;0;1;Transfere BC bytes de VRAM(HL) para a memoria (DE). Endereco totalmente valido.
+005C;0;1;Transfere BC bytes da memoria (HL) para VRAM(DE). Endereco totalmente valido.
+005F;0;1;Muda o modo de tela em (FCAFH). Nao inicializa a paleta.
+0062;0;1;Muda as cores da tela - 3 bytes a partir de (F3E9H): cor de frente, fundo e borda.
+0066;0;1;Executa a rotina de tratamento do NMI (Non Maskable Interrupt).
+0069;0;1;Inicializa todos os sprites.
+006C;0;1;Inicializa a tela no modo TEXT1 (40*24). Nao inicializa a paleta.
+006F;0;1;Inicializa a tela no modo GRAPHIC1 (32*24). Nao inicializa a paleta.
+0072;0;1;Inicializa a tela no modo de alta resolucao grafica. Nao inicializa a paleta.
+0075;0;1;Inicializa a tela no modo MULTI COLOR. Nao inicializa a paleta.
+0078;0;1;Coloca so o VDP no modo TEXT1 (40*24).
+007B;0;1;Coloca so o VDP no modo GRAPHIC1 (32*24).
+007E;0;1;Coloca so o VDP no modo GRAPHIC2.
+0081;0;1;Coloca so o VDP no modo MULTICOLOR.
+0084;0;1;Coloca em HL o endereco da tabela geradora de sprites de A.
+0087;0;1;Coloca em HL o endereco da tabela de atributos de sprites de A.
+008A;0;1;Devolve o tamanho atual do sprite - A=tamanho (bytes), se 16*16, ativa a flag C.
+008D;0;1;Exibe o caractere A na tela grafica. Se o modo for 5 ou superior, faz uma operacao logica em (FB02H).
+0090;0;1;Inicializa o PSG e define os valores iniciais para tocar musicas com PLAY.
+0093;0;1;Escreve o dado E no registrador A do PSG.
+0096;0;1;Le o valor do registrador A do PSG para A.
+0099;0;1;Verifica se uma instrucao PLAY esta sendo executada em segundo plano, se nao, inicia o PLAY.
+009C;0;1;Verifica o estado do buffer do teclado - se nao houver buffer, ativa a flag Z.
+009F;0;1;Entrada de um caractere, esperando pela entrada - devolve o caractere em A.
+00A2;0;1;Exibe o caractere A.
+00A5;0;1;Envia o caractere A para a impressora - se falhar, ativa a flag C.
+00A8;0;1;Verifica o estado da impressora - se ativar a flag Z, impressora NOT READY.
+00AB;0;1;Verifica o codigo de grafico e converte o codigo.
+00AE;0;1;Entrada de uma linha - devolve HL=buffer-1, C=flag de stop.
+00B1;0;1;Entrada de uma linha, respondendo ao prompt - devolve HL=buffer-1, C=flag de stop.
+00B4;0;1;Exibe "? " e depois chama INLIN (00B1H).
+00B7;0;1;Verifica se CTRL+STOP esta pressionado - se sim, ativa a flag C.
+00C0;0;1;Toca um BEEP.
+00C3;0;1;Limpa a tela.
+00C6;0;1;Move o cursor - H=coordenada X, L=coordenada Y.
+00C9;0;1;Exibe a tecla de funcao se estiver ativa, senao, apaga.
+00CC;0;1;Apaga a exibicao das teclas de funcao.
+00CF;0;1;Exibe as teclas de funcao.
+00D2;0;1;Forca a tela para o modo texto.
+00D5;0;1;Devolve o estado do joystick - A=STICK(A).
+00D8;0;1;Devolve o estado do botao de disparo - A=STRIG(A), se pressionado, A=FFH.
+00DB;0;1;Devolve o estado do touch pad - A=PAD(A).
+00DE;0;1;Devolve o valor do paddle - A=PDL(A).
+00E1;0;1;Depois de ligar o motor do cassete, le o bloco de cabecalho - flag C=erro.
+00E4;0;1;Le um dado da fita - devolve o dado em A, flag C=erro.
+00E7;0;1;Para a leitura da fita.
+00EA;0;1;Depois de ligar o motor do cassete, grava o bloco de cabecalho - A=tipo de cabecalho, flag C=erro.
+00ED;0;1;Grava um dado na fita - A=dado, flag C=erro.
+00F0;0;1;Para a gravacao na fita - flag C=erro.
+00F3;0;1;Define o comportamento do motor do cassete conforme o valor de A.
+0132;0;1;Muda o estado da luz de CAPS - A=0: apaga, A<>0: acende.
+0135;0;1;Muda o estado da porta de som de 1 bit - A=0: OFF, A=1: ON.
+0138;0;1;Le para A o valor enviado ao registrador de slot basico.
+013B;0;1;Escreve A no registrador de slot basico.
+013E;0;1;Le o registrador de status do VDP para A.
+0141;0;1;Obtem em A o estado da linha especificada por A na matriz do teclado.
+014A;0;1;Verifica se o dispositivo esta em operacao - se A<>0, esta em operacao.
+014D;0;1;Envia o caractere A para a impressora.
+0156;0;1;Limpa o buffer do teclado.
+0159;0;1;Chamada inter-slot para uma rotina dentro do interpretador BASIC - IX=endereco.
+015C;0;1;Chamada inter-slot para a SUB-ROM - IX=endereco, empilha IX ao mesmo tempo.
+015F;0;1;Chamada inter-slot para a SUB-ROM - IX=endereco.
+0168;0;1;Apaga (deleta) ate o fim da linha - H=coordenada X, L=coordenada Y.
+016B;0;1;Preenche BC bytes a partir de VRAM(HL) com A, sem verificar o modo de tela.
+016E;0;1;Define o endereco no VDP e coloca-o em estado de leitura - HL=endereco.
+0171;0;1;Define o endereco no VDP e coloca-o em estado de escrita - HL=endereco.
+0174;0;1;Le VRAM(HL) para A. Endereco totalmente valido (todos os bits).
+0177;0;1;Escreve A em VRAM(HL). Endereco totalmente valido (todos os bits).
+0180;0;1;Troca a CPU conforme o valor de A.
+0183;0;1;Obtem o estado da CPU em A - A=0:Z80 1:ROM 2:DRAM.
+0186;0;1;Reproducao de audio PCM.
+0189;0;1;Gravacao de audio PCM.
+0089;0;1;(SUB-ROM) Exibe A na tela grafica.
+00C9;0;1;(SUB-ROM) Desenha uma caixa - (BC,DE) - ((FCB3H),(FCB5H)), (F3F2H), (FB02H).
+00CD;0;1;(SUB-ROM) Desenha uma caixa preenchida - (BC,DE) - ((FCB3H),(FCB5H)), (F3F2H), (FB02H).
+00D1;0;1;(SUB-ROM) Muda o modo de tela para A.
+00D5;0;1;(SUB-ROM) Inicializa a tela no modo texto (40*24).
+00D9;0;1;(SUB-ROM) Inicializa a tela no modo texto (32*24).
+00DD;0;1;(SUB-ROM) Inicializa a tela no modo grafico de alta resolucao.
+00E1;0;1;(SUB-ROM) Inicializa a tela no modo MULTI COLOR.
+00E5;0;1;(SUB-ROM) Coloca o VDP no modo texto (40*24).
+00E9;0;1;(SUB-ROM) Coloca o VDP no modo texto (32*24).
+00ED;0;1;(SUB-ROM) Coloca o VDP no modo grafico de alta resolucao.
+00F1;0;1;(SUB-ROM) Coloca o VDP no modo MULTI COLOR.
+00F5;0;1;(SUB-ROM) Inicializa todos os sprites.
+00F9;0;1;(SUB-ROM) Obtem em HL a tabela geradora de sprites de A.
+00FD;0;1;(SUB-ROM) Obtem em HL o endereco da tabela de atributos de sprites de A.
+0101;0;1;(SUB-ROM) Obtem o tamanho do sprite - A=tamanho, flag C=16*16.
+0105;0;1;(SUB-ROM) Obtem o padrao do caractere - A=codigo do caractere, padrao devolvido em (FC40H).
+0109;0;1;(SUB-ROM) Escreve A em VRAM(HL).
+010D;0;1;(SUB-ROM) Le o valor de VRAM(HL) para A.
+0111;0;1;(SUB-ROM) Muda as cores da tela - 3 bytes a partir de (F3E9H): cor de frente, fundo e borda.
+0115;0;1;(SUB-ROM) Limpa a tela.
+011D;0;1;(SUB-ROM) Exibe as teclas de funcao.
+012D;0;1;(SUB-ROM) Escreve o dado B no registrador C do VDP.
+0131;0;1;(SUB-ROM) Le o registrador A do VDP para A.
+013D;0;1;(SUB-ROM) Troca de pagina - (FAF5H)=pagina de exibicao, (FAF6H)=pagina ativa.
+0141;0;1;(SUB-ROM) Inicializacao da paleta.
+0145;0;1;(SUB-ROM) Restaura a paleta a partir da VRAM.
+0149;0;1;(SUB-ROM) Obtem o codigo de cor a partir da paleta - 4 bits superiores de B=vermelho, 4 bits inferiores de B=azul, 4 bits inferiores de C=verde.
+014D;0;1;(SUB-ROM) Define a paleta - D=paleta, 4 bits superiores de A=vermelho, 4 bits inferiores de A=azul, 4 bits inferiores de E=verde.
+017D;0;1;(SUB-ROM) Toca um BEEP.
+0181;0;1;(SUB-ROM) Exibicao do prompt.
+01AD;0;1;(SUB-ROM) Le o estado do mouse/light pen - A=configuracao na entrada, A=valor na saida.
+01B5;0;1;(SUB-ROM) Muda o modo do VDP para A. A paleta e' inicializada.
+01BD;0;1;(SUB-ROM) Exibe kanji na tela grafica - BC=codigo JIS, A=modo de exibicao.
+01F5;0;1;(SUB-ROM) Le um dado do relogio - C=endereco da RAM do relogio, devolve A=dado lido.
+01F9;0;1;(SUB-ROM) Escreve um dado no relogio - A=dado, C=endereco do relogio.
+F380;0;2;Rotina de leitura do slot basico. (5 bytes)
+F385;0;2;Rotina de escrita no slot basico. (7 bytes)
+F38C;0;2;Rotina de chamada inter-slot. (14 bytes)
+F39A;0;2;Endereco inicial do programa de maquina da funcao USR. Por padrao aponta para a rotina de erro. (20 bytes)
+F3AE;0;2;Largura de uma linha no SCREEN0 - definida pelo WIDTH do SCREEN0. [40] (1 byte)
+F3AF;0;2;Largura de uma linha no SCREEN1 - definida pelo WIDTH do SCREEN1. [29] (1 byte)
+F3B0;0;2;Largura de uma linha da tela atual. [29] (1 byte)
+F3B1;0;2;Numero de linhas da tela atual. [24] (1 byte)
+F3B2;0;2;Posicao horizontal quando os itens do comando PRINT sao separados por virgula. [14] (1 byte)
+F3B3;0;2;SCREEN0 - Pattern Name Table. [0000H] (2 bytes)
+F3B5;0;2;Nao utilizado. (2 bytes)
+F3B7;0;2;SCREEN0 - Pattern Generator Table. [0800H] (2 bytes)
+F3B9;0;2;Nao utilizado. (2 bytes)
+F3BB;0;2;Nao utilizado. (2 bytes)
+F3BD;0;2;SCREEN1 - Pattern Name Table. [1800H] (2 bytes)
+F3BF;0;2;SCREEN1 - Color Table. [2000H] (2 bytes)
+F3C1;0;2;SCREEN1 - Pattern Generator Table. [0000H] (2 bytes)
+F3C3;0;2;SCREEN1 - Sprite Attribute Table. [1B00H] (2 bytes)
+F3C5;0;2;SCREEN1 - Sprite Generator Table. [3800H] (2 bytes)
+F3C7;0;2;SCREEN2 - Pattern Name Table. [1800H] (2 bytes)
+F3C9;0;2;SCREEN2 - Color Table. [2000H] (2 bytes)
+F3CB;0;2;SCREEN2 - Pattern Generator Table. [0000H] (2 bytes)
+F3CD;0;2;SCREEN2 - Sprite Attribute Table. [1B00H] (2 bytes)
+F3CF;0;2;SCREEN2 - Sprite Generator Table. [3800H] (2 bytes)
+F3D1;0;2;SCREEN3 - Pattern Name Table. [0800H] (2 bytes)
+F3D3;0;2;Nao utilizado. (2 bytes)
+F3D5;0;2;SCREEN3 - Pattern Generator Table. [0000H] (2 bytes)
+F3D7;0;2;SCREEN3 - Sprite Attribute Table. [1B00H] (2 bytes)
+F3D9;0;2;SCREEN3 - Sprite Generator Table. [3800H] (2 bytes)
+F3DB;0;2;Key click switch - definido pelo <key click switch> do comando SCREEN. [1] (1 byte)
+F3DC;0;2;Coordenada Y do cursor. [1] (1 byte)
+F3DD;0;2;Coordenada X do cursor. [1] (1 byte)
+F3DE;0;2;Switch de exibicao das teclas de funcao - exibe se diferente de 0. [FFH] (1 byte)
+F3DF;0;2;Copia do registrador 0 do VDP. [0] (1 byte)
+F3E0;0;2;Copia do registrador 1 do VDP. [E0H] (1 byte)
+F3E1;0;2;Copia do registrador 2 do VDP. [0] (1 byte)
+F3E2;0;2;Copia do registrador 3 do VDP. [0] (1 byte)
+F3E3;0;2;Copia do registrador 4 do VDP. [0] (1 byte)
+F3E4;0;2;Copia do registrador 5 do VDP. [0] (1 byte)
+F3E5;0;2;Copia do registrador 6 do VDP. [0] (1 byte)
+F3E6;0;2;Copia do registrador 7 do VDP. [0] (1 byte)
+F3E7;0;2;Copia do status do VDP - no MSX2 ou superior, conteudo do registrador de status 0. [0] (1 byte)
+F3E8;0;2;Guarda o estado do botao de disparo do joystick. [FFH] (1 byte)
+F3E9;0;2;Cor de frente - definida pelo comando COLOR. [15] (1 byte)
+F3EA;0;2;Cor de fundo - definida pelo comando COLOR. [4] (1 byte)
+F3EB;0;2;Cor da borda - definida pelo comando COLOR. [7] (1 byte)
+F3EC;0;2;Usado internamente pelo comando CIRCLE. [JP 0000H/C3 00 00] (3 bytes)
+F3EF;0;2;Usado internamente pelo comando CIRCLE. [JP 0000H/C3 00 00] (3 bytes)
+F3F2;0;2;Codigo de cor da ultima exibicao grafica. [15] (1 byte)
+F3F3;0;2;Aponta para a fila usada durante a execucao do comando PLAY. [F959H] (2 bytes)
+F3F5;0;2;Usado internamente pelo interpretador BASIC. [255] (1 byte)
+F3F6;0;2;Intervalo de tempo do keyscan. [1] (1 byte)
+F3F7;0;2;Tempo ate o auto-repeat da tecla comecar. [50] (1 byte)
+F3F8;0;2;Aponta para o endereco onde a escrita no buffer de teclado acontece. [FBF0H] (2 bytes)
+F3FA;0;2;Aponta para o endereco onde a leitura do buffer de teclado acontece. [FBF0H] (2 bytes)
+F40B;0;2;256/aspect ratio - definido pelo comando SCREEN para uso no comando CIRCLE. (2 bytes)
+F40D;0;2;256*aspect ratio - definido pelo comando SCREEN para uso no comando CIRCLE. (2 bytes)
+F40F;0;2;Fim provisorio do programa para o comando RESUME NEXT. [":"] (5 bytes)
+F414;0;2;Area que guarda o numero do erro. (1 byte)
+F415;0;2;Posicao do cabecote da impressora. [0] (1 byte)
+F416;0;2;Flag de se deve enviar para a impressora. (1 byte)
+F417;0;2;Tipo de impressora - 0=impressora MSX, diferente de 0=nao e' impressora MSX. (1 byte)
+F418;0;2;Diferente de 0 quando estiver imprimindo em raw-mode. (1 byte)
+F419;0;2;Endereco do texto substituido pela funcao VAL. (2 bytes)
+F41B;0;2;Caractere substituido por 0 pela funcao VAL. (1 byte)
+F41C;0;2;Numero da linha do BASIC em execucao. (2 bytes)
+F41F;0;2;Crunch buffer - a partir de (F55EH), guarda o texto convertido para linguagem intermediaria. (318 bytes)
+F55D;0;2;Usado pelo comando INPUT. [","] (1 byte)
+F55E;0;2;Buffer onde ficam os caracteres digitados - a instrucao direta fica aqui em codigo ASCII. (258 bytes)
+F660;0;2;Evita que o buffer (F55E) transborde. (1 byte)
+F661;0;2;Posicao de cursor virtual usada internamente pelo BASIC. (1 byte)
+F662;0;2;Usado internamente pelo BASIC. (1 byte)
+F663;0;2;Usado para distinguir o tipo de variavel. (1 byte)
+F664;0;2;Indica se a palavra reservada guardada pode ser cruncheada. (1 byte)
+F665;0;2;Flag do comprimento do crunch. (1 byte)
+F666;0;2;Guarda o endereco de texto usado pelo CHRGET. (2 bytes)
+F668;0;2;Guarda o token da constante depois de chamar o CHRGET. (1 byte)
+F669;0;2;Tipo da constante guardada. (1 byte)
+F66A;0;2;Valor da constante guardada. (8 bytes)
+F672;0;2;Endereco mais alto da memoria usada pelo BASIC. (2 bytes)
+F674;0;2;Endereco usado pelo BASIC como pilha (stack) - muda com o comando CLEAR. (2 bytes)
+F676;0;2;Endereco inicial da area de texto do BASIC. (2 bytes)
+F678;0;2;Endereco inicial da area livre do descritor de string temporario. [F67AH] (2 bytes)
+F67A;0;2;Area usada para NUMTEMP. (3*NUMTMP bytes)
+F698;0;2;Guarda o descritor de string do resultado da funcao de string. (3 bytes)
+F69B;0;2;Endereco inicial da area livre da regiao de strings. (2 bytes)
+F69D;0;2;Usado pela coleta de lixo (garbage collection) e pela funcao USR, entre outros. (2 bytes)
+F69F;0;2;Usado pela coleta de lixo. (2 bytes)
+F6A1;0;2;Guarda o proximo endereco do comando FOR. (2 bytes)
+F6A3;0;2;Numero da linha do DATA lido pela execucao do comando READ. (2 bytes)
+F6A5;0;2;Flag usado quando um array e' utilizado pela funcao USR, entre outros. (1 byte)
+F6A6;0;2;Flag usado pelo INPUT ou READ. (1 byte)
+F6A7;0;2;Area temporaria para o codigo de statement - usada para ponteiro de variavel, endereco de texto, etc. (2 bytes)
+F6A9;0;2;0 se nao houver linha a converter, diferente de 0 se houver. (1 byte)
+F6AA;0;2;Flag de comando AUTO ativo/inativo - diferente de 0 = ativo, 0 = inativo. (1 byte)
+F6AB;0;2;Numero da ultima linha digitada. (2 bytes)
+F6AD;0;2;Incremento do numero de linha do comando AUTO. [10] (2 bytes)
+F6AF;0;2;Area que guarda o endereco do texto em execucao. (2 bytes)
+F6B1;0;2;Area que guarda a pilha (stack). (2 bytes)
+F6B3;0;2;Numero da linha onde ocorreu um erro. (2 bytes)
+F6B5;0;2;Numero da linha mais recente exibida na tela ou digitada, de alguma forma. (2 bytes)
+F6B7;0;2;Endereco do texto onde ocorreu o erro. (2 bytes)
+F6B9;0;2;Endereco do texto de destino quando ocorre um erro - definido pelo ON ERROR GOTO. (2 bytes)
+F6BB;0;2;Flag que indica se a rotina de erro esta em execucao - diferente de 0 = em execucao. (1 byte)
+F6BC;0;2;Uso temporario. (2 bytes)
+F6BE;0;2;Numero da linha interrompida, ou da ultima executada. (2 bytes)
+F6C0;0;2;Endereco do texto do proximo comando a ser executado. (2 bytes)
+F6C2;0;2;Endereco inicial das variaveis simples - ao executar NEW, e' definido como (F676H)+2. (2 bytes)
+F6C4;0;2;Endereco inicial da tabela de arrays. (2 bytes)
+F6C6;0;2;Ultimo endereco de memoria em uso como area de texto/variaveis. (2 bytes)
+F6C8;0;2;Endereco de texto do dado lido pela execucao do comando READ. (2 bytes)
+F6CA;0;2;Area para manter o tipo de variavel por letra inicial (DEFtype). (26 bytes)
+F6E4;0;2;Bloco de definicao anterior na pilha (usado pela coleta de lixo). (2 bytes)
+F6E6;0;2;Numero de bytes da tabela alvo de processamento. (2 bytes)
+F6E8;0;2;Tabela de definicao de parametros do alvo de processamento. PRMSIZ e' o numero de bytes do bloco de definicao.
+F74C;0;2;Ponteiro do bloco de parametros anterior (usado pela coleta de lixo). [F6E4H] (2 bytes)
+F74E;0;2;Tamanho do bloco de parametros. (2 bytes)
+F750;0;2;Area para guardar parametros. (100 bytes)
+F7B4;0;2;Flag que indica se PARM1 ja foi pesquisado. (1 byte)
+F7B5;0;2;Fim da busca. (2 bytes)
+F7B7;0;2;0 se nao houver funcao no alvo de processamento. (1 byte)
+F7B8;0;2;Area temporaria usada pela coleta de lixo. (2 bytes)
+F7BA;0;2;Quantidade de funcoes no alvo de processamento. (2 bytes)
+F7BC;0;2;Area temporaria que guarda o valor da primeira variavel do comando SWAP. (8 bytes)
+F7C4;0;2;Flag de trace - diferente de 0 = TRACE ON, 0 = TRACE OFF. (1 byte)
+F7C5;0;2;Usado internamente pelo mathpack. (43 bytes)
+F7F0;0;2;Usado ao converter um numero decimal (base 10) para ponto flutuante. (2 bytes)
+F7F2;0;2;Usado durante a execucao de uma sub-rotina auxiliar. (2 bytes)
+F7F4;0;2;Usado durante a execucao de uma sub-rotina auxiliar. (2 bytes)
+F7F6;0;2;DAC - area que define o valor alvo da operacao. (16 bytes)
+F806;0;2;Area de guarda de registradores para a multiplicacao decimal. (48 bytes)
+F836;0;2;Usado internamente pelo mathpack. (8 bytes)
+F83E;0;2;Usado internamente pelo mathpack. (8 bytes)
+F847;0;2;Area que define o valor a operar com o DAC (F7F6H) - ARG. (16 bytes)
+F857;0;2;Guarda o numero aleatorio mais recente em ponto flutuante duplo - definido pela funcao RND. (8 bytes)
+F85F;0;2;Valor maximo do numero de arquivo - definido por MAXFILES. (1 byte)
+F860;0;2;Endereco inicial da area de dados de arquivo. (2 bytes)
+F862;0;2;Buffer usado pelo interpretador BASIC no SAVE/LOAD. (2 bytes)
+F864;0;2;Endereco onde esta o dado de arquivo do arquivo em acesso. (2 bytes)
+F866;0;2;Valor diferente de 0 se o programa deve ser executado apos o LOAD. (1 byte)
+F866;0;2;Area de guarda do nome do arquivo. (11 bytes)
+F871;0;2;Area de guarda do nome do arquivo.
+F87C;0;2;Valor diferente de 0 durante o load de um programa. (1 byte)
+F87D;0;2;Endereco final do programa de maquina a ser salvo. (2 bytes)
+F87F;0;2;Area de guarda das strings das teclas de funcao. (16 chars * 10)
+F91F;0;2;Endereco da fonte de caracteres na ROM. (3 bytes)
+F922;0;2;Endereco base da Pattern Name Table atual. (2 bytes)
+F924;0;2;Endereco base da Pattern Generator Table atual. (2 bytes)
+F926;0;2;Endereco base da Sprite Generator Table atual. (2 bytes)
+F928;0;2;Endereco base da Sprite Attribute Table atual. (2 bytes)
+F92A;0;2;Usado internamente pela rotina grafica. (2 bytes)
+F92C;0;2;Usado internamente pela rotina grafica. (1 byte)
+F92D;0;2;Usado internamente pela rotina grafica. (2 bytes)
+F92F;0;2;Usado internamente pela rotina grafica. (2 bytes)
+F956;0;2;Aponta para o inicio da tabela de macro do PLAY ou do DRAW. (2 bytes)
+F958;0;2;Indicador PLAY/DRAW. (1 byte)
+F959;0;2;Tabela de filas. (24 bytes)
+F971;0;2;Usado por BCKQ. (4 bytes)
+F975;0;2;Fila de som/voz 1. (128 bytes)
+F9F5;0;2;Fila de som/voz 2. (128 bytes)
+FA75;0;2;Fila de som/voz 3. (128 bytes)
+FAF5;0;2;Numero da pagina de exibicao (display page). (1 byte)
+FAF6;0;2;Numero da pagina ativa (active page). (1 byte)
+FAF7;0;2;Guarda a porta de controle AV. (1 byte)
+FAF8;0;2;Endereco de slot da SUB-ROM. (1 byte)
+FAF9;0;2;Contador de caracteres no buffer, usado na conversao romaji-kana - valor 0<=n<=2. (1 byte)
+FAFA;0;2;Area que guarda os caracteres no buffer, usada na conversao romaji-kana. (1 byte)
+FAFC;0;2;Switch de modo da conversao romaji-kana, e o tamanho da VRAM. (1 byte)
+FAFD;0;2;Nao utilizado. (1 byte)
+FAFE;0;2;Guarda a coordenada X, presenca de requisicao de interrupcao da caneta otica, etc. (2 bytes)
+FB00;0;2;Guarda a coordenada Y. (2 bytes)
+FB02;0;2;Codigo de operacao logica. (1 byte)
+FB21;0;2;Tabela do numero de drives conectados ao slot da ROM de disco e do endereco do slot. (8 bytes)
+FBB0;0;2;Flag que habilita o warm start via [SHIFT+CTRL+GRAPH+tecla kana]. (1 byte)
+FBB1;0;2;Indica onde esta o texto do BASIC - 0=RAM, diferente de 0=na ROM. (1 byte)
+FBB2;0;2;Line terminal table - area que guarda informacao sobre cada linha da tela de texto. (24 bytes)
+FBCA;0;2;Posicao do primeiro caractere da linha digitada pelo INLIN (B1H) da BIOS. (2 bytes)
+FBCC;0;2;Area que guarda o caractere da posicao onde o cursor esta sobreposto. (1 byte)
+FBCD;0;2;Indica quais teclas de funcao estao sendo exibidas quando o KEY ON e' executado. (1 byte)
+FBCE;0;2;Indica o estado de operacao da interrupcao das teclas de funcao. (10 bytes)
+FBD8;0;2;Flag que indica se ocorreu o evento durante a espera em TRPTBL (FC4CH). (1 byte)
+FBD9;0;2;Flag de key click. (1 byte)
+FBDA;0;2;Estado da matriz de teclado (antigo). (11 bytes)
+FBE5;0;2;Estado da matriz de teclado (novo). (11 bytes)
+FBF0;0;2;Buffer de codigo de tecla. (40 bytes)
+FC18;0;2;Area temporaria usada pelo driver de tela. (40 bytes)
+FC40;0;2;Area temporaria usada pelo conversor de padrao (pattern converter). (8 bytes)
+FC48;0;2;Endereco inicial (mais baixo) da RAM instalada - normalmente 8000H. (2 bytes)
+FC4A;0;2;Endereco mais alto da memoria disponivel - definido pelo <limite de memoria> do comando CLEAR. (2 bytes)
+FC4C;0;2;Tabela de traps usada no tratamento de interrupcao. (78 bytes)
+FC9A;0;2;Usado internamente pelo BASIC. (1 byte)
+FC9B;0;2;Quando CTRL+STOP e' pressionado, entre outros casos, colocar 03H aqui interrompe a execucao. (1 byte)
+FC9C;0;2;Coordenada Y do paddle. (1 byte)
+FC9D;0;2;Coordenada X do paddle. (1 byte)
+FC9E;0;2;Usado internamente pelo comando PLAY. (2 bytes)
+FCA0;0;2;Intervalo do INTERVAL - definido pelo comando ON INTERVAL GOSUB. (2 bytes)
+FCA2;0;2;Contador para o INTERVAL. (2 bytes)
+FCA6;0;2;Flag de quando um caractere grafico esta sendo exibido. (1 byte)
+FCA7;0;2;Area que conta quantos caracteres vieram depois de um codigo de escape. (1 byte)
+FCA9;0;2;Presenca de exibicao do cursor - definida pelo <cursor switch> do comando LOCATE. (1 byte)
+FCAA;0;2;Formato do cursor. (1 byte)
+FCAB;0;2;Estado da tecla CAPS - diferente de 0 = CAPS ON. (1 byte)
+FCAC;0;2;Estado da tecla kana - diferente de 0 = ON. (1 byte)
+FCAD;0;2;Estado do layout de teclas kana - 0=50 sons (gojuon), diferente de 0=JIS. (1 byte)
+FCAE;0;2;Diferente de 0 durante o load de um programa BASIC. (1 byte)
+FCAF;0;2;Numero do modo de tela atual. (1 byte)
+FCB0;0;2;Area de guarda do modo de tela. (1 byte)
+FCB2;0;2;Codigo de cor da borda usada pelo comando PAINT. (1 byte)
+FCB3;0;2;Coordenada X. (2 bytes)
+FCB5;0;2;Coordenada Y. (2 bytes)
+FCB7;0;2;Acumulador grafico (coordenada X). (2 bytes)
+FCB9;0;2;Acumulador grafico (coordenada Y). (2 bytes)
+FCBB;0;2;Flag usado pelo comando DRAW. (1 byte)
+FCBC;0;2;Fator de escala do DRAW - 0=sem escala, diferente de 0=com escala. (1 byte)
+FCBD;0;2;Angulo usado pelo DRAW. (1 byte)
+FCBE;0;2;Flag que indica se esta em BLOAD, em BSAVE, ou em nenhum dos dois. (1 byte)
+FCBF;0;2;Endereco inicial do BSAVE. (2 bytes)
+FCC1;0;2;Tabela de flags para slots expandidos - se cada slot e' expandido ou nao. (4 bytes)
+FCC5;0;2;Situacao de selecao de slot atual para cada registrador de slot expandido. (4 bytes)
+FCC9;0;2;Guarda o atributo de cada pagina para cada slot. (64 bytes)
+FD09;0;2;Reserva uma area de trabalho especifica para cada slot. (128 bytes)
+FD89;0;2;Guarda o nome dos dispositivos de extended statement - termina em 0. (16 bytes)
+FD99;0;2;Usado para distinguir o dispositivo instalado no cartucho. (1 byte)
+FFFF;0;2;Registrador de selecao de slot expandido.
+002D;0;3;Numero da versao do MSX.
+002B;0;3;Byte ID - formato/tipo do gerador de caracteres, frequencia de interrupcao, etc.
+002C;0;3;Byte ID - tipo de teclado, informacoes sobre PRINT USING, etc.
+0006;0;3;Endereco da porta de acesso (leitura) ao VDP.
+0007;0;3;Endereco da porta de acesso (escrita) ao VDP.
+0090;0;4;Porta da impressora - bit0: saida de strobe (escrita), bit1: entrada de status (leitura).
+0091;0;4;Porta da impressora - dados de impressao.
+0098;0;4;Acesso ao VDP - leitura e escrita de VRAM.
+0099;0;4;Acesso ao VDP - comando/definicao de endereco (escrita), leitura de status (leitura).
+009A;0;4;Acesso ao VDP - registrador de paleta (so escrita).
+009B;0;4;Acesso ao VDP - definicao indireta de registrador (so escrita).
+00A0;0;4;Acesso ao PSG - trava de endereco.
+00A1;0;4;Acesso ao PSG - escrita de dados.
+00A2;0;4;Acesso ao PSG - leitura de dados.
+00A8;0;4;Porta paralela - Porta A - leitura e escrita de dados.
+00A9;0;4;Porta paralela - Porta B - leitura e escrita de dados.
+00AA;0;4;Porta paralela - Porta C - leitura e escrita de dados.
+00AB;0;4;Porta paralela - definicao de modo (so escrita).
+00B0;0;4;Endereco de acesso a memoria expandida (A0-A7).
+00B1;0;4;Endereco de acesso a memoria expandida (A8-A10, A13-A15).
+00B2;0;4;Endereco de acesso a memoria expandida (A11-A12), leitura de dados (D0-D7).
+00B3;0;4;Definicao de modo de acesso a memoria expandida.
+00B4;0;4;Trava de endereco de acesso ao CLOCK-IC.
+00B5;0;4;Leitura e escrita de dados de acesso ao CLOCK-IC.
+00D8;0;4;Acesso a ROM Kanji - escrita do endereco baixo (b5-b0).
+00D9;0;4;Acesso a ROM Kanji - escrita do endereco alto (b5-b0), leitura de dados (b7-b0).
+00FC;0;4;Registrador de mapa de memoria, pagina 0.
+00FD;0;4;Registrador de mapa de memoria, pagina 1.
+00FE;0;4;Registrador de mapa de memoria, pagina 2.
+00FF;0;4;Registrador de mapa de memoria, pagina 3.
+FD9A;0;7;Inicio do processamento de interrupcao do MSXIO - adiciona tratamento de interrupcao para RS-232C, etc.
+FD9F;0;7;Processamento de interrupcao do timer do MSXIO - adiciona tratamento de interrupcao do timer.
+FDA4;0;7;Inicio do CHPUT (exibe 1 caractere) do MSXIO - conecta outros dispositivos de saida de console.
+FDA9;0;7;Inicio do DSPCSR (exibicao do cursor) do MSXIO - conecta outros dispositivos de saida de console.
+FDAE;0;7;Inicio do ERACSR (apagar cursor) do MSXIO - conecta outros dispositivos de saida de console.
+FDB3;0;7;Inicio do DSPFNK (exibicao das teclas de funcao) do MSXIO - conecta outros dispositivos de saida de console.
+FDB8;0;7;Inicio do ERAFNK (apagar teclas de funcao) do MSXIO - conecta outros dispositivos de saida de console.
+FDBD;0;7;Inicio do TOTEXT (coloca a tela em modo texto) do MSXIO - conecta outros dispositivos de saida de console.
+FDC2;0;7;Inicio do CHGET (le 1 caractere) do MSXIO - conecta outros dispositivos de saida de console.
+FDC7;0;7;Inicio do INIPAT (inicializacao do padrao de caractere) do MSXIO - para usar outro conjunto de caracteres.
+FDCC;0;7;Inicio do KEYCOD (conversao de codigo de tecla) do MSXIO - para usar outro layout de teclado.
+FDD1;0;7;Inicio da rotina NMI (Key Easy) do MSXIO - para usar outro layout de teclado.
+FDD6;0;7;Inicio do NMI (Non-Maskable Interrupt) do MSXIO - faz o tratamento do NMI.
+FDDB;0;7;Inicio do PINLIN (entrada de 1 linha) do MSXINL - para usar outro dispositivo de entrada de console, etc.
+FDE0;0;7;Inicio do QINLIN ("?" + entrada de 1 linha) do MSXINL - para usar outro dispositivo de entrada de console, etc.
+FDE5;0;7;Inicio do INLIN (entrada de 1 linha) do MSXINL - para usar outro dispositivo de entrada de console, etc.
+FDEA;0;7;Inicio do INGOTOP (ON GOTO) do MSXSTS - para usar outro dispositivo de tratamento de interrupcao.
+FDF4;0;7;Inicio do SETS (set attribute) do MSXSTS - para conectar dispositivo de disco.
+FDEF;0;7;Inicio do DSKO$ (saida de disco) do MSXSTS - para conectar dispositivo de disco.
+FDF9;0;7;Inicio do NAME (renomear) do MSXSTS - conecta dispositivo de disco.
+FDFE;0;7;Inicio do KILL (apagar arquivo) do MSXSTS - conecta dispositivo de disco.
+FE03;0;7;Inicio do IPL (carga do programa inicial) do MSXSTS - conecta dispositivo de disco.
+FE08;0;7;Inicio do COPY (copiar arquivo) do MSXSTS - conecta dispositivo de disco.
+FE0D;0;7;Inicio do CMD (comando estendido) do MSXSTS - conecta dispositivo de disco.
+FE12;0;7;Inicio do DSKF (espaco livre em disco) do MSXSTS - conecta dispositivo de disco.
+FE17;0;7;Inicio do DSKI (entrada de disco) do MSXSTS - conecta dispositivo de disco.
+FE1C;0;7;Inicio do ATTR$ (atributo) do MSXSTS - conecta dispositivo de disco.
+FE21;0;7;Inicio do LSET (alinhamento a esquerda) do MSXSTS - para conectar dispositivo de disco.
+FE26;0;7;Inicio do RSET (alinhamento a direita) do MSXSTS - conecta dispositivo de disco.
+FE2B;0;7;Inicio do FIELD do MSXSTS - conecta dispositivo de disco.
+FE30;0;7;Inicio do MKI$ (criacao de inteiro) do MSXSTS - conecta dispositivo de disco.
+FE35;0;7;Inicio do MKS$ (criacao de ponto flutuante simples) do MSXSTS - conecta dispositivo de disco.
+FE3A;0;7;Inicio do MKD$ (criacao de ponto flutuante duplo) do MSXSTS - para conectar dispositivo de disco.
+FE3F;0;7;Inicio do CVI (conversao para inteiro) do MSXSTS - conecta dispositivo de disco.
+FE44;0;7;Inicio do CVS (conversao para ponto flutuante simples) do MSXSTS - conecta dispositivo de disco.
+FE49;0;7;Inicio do CVD (conversao para ponto flutuante duplo) do MSXSTS - conecta dispositivo de disco.
+FE4E;0;7;SPDSK GETPTR (obter ponteiro de arquivo) - conecta dispositivo de disco.
+FE53;0;7;SPCDSK SETFIL (definir ponteiro de arquivo) - conecta dispositivo de disco.
+FE58;0;7;SPDSK NOFOR (nao ha FOR no comando OPEN) - conecta dispositivo de disco.
+FE5D;0;7;SPCDSK NULOPN (abrir arquivo vazio) - conecta dispositivo de disco.
+FE62;0;7;SPCDSK NTFLO (o numero do arquivo nao e' 0) - conecta dispositivo de disco.
+FE67;0;7;SPCDSK MERGE (mesclar arquivo de programa) - conecta dispositivo de disco.
+FE71;0;7;SPCDSK BINSAV (salvar em codigo de maquina) - conecta dispositivo de disco.
+FE6C;0;7;SPCDSK SAVE (salvar) - conecta dispositivo de disco.
+FE76;0;7;SPCDSK BINLOD (carregar codigo de maquina) - conecta dispositivo de disco.
+FE7B;0;7;SPCDSK FILES (exibir nomes de arquivo) - conecta dispositivo de disco.
+FE80;0;7;SPCDSK DGET (disk GET) - conecta dispositivo de disco.
+FE85;0;7;SPCDSK FILOUT (saida de arquivo) - conecta dispositivo de disco.
+FE8A;0;7;SPCDSK INDSKC (entrada do atributo do disco) - conecta dispositivo de disco.
+FE8F;0;7;SPCDSK - seleciona novamente o drive anterior. Para conectar dispositivo de disco.
+FE94;0;7;SPCDSK - guarda o drive atualmente selecionado. Conecta dispositivo de disco.
+FE99;0;7;SPCDSK - funcao LOC (indica posicao). Conecta dispositivo de disco.
+FE9E;0;7;SPCDSK - funcao LOF (tamanho do arquivo). Conecta dispositivo de disco.
+FEA3;0;7;SPCDSK - funcao EOF (fim do arquivo). Conecta dispositivo de disco.
+FEA8;0;7;SPCDSK - funcao FPOS (posicao no arquivo). Conecta dispositivo de disco.
+FEAD;0;7;SPCDSK BAKUPT (backup) - conecta dispositivo de disco.
+FEB2;0;7;SPCDEV PARDEV (obter nome do dispositivo) - estende o nome de dispositivo logico.
+FEB7;0;7;SPCDEV NODEVN (sem nome de dispositivo) - define o nome abreviado de dispositivo para outro dispositivo.
+FEBC;0;7;SPCDEV POSDSK - conecta dispositivo de disco.
+FEC1;0;7;SPCDEV DEVNAM (tratamento do nome do dispositivo) - estende o nome de dispositivo logico.
+FEC6;0;7;SPCDEV GENDSP (atribuicao de dispositivo) - estende o nome de dispositivo logico.
+FECB;0;7;BIMISC RUNC (limpeza para o RUN).
+FED0;0;7;BIMISC CLEARC (limpeza para o comando CLEAR).
+FED5;0;7;BIMISC LOPDFT (define o valor padrao do loop) - usa outro valor padrao na variavel.
+FEDA;0;7;BIMISC STKERR (erro de pilha/stack error).
+FEDF;0;7;BIMISC ISFLIO (se e' entrada/saida de arquivo).
+FEE4;0;7;BIO OUTDO (executa o OUT).
+FEE9;0;7;BIO CRDO (executa CRLF).
+FEEE;0;7;BIO DSKCHI (entrada do atributo do disco).
+FEF3;0;7;GENGRP DOGRAPH (executa processamento grafico).
+FEF8;0;7;BINTRP PRGEND (fim de programa).
+FEFD;0;7;BINTRP ERRPRT (exibicao de erro).
+FF11;0;7;BINTRP DIRDO (executa instrucao direta).
+FF7F;0;7;BINTRP ISMID$ (se e' MID$).
+FF84;0;7;BINTRP WIDTHS (WIDTH).
+FF89;0;7;BINTRP LIST.
+FF8E;0;7;BINTRP BUFLIN (buffer line).
+FFA2;0;7;BIPTRG PTRGET (obter ponteiro) - usa uma variavel diferente do padrao.
+FFA7;0;7;MSXIO PHYDIO (entrada/saida fisica de disco) - conecta dispositivo de disco.
+FFB1;0;7;BINTRP ERROR - tratamento de erro de programa de aplicacao.
+FFB6;0;7;MSXIO LPTOUT (saida de impressora) - usa uma impressora diferente da padrao.
+FFBB;0;7;MSXIO LPTSTT (status da impressora) - usa uma impressora diferente da padrao.
+FFC0;0;7;MSXSTS - entrada do comando SCREEN. Estende o comando SCREEN.
+FFC5;0;7;MSXSTS - entrada do comando PLAY. Estende o comando PLAY.
+FFCA;0;7;Hook usado pela BIOS estendida.
+FFCF;0;7;Usado pelo DOS.
+FFD4;0;7;Usado pelo DOS.

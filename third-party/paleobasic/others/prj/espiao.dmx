@@ -1,0 +1,34 @@
+bload "nbasic.bin",r
+if p(0) < 5 then {erro_nbasic}
+{inicio}
+
+dim coord_x(9) : 
+dim coord_y(9) : 
+let pontos = 0 : 
+for temp=1 to 9 : 
+	gosub aleatorios : 
+	let coord_x(i)=num_aleatorio+3 : 
+	gosub aleatorios : 
+	let coord_y(i)=num_aleatorio+3 : 
+next temp
+
+
+{aleatorios}
+	let num_aleatorio = int(rnd(1)*9)+1 : return
+
+{erro_nbasic}
+	if p(0) < 5 then print "Erro ao carregar o NBASIC.BIN" : goto {inicio}
+
+{spriterama}
+{spr1}
+' Sprite #1 (carro) - 16x16 MSX1
+data &H10,&H01
+data &H01
+data &H00,&H00,&H00,&H07,&H08,&H10,&H20,&H7F,&H7F,&HFF,&HFF,&H28,&H44,&H28,&H10,&H00,&H00,&H00,&H00,&HE0,&H90,&H88,&HA4,&HFC,&H9E,&HFF,&HFF,&H14,&H22,&H14,&H08,&H00
+
+{spr2}
+' Sprite #2 (missel) - 16x16 MSX1
+data &H10,&H01
+data &H01
+data &H01,&H01,&H01,&H02,&H04,&H04,&H07,&H07,&H07,&H07,&H07,&H07,&H0F,&H1F,&H1E,&H3E,&H80,&H80,&H80,&H40,&H20,&H20,&HE0,&HE0,&HE0,&HE0,&HE0,&HE0,&HF0,&HF8,&H78,&H7C
+

@@ -1,0 +1,8 @@
+screen 2 :
+line (0,0)-(255,191),,b :
+for linha=0 to 191 step 10 :
+for coluna = 0 to 255 step 10 :
+pset(coluna, linha) :
+next coluna, linha
+goto {@}
+

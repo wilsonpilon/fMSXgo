@@ -1,0 +1,12 @@
+10 chput: equ 0a2
+20 org 0c100
+30 ld hl,print
+40 salt: ld a,(hl)
+50 and a
+60 ret z
+70 call chput
+80 inc hl
+90 jr salt
+100 print: defb 'MEGA ASSEMBLER'
+110 defb 0
+120 end

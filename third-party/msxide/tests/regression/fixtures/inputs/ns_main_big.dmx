@@ -1,0 +1,6 @@
+DEFINE [P][PRINT [1]]
+INCLUDE "ns_mod_a.dmx"
+INCLUDE "ns_mod_b.dmx"
+{MAIN}
+[P](99)
+END

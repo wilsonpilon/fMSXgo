@@ -1,0 +1,1 @@
+10 RUN "NBASIC1.BMX"

@@ -1,0 +1,11 @@
+dim coord_x(9) : dim coord_y(9) : let pontos = 0 : for temp=1 to 9 : gosub aleatorios : let coord_x(i)=num_aleatorio+3 : gosub aleatorios : let coord_y(i)=num_aleatorio+3 : next temp
+
+
+
+
+
+
+
+
+{aleatorios}:
+	let num_aleatorio = int(rnd(1)*9)+1 : return

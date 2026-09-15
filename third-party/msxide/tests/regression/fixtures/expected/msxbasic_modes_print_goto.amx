@@ -1,0 +1,9 @@
+10 print "press A to toggle"
+20 PRINT "press B to exit"
+30 if inkey$ <> "A" GOTO 30
+40 a$ = inkey$
+50 if a$ = "A" GOTO 10
+60 if a$ = "B" goto 60
+70 if a$ = "X" GOTO 90
+80 GOTO 40
+90 end

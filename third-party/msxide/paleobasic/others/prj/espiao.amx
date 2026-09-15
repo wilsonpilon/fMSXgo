@@ -1,0 +1,6 @@
+10 ' Converted with Basic Dignified (native PureBasic port)
+20 bload"nbasic.bin",r
+30 ifp(0)<5then60
+40 dimZZ(9):dimZY(9):letZX=0:forZW=1to9:gosubZV:letZZ(i)=ZU+3:gosubZV:letZY(i)=ZU+3:nextZW
+50 letZU=int(rnd(1)*9)+1:return
+60 ifp(0)<5then?"Erro ao carregar o NBASIC.BIN":goto40

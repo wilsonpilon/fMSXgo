@@ -1,0 +1,8 @@
+## BB:help=True
+##BB:arguments=-ls 200 -lp 20 -ss -ca -rh
+##BB:export_file=..\outputs\remtags_extra_custom.amx
+define [msg][print [ok]]
+{entry}
+[msg]("x")
+goto {@}
+end

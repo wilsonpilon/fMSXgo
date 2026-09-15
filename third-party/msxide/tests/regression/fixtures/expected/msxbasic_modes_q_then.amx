@@ -1,0 +1,9 @@
+10 ? "press A to toggle"
+20 ? "press B to exit"
+30 if inkey$ <> "A" THEN 30
+40 a$ = inkey$
+50 if a$ = "A" THEN 10
+60 if a$ = "B" THEN 60
+70 if a$ = "X" THEN 90
+80 GOTO 40
+90 end

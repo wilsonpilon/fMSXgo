@@ -1,0 +1,24 @@
+fossauro - PureBasic Port of fMSX Emulator
+License & Distribution Terms
+
+This project is a translation/port of the fMSX emulator codebase to the PureBasic programming language. It is distributed under the following licensing terms, which are fully compatible with and derived from the original fMSX licensing rules set by the author, Marat Fayzullin:
+
+1. **Copyrights**:
+   - The original C source code, architecture, VDP emulation, sound chip emulation, and Z80 CPU emulator design remain the sole copyright of Marat Fayzullin.
+   - The PureBasic translation and platform-specific modifications are copyright of the fossauro development team.
+
+2. **Non-Commercial Use**:
+   - This software and its source code are free to use, copy, modify, distribute, and study for non-commercial, educational, and personal entertainment purposes.
+
+3. **Credits & Modifications**:
+   - Any modifications, forks, or redistributions of this source code must give prominent and clear credit to the original author (Marat Fayzullin) and the fossauro port team.
+   - All copies of this license document must accompany any distribution of the source code.
+
+4. **Commercial Restrictions**:
+   - Under no circumstances may this source code, compiled binaries, or derived works be used, packaged, sold, or distributed for commercial purposes, commercial hardware, or paid platforms without the explicit written permission and licensing agreement of Marat Fayzullin.
+   - For commercial licensing conditions of the emulator core, please contact the original author directly.
+
+---
+
+Disclaimer:
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.

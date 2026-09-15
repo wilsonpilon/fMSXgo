@@ -1,0 +1,4 @@
+DEFINE [P][PRINT [7]]
+{START}
+[P]()
+RETURN

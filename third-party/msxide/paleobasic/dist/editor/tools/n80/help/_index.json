@@ -1,0 +1,32 @@
+[
+  {
+    "group": "N80",
+    "title": "Linha de comando (N80 --help)",
+    "file" : "n80-cli.md"
+  },
+  {
+    "group": "N80",
+    "title": "Referencia da linguagem",
+    "file" : "n80-language-reference.md"
+  },
+  {
+    "group": "N80",
+    "title": "Escrevendo codigo relocavel",
+    "file" : "n80-writing-relocatable-code.md"
+  },
+  {
+    "group": "LinkStor80",
+    "title": "Linha de comando (LK80 --help)",
+    "file" : "lk80-cli.md"
+  },
+  {
+    "group": "LibStor80",
+    "title": "Linha de comando (LB80 --help)",
+    "file" : "lb80-cli.md"
+  },
+  {
+    "group": "M80L80",
+    "title": "Manual M80L80 (MACRO-80/LINK-80/CREF-80/LIB-80)",
+    "file" : "m80l80-manual.md"
+  }
+]

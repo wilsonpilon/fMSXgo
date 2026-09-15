@@ -1,0 +1,5 @@
+10 PRINT "LIB"
+20 RETURN
+30 [putc](66)
+40 GOTO 10
+50 END

@@ -1,0 +1,4 @@
+##BB:arguments=-ls 100 -lp 5 -ss -ca
+##BB:export_file=..\outputs\remtags_custom.amx
+print " remtag "
+goto {@}
