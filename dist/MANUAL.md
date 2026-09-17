@@ -2,6 +2,8 @@
 
 **fMSXgo** is a faithful and modern port of the acclaimed **fMSX** emulator (originally authored in C by **Marat Fayzullin**) to pure **Go (64-bit)**, natively supporting **Windows and Linux**.
 
+![fMSXgo Graphical User Interface & Workstation Overview](images/fmsxgo-00.png)
+
 Beyond preserving cycle-accurate MSX emulation, fMSXgo was conceived from day one as a **complete workstation for developers, reverse engineers, and retro-computing hackers**, offering an interactive monitor, built-in mini-assembler, dynamic disassembler, live memory and slot inspector, unified **SQLite** database storage, and multi-language interface support.
 
 ---
@@ -49,6 +51,8 @@ This drops you directly into the **fMSXgo Shell**, an interactive REPL acting as
 
 fMSXgo achieves **100% parameter and behavior parity** with Marat Fayzullin's original fMSX emulator in C, while providing modern workstation extensions:
 
+![fMSXgo Command-Line Options](images/fmsxgo-02.png)
+
 ### Positional Arguments
 ```text
 fmsxgo [options] [filename1] [filename2]
@@ -94,6 +98,7 @@ fmsxgo [options] [filename1] [filename2]
 | `--no-window`, `-cli` | Disable the graphical window and run in interactive CLI monitor mode. | GUI Mode |
 | `--lang <code>` | Set initial UI language (`en`, `pt`, `es`, `nl`, `fr`). Persists to SQLite. | `en` |
 | `--theme <id>` | Set initial UI theme (`system`, `github-dark`, `dracula`, etc.). Persists to SQLite. | `system` |
+| `--font <id>` | Set initial UI typography/font family (`ubuntu`, `sourcecodepro`, etc.). Persists to SQLite. | `ubuntu` |
 | `--db <path>` | Path to SQLite database file. | `fmsxgo.db` |
 | `-test` | Run internal self-diagnostics on CPU, memory, and slot mapping. | — |
 | `-exec "<commands>"` | Execute semicolon-separated shell commands in batch mode then exit. | — |
@@ -128,12 +133,16 @@ Like fMSX in C, fMSXgo includes full support for ROM patching via opcode `0xED, 
 
 ---
 
-## 3. Interactive Developer Shell / CLI Monitor
+## 4. Interactive Developer Shell & CLI Monitor
 
 When starting with `--no-window`, the shell prompt displays the current CPU Program Counter (`PC`):
 ```text
 fMSXgo [0000h]> 
 ```
+
+The interactive CLI monitor provides instruction tracing, memory inspection, slot visualization, and an integrated Z80 mini-assembler:
+
+![fMSXgo Interactive Debugger, Disassembler & Mini-Assembler](images/fmsxgo-01.png)
 
 Command names are always standard English (`HELP`, `QUIT`, `lang`, `r`, `d`, `a`, `t`, etc.), while descriptions and prompts adapt to the active UI language.
 
@@ -144,6 +153,8 @@ Command names are always standard English (`HELP`, `QUIT`, `lang`, `r`, `d`, `a`
 * **`lang <code>`**: Switch UI language to `en`, `pt`, `es`, `nl`, or `fr`. Persists to `fmsxgo.db`.
 * **`theme`**: Display current theme and list all 11 available themes.
 * **`theme <id>`**: Switch active theme (e.g. `theme dracula`, `theme github-dark`, `theme system`). Persists to `fmsxgo.db`.
+* **`font`**: Display current UI font and list all discovered font families.
+* **`font <id>`**: Switch active UI typography font (e.g. `font ubuntu`, `font sourcecodepro`). Persists to `fmsxgo.db`.
 * **`cls`** (or `clear`): Clear terminal screen.
 
 ### CPU & Register Commands
@@ -227,7 +238,7 @@ fMSXgo includes an integrated Z80 assembler!
 
 ---
 
-## 4. Unified SQLite Storage & ROM Catalog (`fmsxgo.db`)
+## 5. Unified SQLite Storage & ROM Catalog (`fmsxgo.db`)
 
 To eliminate loose ROM folders and scattered configuration files, fMSXgo stores everything in a single, portable **SQLite database (`fmsxgo.db`)**:
 
@@ -261,7 +272,31 @@ Inside the graphical window, users can click **`Setup -> ROMs & HW Catalog...`**
 
 ---
 
-## 5. Automated Build System (`build.ps1`)
+## 6. Modern Typography & Custom Font Subsystem
+
+fMSXgo features a state-of-the-art vector typography rendering engine powered by TrueType / OpenType font parsing (`github.com/hajimehoshi/ebiten/v2/text/v2`):
+
+### Zero OS-Installation Requirement
+Fonts do **not** need to be installed into Windows (`C:\Windows\Fonts`) or Linux system folders!
+- **Embedded Out-of-the-Box**: **Ubuntu** (Default UI font) and **Source Code Pro** (Monospace hacker/coding font) are embedded directly inside the compiled binary (`//go:embed assets/*.ttf`).
+- **Dynamic External Scanning**: At startup, fMSXgo scans the distribution folders (`./fonts`, `dist/fonts`, `third-party/fonts`) for any additional `.ttf` or `.otf` files and automatically registers them into the active font registry.
+
+### Adding New Fonts
+To add your own custom fonts:
+1. Copy any `.ttf` or `.otf` file into the `fonts/` directory of your fMSXgo distribution.
+2. Open fMSXgo or run `font` in the CLI.
+3. Your font will automatically appear in the list and can be selected immediately!
+
+### Unified Setup / Configuration Dialog
+In the graphical interface, select **`Setup -> Configuration...`**:
+- **Column 1 (Language)**: Choose between English, Português, Español, Nederlands, and Français.
+- **Column 2 (Themes)**: Select from 11 dark and light themes (System Auto, GitHub Dark/Light, Dracula, Monokai Pro, One Dark/Light, Solarized Light, Simple Dark/Light).
+- **Column 3 (Typography / Font)**: Select your preferred UI font (Ubuntu, Source Code Pro, or any custom font).
+- The text colors, anti-aliased glyphs, and contrast automatically adapt to the active theme with real-time preview and instant SQLite persistence (`fmsxgo.db`).
+
+---
+
+## 7. Automated Build System (`build.ps1`)
 
 To build the project and create the final distribution package:
 
@@ -275,5 +310,6 @@ The script automatically performs:
 3. Executes the full test suite (`go test ./...`).
 4. Compiles the optimized 64-bit binary into `dist/`.
 5. Initializes and seeds `fmsxgo.db` with the official verified BIOS ROM catalog.
-6. Copies documentation and creates convenient batch launchers (`run-gui.bat` and `run-cli.bat`).
+6. Copies TrueType fonts to `dist/fonts/` and screenshots to `dist/images/`.
+7. Copies documentation and creates convenient batch launchers (`run-gui.bat` and `run-cli.bat`).
 

@@ -86,6 +86,26 @@ foreach ($doc in $Docs) {
     }
 }
 
+# Copy TrueType fonts to dist/fonts for dynamic loading
+$DistFonts = Join-Path $DistDir "fonts"
+if (!(Test-Path $DistFonts)) {
+    New-Item -ItemType Directory -Path $DistFonts | Out-Null
+}
+$SrcFonts = Join-Path $PSScriptRoot "third-party" "fonts"
+if (Test-Path $SrcFonts) {
+    Copy-Item -Path (Join-Path $SrcFonts "*.ttf") -Destination $DistFonts -Force
+}
+
+# Copy documentation images to dist/images
+$SrcImages = Join-Path $PSScriptRoot "images"
+$DistImages = Join-Path $DistDir "images"
+if (Test-Path $SrcImages) {
+    if (!(Test-Path $DistImages)) {
+        New-Item -ItemType Directory -Path $DistImages | Out-Null
+    }
+    Copy-Item -Path (Join-Path $SrcImages "*.*") -Destination $DistImages -Force
+}
+
 # Create convenience launcher bat files in dist/
 $cliLauncher = @"
 @echo off

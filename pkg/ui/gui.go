@@ -5,11 +5,11 @@ import (
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 
 	"fmsxgo/pkg/i18n"
 	"fmsxgo/pkg/msx"
+	"fmsxgo/pkg/ui/font"
 	"fmsxgo/pkg/ui/theme"
 )
 
@@ -79,9 +79,9 @@ func (u *UI) ApplyTheme() {
 	}
 	u.dialogBg.Fill(eff.DialogBg)
 
-	// 5. Configuration Dialog background (580 x 420)
+	// 5. Configuration Dialog background (600 x 420 for 3 columns: Lang, Theme, Font)
 	if u.configDlgBg == nil {
-		u.configDlgBg = ebiten.NewImage(580, 420)
+		u.configDlgBg = ebiten.NewImage(600, 420)
 	}
 	u.configDlgBg.Fill(eff.DialogBg)
 
@@ -198,64 +198,74 @@ func (u *UI) handleClick(x, y int) {
 
 	// 4. Click on File dropdown
 	if u.ActiveMenu == "File" {
-		if x >= 10 && x <= 190 && y >= MenuBarH && y <= MenuBarH+65 {
-			relY := y - MenuBarH
-			if relY < 32 {
-				u.Machine.Reset()
+		if x >= 10 && x <= 240 {
+			if y >= MenuBarH && y < MenuBarH+32 {
+				// Reset Machine
 				u.ActiveMenu = ""
-			} else {
+				u.Machine.Reset()
+				return
+			} else if y >= MenuBarH+32 && y < MenuBarH+65 {
+				// Exit
 				u.ShouldExit = true
+				return
 			}
-			return
 		}
+		u.ActiveMenu = ""
+		return
 	}
 
 	// 5. Click on Setup dropdown
 	if u.ActiveMenu == "Setup" {
-		if x >= 70 && x <= 300 && y >= MenuBarH && y <= MenuBarH+65 {
-			relY := y - MenuBarH
-			if relY < 32 {
+		if x >= 70 && x <= 300 {
+			if y >= MenuBarH && y < MenuBarH+32 {
+				// Open Configuration (Language, Theme, Font)
+				u.ActiveMenu = ""
 				u.ShowConfig = true
+				return
+			} else if y >= MenuBarH+32 && y < MenuBarH+65 {
+				// Open ROM & Hardware Catalog Modal
 				u.ActiveMenu = ""
-			} else {
 				u.ShowCatalog = true
-				u.ActiveMenu = ""
+				return
 			}
-			return
 		}
+		u.ActiveMenu = ""
+		return
 	}
 
 	// 6. Click on Help dropdown
 	if u.ActiveMenu == "Help" {
-		if x >= 150 && x <= 330 && y >= MenuBarH && y <= MenuBarH+40 {
-			u.ShowAbout = true
+		if x >= 150 && x <= 380 && y >= MenuBarH && y < MenuBarH+35 {
 			u.ActiveMenu = ""
+			u.ShowAbout = true
 			return
 		}
+		u.ActiveMenu = ""
+		return
 	}
 
 	u.ActiveMenu = ""
 }
 
 func (u *UI) handleConfigClick(x, y int) {
-	diagX := (WindowWidth - 580) / 2
+	diagX := (WindowWidth - 600) / 2
 	diagY := (WindowHeight - 420) / 2
 
 	// Click outside modal closes it
-	if x < diagX || x > diagX+580 || y < diagY || y > diagY+420 {
+	if x < diagX || x > diagX+600 || y < diagY || y > diagY+420 {
 		u.ShowConfig = false
 		return
 	}
 
-	// Click on Save & Close Button
-	if x >= diagX+200 && x <= diagX+380 && y >= diagY+380 && y <= diagY+410 {
+	// Click on Save & Close Button (center)
+	if x >= diagX+210 && x <= diagX+390 && y >= diagY+380 && y <= diagY+410 {
 		u.ShowConfig = false
 		return
 	}
 
-	// Left Column: Language items (x: diagX+20 .. diagX+220)
-	if x >= diagX+20 && x <= diagX+230 {
-		startY := diagY + 80
+	// Column 1: Language items (x: diagX+10 .. diagX+175)
+	if x >= diagX+10 && x <= diagX+175 {
+		startY := diagY + 75
 		for i, l := range i18n.SupportedLanguages {
 			itemY := startY + (i * 26)
 			if y >= itemY && y < itemY+24 {
@@ -268,9 +278,9 @@ func (u *UI) handleConfigClick(x, y int) {
 		}
 	}
 
-	// Right Column: Theme items (x: diagX+260 .. diagX+560)
-	if x >= diagX+260 && x <= diagX+560 {
-		startY := diagY + 80
+	// Column 2: Theme items (x: diagX+180 .. diagX+390)
+	if x >= diagX+180 && x <= diagX+390 {
+		startY := diagY + 75
 		themes := theme.List()
 		for i, th := range themes {
 			itemY := startY + (i * 25)
@@ -284,14 +294,35 @@ func (u *UI) handleConfigClick(x, y int) {
 			}
 		}
 	}
+
+	// Column 3: Font items (x: diagX+395 .. diagX+590)
+	if x >= diagX+395 && x <= diagX+590 {
+		startY := diagY + 75
+		fonts := font.ListFamilies()
+		for i, f := range fonts {
+			if i >= 11 {
+				break
+			}
+			itemY := startY + (i * 25)
+			if y >= itemY && y < itemY+24 {
+				font.SetCurrent(f.ID)
+				if u.Machine != nil && u.Machine.DB != nil {
+					_ = u.Machine.DB.SetConfig("font", f.ID)
+				}
+				return
+			}
+		}
+	}
 }
 
 // Draw renders the full GUI window.
 func (u *UI) Draw(screen *ebiten.Image) {
-	// 1. Draw main screen background
-	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Translate(0, MenuBarH)
-	screen.DrawImage(u.screenBg, op)
+	eff := theme.GetEffective()
+
+	// 1. Draw Screen Background (workstation monitor area)
+	screenOp := &ebiten.DrawImageOptions{}
+	screenOp.GeoM.Translate(0, MenuBarH)
+	screen.DrawImage(u.screenBg, screenOp)
 
 	// Draw Machine Status Overlay in screen area
 	u.drawStatus(screen)
@@ -300,29 +331,29 @@ func (u *UI) Draw(screen *ebiten.Image) {
 	barOp := &ebiten.DrawImageOptions{}
 	screen.DrawImage(u.barImg, barOp)
 
-	// Draw Menu text labels (translated)
-	ebitenutil.DebugPrintAt(screen, i18n.T("menu_file"), 16, 5)
-	ebitenutil.DebugPrintAt(screen, i18n.T("menu_setup"), 76, 5)
-	ebitenutil.DebugPrintAt(screen, i18n.T("menu_help"), 156, 5)
+	// Draw Menu text labels (antialiased TrueType)
+	font.DrawBold(screen, i18n.T("menu_file"), 16, 5, 13, eff.MenuBarText)
+	font.DrawBold(screen, i18n.T("menu_setup"), 76, 5, 13, eff.MenuBarText)
+	font.DrawBold(screen, i18n.T("menu_help"), 156, 5, 13, eff.MenuBarText)
 
 	// 3. Draw Active Dropdown Menu
 	if u.ActiveMenu == "File" {
 		dropOp := &ebiten.DrawImageOptions{}
 		dropOp.GeoM.Translate(10, MenuBarH)
 		screen.DrawImage(u.menuBg, dropOp)
-		ebitenutil.DebugPrintAt(screen, i18n.T("menu_reset"), 18, MenuBarH+8)
-		ebitenutil.DebugPrintAt(screen, i18n.T("menu_exit"), 18, MenuBarH+36)
+		font.Draw(screen, i18n.T("menu_reset"), 18, MenuBarH+6, 13, eff.MenuDropdownText)
+		font.Draw(screen, i18n.T("menu_exit"), 18, MenuBarH+34, 13, eff.MenuDropdownText)
 	} else if u.ActiveMenu == "Setup" {
 		dropOp := &ebiten.DrawImageOptions{}
 		dropOp.GeoM.Translate(70, MenuBarH)
 		screen.DrawImage(u.menuBg, dropOp)
-		ebitenutil.DebugPrintAt(screen, i18n.T("menu_config"), 78, MenuBarH+8)
-		ebitenutil.DebugPrintAt(screen, i18n.T("menu_catalog"), 78, MenuBarH+36)
+		font.Draw(screen, i18n.T("menu_config"), 78, MenuBarH+6, 13, eff.MenuDropdownText)
+		font.Draw(screen, i18n.T("menu_catalog"), 78, MenuBarH+34, 13, eff.MenuDropdownText)
 	} else if u.ActiveMenu == "Help" {
 		dropOp := &ebiten.DrawImageOptions{}
 		dropOp.GeoM.Translate(150, MenuBarH)
 		screen.DrawImage(u.menuBg, dropOp)
-		ebitenutil.DebugPrintAt(screen, i18n.T("menu_about"), 158, MenuBarH+10)
+		font.Draw(screen, i18n.T("menu_about"), 158, MenuBarH+8, 13, eff.MenuDropdownText)
 	}
 
 	// 4. Draw About Modal Dialog
@@ -344,7 +375,7 @@ func (u *UI) Draw(screen *ebiten.Image) {
 func (u *UI) drawStatus(screen *ebiten.Image) {
 	eff := theme.GetEffective()
 
-	ebitenutil.DebugPrintAt(screen, i18n.T("lbl_title"), 80, 45)
+	font.DrawBold(screen, i18n.T("lbl_title"), 80, 42, 14, eff.StatusTitle)
 
 	model := "MSX 2"
 	if u.Machine.Config.Model == msx.ModelMSX1 {
@@ -357,30 +388,45 @@ func (u *UI) drawStatus(screen *ebiten.Image) {
 		video = "PAL (50Hz)"
 	}
 
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("%-18s %s", i18n.T("lbl_model"), model), 80, 85)
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("%-18s %s", i18n.T("lbl_video"), video), 80, 105)
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("%-18s %d KB (%d pages)", i18n.T("lbl_ram"), u.Machine.Config.RAMPages*16, u.Machine.Config.RAMPages), 80, 125)
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("%-18s %d KB", i18n.T("lbl_vram"), u.Machine.Config.VRAMPages*64), 80, 145)
+	font.Draw(screen, i18n.T("lbl_model"), 80, 80, 13, eff.StatusLabel)
+	font.DrawBold(screen, model, 240, 80, 13, eff.StatusValue)
+
+	font.Draw(screen, i18n.T("lbl_video"), 80, 102, 13, eff.StatusLabel)
+	font.DrawBold(screen, video, 240, 102, 13, eff.StatusValue)
+
+	font.Draw(screen, i18n.T("lbl_ram"), 80, 124, 13, eff.StatusLabel)
+	font.DrawBold(screen, fmt.Sprintf("%d KB (%d pages)", u.Machine.Config.RAMPages*16, u.Machine.Config.RAMPages), 240, 124, 13, eff.StatusValue)
+
+	font.Draw(screen, i18n.T("lbl_vram"), 80, 146, 13, eff.StatusLabel)
+	font.DrawBold(screen, fmt.Sprintf("%d KB", u.Machine.Config.VRAMPages*64), 240, 146, 13, eff.StatusValue)
 
 	cpu := u.Machine.CPU
-	ebitenutil.DebugPrintAt(screen, i18n.T("lbl_cpu_state"), 80, 185)
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("PC: %04Xh   SP: %04Xh   AF: %04Xh   BC: %04Xh   DE: %04Xh   HL: %04Xh",
-		cpu.PC, cpu.SP, cpu.AF(), cpu.BC(), cpu.DE(), cpu.HL()), 80, 205)
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("IX: %04Xh   IY: %04Xh   I: %02Xh    R: %02Xh    IM: %d   Halted: %t",
-		cpu.IX, cpu.IY, cpu.I, cpu.R, cpu.IM, cpu.Halted), 80, 225)
+	font.DrawBold(screen, i18n.T("lbl_cpu_state"), 80, 180, 13, eff.AccentColor)
 
-	// Active Theme Indicator
-	themeInfo := fmt.Sprintf("Active Theme   : %s (%s)", eff.Name, theme.GetCurrent())
-	ebitenutil.DebugPrintAt(screen, themeInfo, 80, 265)
+	// CPU registers rendered with crisp monospace code font
+	font.DrawCode(screen, fmt.Sprintf("PC: %04Xh   SP: %04Xh   AF: %04Xh   BC: %04Xh   DE: %04Xh   HL: %04Xh",
+		cpu.PC, cpu.SP, cpu.AF(), cpu.BC(), cpu.DE(), cpu.HL()), 80, 204, 12, eff.StatusValue)
+	font.DrawCode(screen, fmt.Sprintf("IX: %04Xh   IY: %04Xh   I: %02Xh    R: %02Xh    IM: %d   Halted: %t",
+		cpu.IX, cpu.IY, cpu.I, cpu.R, cpu.IM, cpu.Halted), 80, 224, 12, eff.StatusValue)
 
-	ebitenutil.DebugPrintAt(screen, i18n.T("lbl_tips"), 80, 310)
-	ebitenutil.DebugPrintAt(screen, i18n.T("lbl_tip_exit"), 80, 330)
-	ebitenutil.DebugPrintAt(screen, i18n.T("lbl_tip_about"), 80, 350)
-	ebitenutil.DebugPrintAt(screen, " - Open 'Setup -> Configuration...' to choose Language & Theme.", 80, 370)
-	ebitenutil.DebugPrintAt(screen, i18n.T("lbl_tip_cli"), 80, 390)
+	activeFont := font.ActiveFamily()
+	fontName := "Ubuntu"
+	if activeFont != nil {
+		fontName = activeFont.Name
+	}
+	themeInfo := fmt.Sprintf("Theme: %s [%s] | Language: %s | Font: %s",
+		eff.Name, eff.Category, i18n.GetLanguage(), fontName)
+	font.Draw(screen, themeInfo, 80, 260, 12, eff.StatusLabel)
+
+	font.DrawBold(screen, i18n.T("lbl_tips"), 80, 305, 13, eff.AccentColor)
+	font.Draw(screen, i18n.T("lbl_tip_exit"), 80, 326, 12, eff.StatusLabel)
+	font.Draw(screen, i18n.T("lbl_tip_about"), 80, 346, 12, eff.StatusLabel)
+	font.Draw(screen, " - Open 'Setup -> Configuration...' to choose Language, Theme & Font.", 80, 366, 12, eff.StatusLabel)
+	font.Draw(screen, i18n.T("lbl_tip_cli"), 80, 386, 12, eff.StatusLabel)
 }
 
 func (u *UI) drawAboutModal(screen *ebiten.Image) {
+	eff := theme.GetEffective()
 	diagX := float64((WindowWidth - 440) / 2)
 	diagY := float64((WindowHeight - 230) / 2)
 
@@ -388,23 +434,22 @@ func (u *UI) drawAboutModal(screen *ebiten.Image) {
 	op.GeoM.Translate(diagX, diagY)
 	screen.DrawImage(u.dialogBg, op)
 
-	// Text inside about
-	ebitenutil.DebugPrintAt(screen, i18n.T("about_title"), int(diagX)+150, int(diagY)+20)
-	ebitenutil.DebugPrintAt(screen, i18n.T("about_app"), int(diagX)+30, int(diagY)+50)
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("%s: 0.1.2 ('Phantasm') - 64-bit", i18n.T("about_version")), int(diagX)+30, int(diagY)+70)
-	ebitenutil.DebugPrintAt(screen, i18n.T("about_core"), int(diagX)+30, int(diagY)+95)
-	ebitenutil.DebugPrintAt(screen, i18n.T("about_port"), int(diagX)+30, int(diagY)+115)
-	ebitenutil.DebugPrintAt(screen, i18n.T("about_license"), int(diagX)+30, int(diagY)+135)
+	font.DrawBold(screen, i18n.T("about_title"), diagX+140, diagY+20, 15, eff.DialogHeader)
+	font.DrawBold(screen, i18n.T("about_app"), diagX+30, diagY+52, 13, eff.DialogText)
+	font.Draw(screen, fmt.Sprintf("%s: 0.3.2 ('Vampire Killer') - 64-bit", i18n.T("about_version")), diagX+30, diagY+74, 12, eff.DialogText)
+	font.Draw(screen, i18n.T("about_core"), diagX+30, diagY+98, 12, eff.DialogText)
+	font.Draw(screen, i18n.T("about_port"), diagX+30, diagY+118, 12, eff.DialogText)
+	font.Draw(screen, i18n.T("about_license"), diagX+30, diagY+138, 12, eff.DialogText)
 
-	// Close Button
 	btnOp := &ebiten.DrawImageOptions{}
-	btnOp.GeoM.Translate(diagX+140, diagY+175)
+	btnOp.GeoM.Translate(diagX+130, diagY+175)
 	screen.DrawImage(u.buttonBg, btnOp)
-	ebitenutil.DebugPrintAt(screen, i18n.T("btn_ok"), int(diagX)+190, int(diagY)+181)
+	font.DrawBold(screen, i18n.T("btn_ok"), diagX+190, diagY+180, 13, eff.ButtonText)
 }
 
 func (u *UI) drawConfigModal(screen *ebiten.Image) {
-	diagX := (WindowWidth - 580) / 2
+	eff := theme.GetEffective()
+	diagX := (WindowWidth - 600) / 2
 	diagY := (WindowHeight - 420) / 2
 
 	// 1. Draw dialog background
@@ -413,13 +458,12 @@ func (u *UI) drawConfigModal(screen *ebiten.Image) {
 	screen.DrawImage(u.configDlgBg, op)
 
 	// 2. Title
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("=== %s ===", i18n.T("dlg_config_title")), diagX+130, diagY+16)
-	ebitenutil.DebugPrintAt(screen, "------------------------------------------------------------------", diagX+20, diagY+36)
+	font.DrawBold(screen, fmt.Sprintf("=== %s ===", i18n.T("dlg_config_title")), float64(diagX+140), float64(diagY+16), 14, eff.DialogHeader)
 
-	// 3. Left Column: Languages
-	ebitenutil.DebugPrintAt(screen, i18n.T("cfg_sec_language"), diagX+20, diagY+56)
+	// 3. Column 1: Languages (x: diagX+15)
+	font.DrawBold(screen, i18n.T("cfg_sec_language"), float64(diagX+15), float64(diagY+50), 13, eff.DialogHeader)
 	currentLang := i18n.GetLanguage()
-	langStartY := diagY + 80
+	langStartY := diagY + 75
 	for i, l := range i18n.SupportedLanguages {
 		yPos := langStartY + (i * 26)
 		isSelected := l.Code == currentLang
@@ -427,22 +471,25 @@ func (u *UI) drawConfigModal(screen *ebiten.Image) {
 		prefix := "[ ] "
 		if isSelected {
 			prefix = "[*] "
-			// Draw selection highlight pill
 			rowOp := &ebiten.DrawImageOptions{}
-			rowOp.GeoM.Scale(0.8, 1.0)
-			rowOp.GeoM.Translate(float64(diagX+15), float64(yPos-2))
+			rowOp.GeoM.Scale(0.62, 1.0)
+			rowOp.GeoM.Translate(float64(diagX+10), float64(yPos-2))
 			screen.DrawImage(u.selectedRowBg, rowOp)
 		}
 
-		label := fmt.Sprintf("%s%-14s (%s)", prefix, l.NativeName, l.Code)
-		ebitenutil.DebugPrintAt(screen, label, diagX+20, yPos+2)
+		label := fmt.Sprintf("%s%-12s (%s)", prefix, l.NativeName, l.Code)
+		textColor := eff.DialogText
+		if isSelected {
+			textColor = eff.SelectedText
+		}
+		font.Draw(screen, label, float64(diagX+15), float64(yPos+2), 12, textColor)
 	}
 
-	// 4. Right Column: Themes
-	ebitenutil.DebugPrintAt(screen, i18n.T("cfg_sec_theme"), diagX+260, diagY+56)
+	// 4. Column 2: Themes (x: diagX+185)
+	font.DrawBold(screen, i18n.T("cfg_sec_theme"), float64(diagX+185), float64(diagY+50), 13, eff.DialogHeader)
 	currentTheme := theme.GetCurrent()
 	themes := theme.List()
-	themeStartY := diagY + 80
+	themeStartY := diagY + 75
 	for i, th := range themes {
 		yPos := themeStartY + (i * 25)
 		isSelected := th.ID == currentTheme
@@ -450,23 +497,54 @@ func (u *UI) drawConfigModal(screen *ebiten.Image) {
 		prefix := "[ ] "
 		if isSelected {
 			prefix = "[*] "
-			// Draw selection highlight pill
 			rowOp := &ebiten.DrawImageOptions{}
-			rowOp.GeoM.Scale(1.15, 1.0)
-			rowOp.GeoM.Translate(float64(diagX+255), float64(yPos-2))
+			rowOp.GeoM.Scale(0.78, 1.0)
+			rowOp.GeoM.Translate(float64(diagX+180), float64(yPos-2))
 			screen.DrawImage(u.selectedRowBg, rowOp)
 		}
 
-		catBadge := fmt.Sprintf("[%s]", th.Category)
-		label := fmt.Sprintf("%s%-18s %s", prefix, th.Name, catBadge)
-		ebitenutil.DebugPrintAt(screen, label, diagX+260, yPos+2)
+		label := fmt.Sprintf("%s%-14s [%s]", prefix, th.Name, th.Category)
+		textColor := eff.DialogText
+		if isSelected {
+			textColor = eff.SelectedText
+		}
+		font.Draw(screen, label, float64(diagX+185), float64(yPos+2), 12, textColor)
 	}
 
-	// 5. Save & Close Button
+	// 5. Column 3: Fonts / Typography (x: diagX+400)
+	font.DrawBold(screen, i18n.T("cfg_sec_font"), float64(diagX+400), float64(diagY+50), 13, eff.DialogHeader)
+	currentFont := font.GetCurrent()
+	fonts := font.ListFamilies()
+	fontStartY := diagY + 75
+	for i, f := range fonts {
+		if i >= 11 {
+			break
+		}
+		yPos := fontStartY + (i * 25)
+		isSelected := f.ID == currentFont
+
+		prefix := "[ ] "
+		if isSelected {
+			prefix = "[*] "
+			rowOp := &ebiten.DrawImageOptions{}
+			rowOp.GeoM.Scale(0.72, 1.0)
+			rowOp.GeoM.Translate(float64(diagX+395), float64(yPos-2))
+			screen.DrawImage(u.selectedRowBg, rowOp)
+		}
+
+		label := fmt.Sprintf("%s%s", prefix, f.Name)
+		textColor := eff.DialogText
+		if isSelected {
+			textColor = eff.SelectedText
+		}
+		font.Draw(screen, label, float64(diagX+400), float64(yPos+2), 12, textColor)
+	}
+
+	// 6. Save & Close Button (center)
 	btnOp := &ebiten.DrawImageOptions{}
-	btnOp.GeoM.Translate(float64(diagX+200), float64(diagY+380))
+	btnOp.GeoM.Translate(float64(diagX+210), float64(diagY+380))
 	screen.DrawImage(u.buttonBg, btnOp)
-	ebitenutil.DebugPrintAt(screen, i18n.T("btn_save_close"), diagX+225, diagY+386)
+	font.DrawBold(screen, i18n.T("btn_save_close"), float64(diagX+235), float64(diagY+386), 13, eff.ButtonText)
 }
 
 func (u *UI) handleCatalogClick(x, y int) {
@@ -505,6 +583,7 @@ func (u *UI) handleCatalogClick(x, y int) {
 }
 
 func (u *UI) drawCatalogModal(screen *ebiten.Image) {
+	eff := theme.GetEffective()
 	diagX := (WindowWidth - 620) / 2
 	diagY := (WindowHeight - 440) / 2
 
@@ -514,13 +593,12 @@ func (u *UI) drawCatalogModal(screen *ebiten.Image) {
 	screen.DrawImage(u.catalogDlgBg, op)
 
 	// 2. Title & Help
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("=== %s ===", i18n.T("dlg_catalog_title")), diagX+120, diagY+14)
-	ebitenutil.DebugPrintAt(screen, i18n.T("cat_sec_actions"), diagX+20, diagY+36)
-	ebitenutil.DebugPrintAt(screen, "--------------------------------------------------------------------------------", diagX+20, diagY+52)
+	font.DrawBold(screen, fmt.Sprintf("=== %s ===", i18n.T("dlg_catalog_title")), float64(diagX+120), float64(diagY+14), 14, eff.DialogHeader)
+	font.Draw(screen, i18n.T("cat_sec_actions"), float64(diagX+20), float64(diagY+36), 12, eff.DialogText)
 
-	// Table Header
+	// Table Header (using monospace code font)
 	header := fmt.Sprintf("   %-13s %-8s %-6s %-7s %-10s %s", "NAME", "CAT", "MODEL", "SIZE", "FLAGS", "TITLE")
-	ebitenutil.DebugPrintAt(screen, header, diagX+20, diagY+68)
+	font.DrawCode(screen, header, float64(diagX+20), float64(diagY+65), 12, eff.AccentColor)
 
 	// Rows from SQLite
 	startY := diagY + 90
@@ -563,13 +641,18 @@ func (u *UI) drawCatalogModal(screen *ebiten.Image) {
 				if len(rowStr) > 78 {
 					rowStr = rowStr[:78]
 				}
-				ebitenutil.DebugPrintAt(screen, rowStr, diagX+20, rowY+2)
+
+				textColor := eff.DialogText
+				if item.IsDefault {
+					textColor = eff.SelectedText
+				}
+				font.DrawCode(screen, rowStr, float64(diagX+20), float64(rowY+2), 12, textColor)
 			}
 
 			// Footer summary
 			statusLine := fmt.Sprintf("%s: %d/8 | Total: %d ROMs",
 				i18n.T("cat_official_verified"), verifiedCount, len(items))
-			ebitenutil.DebugPrintAt(screen, statusLine, diagX+20, diagY+365)
+			font.DrawBold(screen, statusLine, float64(diagX+20), float64(diagY+365), 12, eff.StatusTitle)
 		}
 	}
 
@@ -577,7 +660,7 @@ func (u *UI) drawCatalogModal(screen *ebiten.Image) {
 	btnOp := &ebiten.DrawImageOptions{}
 	btnOp.GeoM.Translate(float64(diagX+220), float64(diagY+395))
 	screen.DrawImage(u.buttonBg, btnOp)
-	ebitenutil.DebugPrintAt(screen, i18n.T("btn_save_close"), diagX+245, diagY+401)
+	font.DrawBold(screen, i18n.T("btn_save_close"), float64(diagX+245), float64(diagY+401), 13, eff.ButtonText)
 }
 
 // Layout defines the logical window resolution.
@@ -588,4 +671,3 @@ func (u *UI) Layout(outsideWidth, outsideHeight int) (int, int) {
 func init() {
 	_ = color.RGBA{}
 }
-

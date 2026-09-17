@@ -12,6 +12,7 @@ import (
 	"fmsxgo/pkg/shell"
 	"fmsxgo/pkg/storage"
 	"fmsxgo/pkg/ui"
+	"fmsxgo/pkg/ui/font"
 	"fmsxgo/pkg/ui/theme"
 )
 
@@ -107,6 +108,7 @@ func main() {
 	dbPath := "fmsxgo.db"
 	langFlag := ""
 	themeFlag := ""
+	fontFlag := ""
 
 	cartCount := 0
 	romTypeCount := 0
@@ -226,9 +228,10 @@ func main() {
 				cfg.TapePath = args[i]
 			}
 
-		case "-font", "-fnt":
+		case "--font", "-font", "-fnt":
 			if i+1 < len(args) {
 				i++
+				fontFlag = args[i]
 				cfg.FontPath = args[i]
 			}
 
@@ -410,6 +413,18 @@ func main() {
 			savedTheme := db.GetConfig("theme", "system")
 			theme.SetCurrent(savedTheme)
 		}
+
+		// Initialize UI font
+		if fontFlag != "" {
+			if font.SetCurrent(fontFlag) {
+				_ = db.SetConfig("font", font.GetCurrent())
+			} else {
+				fmt.Fprintf(os.Stderr, "Warning: Unsupported font %q. Defaulting to %s.\n", fontFlag, font.GetCurrent())
+			}
+		} else {
+			savedFont := db.GetConfig("font", "ubuntu")
+			font.SetCurrent(savedFont)
+		}
 	}
 
 	// Fallback if DB was not loaded but flags were specified
@@ -419,6 +434,9 @@ func main() {
 		}
 		if themeFlag != "" {
 			theme.SetCurrent(themeFlag)
+		}
+		if fontFlag != "" {
+			font.SetCurrent(fontFlag)
 		}
 	}
 

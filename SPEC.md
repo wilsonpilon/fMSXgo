@@ -3,6 +3,8 @@
 > **Living Engineering Document for fMSXgo**
 > This document tracks the current project status, milestone history, architectural decisions, completed work, and immediate next steps.
 
+![fMSXgo Workstation Overview](images/fmsxgo-00.png)
+
 ---
 
 ## 1. Versioning Scheme & Creative Horror / Heavy Metal Codenames
@@ -24,7 +26,7 @@ fMSXgo follows the strict semantic versioning format: **`V X.Y.Z`**
 | **V 0.5.x** | **Iron Maiden (Powerslave)** | Heavy metal pioneer / Egyptian precision of Z80 cycle timing |
 | **V 1.0.x** | **Vampire Killer (Dracula's Curse)** | Konami's MSX magnum opus / 1.0 milestone release |
 
-*Current Version:* **V 0.3.1 ("Vampire Killer")**
+*Current Version:* **V 0.3.3 ("Vampire Killer")**
 
 ---
 
@@ -83,16 +85,23 @@ fMSXgo follows the strict semantic versioning format: **`V X.Y.Z`**
   - [x] Real-time live dynamic UI reskinning without restart.
   - [x] CLI flag `--theme <id>` and monitor command `theme <id>`.
   - [x] SQLite database persistence under `config` table (`theme`).
+- [x] **Modern Typography & Dynamic Font Subsystem** (`pkg/ui/font`):
+  - [x] High-DPI anti-aliased TrueType/OpenType vector text rendering via Ebitengine text/v2 (`GoTextFace`).
+  - [x] Embedded zero-dependency fonts: **Ubuntu** (Default UI font) & **Source Code Pro** (Monospace code font).
+  - [x] Dynamic filesystem scanning: loads external `.ttf`/`.otf` files from `fonts/`, `dist/fonts/`, or `third-party/fonts/` with zero OS installation required.
+  - [x] CLI flag `--font <id>` and developer CLI monitor command `font [id]`.
+  - [x] Three-column configuration modal in GUI (`Setup -> Configuration...`) with real-time preview and SQLite persistence (`config.font`).
+  - [x] Complete theme color harmonization: crisp dark text on light themes, vibrant text on dark themes.
 - [x] Graphical User Interface (`pkg/ui/gui.go`):
   - [x] Cross-platform 640x480 window using pure Go Ebitengine (no CGO/GCC requirement on Windows).
   - [x] Top menu bar:
     - [x] `File`: `Reset Machine`, `Exit`.
-    - [x] `Setup`: `Configuration...` (Language & Theme), `ROMs & HW Catalog...` (Catalog Manager).
+    - [x] `Setup`: `Configuration...` (Language, Theme & Typography), `ROMs & HW Catalog...` (Catalog Manager).
     - [x] `Help`: `About fMSXgo` modal credits and non-commercial license dialog.
   - [x] Live machine configuration and CPU register state overlay.
 - [x] Interactive Developer Shell / CLI Monitor (`pkg/shell/cli.go`):
   - [x] Headless terminal mode via `--no-window` and `-cli`.
-  - [x] Commands: `HELP`, `QUIT`, `lang`, `theme`, `roms`, `r` (registers), `d` (hexdump), `e` (memory byte edit), `u` (disasm), `a` (mini-assembler), `t` (trace), `p` (step-over), `g` (run), `bp` (breakpoints), `slots`, `mapper`, `in`, `out`, `reset`, `cls`.
+  - [x] Commands: `HELP`, `QUIT`, `lang`, `theme`, `font`, `roms`, `r` (registers), `d` (hexdump), `e` (memory byte edit), `u` (disasm), `a` (mini-assembler), `t` (trace), `p` (step-over), `g` (run), `bp` (breakpoints), `slots`, `mapper`, `in`, `out`, `reset`, `cls`.
   - [x] Localized help and banner messages based on active language while keeping command names in standard English.
 - [x] Automation & Build Tooling (`build.ps1`):
   - [x] Resolves dependencies, auto-increments build number `Z` in `version.json`.
@@ -145,10 +154,29 @@ fMSXgo follows the strict semantic versioning format: **`V X.Y.Z`**
 
 ---
 
-## 3. Progress Tracking & Next Direct Steps
+## 3. Visual Verification & Workstation Showcase
+
+### Graphical Workstation & Build Automation
+The graphical user interface integrates dynamic theme styling (Dracula, GitHub Light/Dark, etc.), vector typography with anti-aliasing (Ubuntu default, Source Code Pro), and automated distribution bundling via `build.ps1`:
+
+![fMSXgo Workstation Overview](images/fmsxgo-00.png)
+
+### Developer CLI Monitor, Debugger & Built-in Mini-Assembler
+Headless and terminal-based developers have access to full slot bus inspection (`slots`), live disassembly (`u`), and runtime machine code assembly directly into memory (`a`):
+
+![fMSXgo Debugger, Disassembler & Mini-Assembler](images/fmsxgo-01.png)
+
+### 100% fMSX Mirror Fidelity & Command-Line Help
+Every official fMSX parameter (`-verbose`, `-msx1/-msx2`, `-diska/-diskb`, `-rom`, `-sound`, etc.) is fully supported alongside fMSXgo enhancements:
+
+![fMSXgo Command-Line Options](images/fmsxgo-02.png)
+
+---
+
+## 4. Progress Tracking & Next Direct Steps
 
 * **Where we are**:
-  - Phase 1 & Setup/Catalog CRUD Milestone is **100% complete**: Z80 core, MSX bus, slot architecture, RAM mapper, SQLite single-file persistence, Setup ROM & Hardware Catalog CRUD with execution guarantees, 5-language i18n subsystem, graphical menus with setup dialogs, and interactive CLI developer shell.
+  - Phase 1, Phase 1.5, Setup/Catalog CRUD, and Typography subsystems are **100% complete**: Z80 core, MSX bus, slot architecture, RAM mapper, SQLite single-file persistence, Setup ROM & Hardware Catalog CRUD with execution guarantees, 5-language i18n subsystem, 11 modern themes, TrueType vector typography with zero OS installation, graphical menus with setup dialogs, 100% faithful fMSX command line mirror, and interactive CLI developer shell.
 * **Immediate Next Step**:
   - Begin **Phase 2 (VDP Video Processor)**: Implement TMS9918/V9938 registers, VRAM bus access, and character/bitmap scanline renderers to display live MSX output in the graphical window.
 

@@ -43,6 +43,7 @@ var translations = map[string]map[string]string{
 		"dlg_config_title":   "CONFIGURATION & PREFERENCES",
 		"cfg_sec_language":   "UI Language:",
 		"cfg_sec_theme":      "Color Theme:",
+		"cfg_sec_font":       "Typography / Font:",
 		"cfg_cat_system":     "System",
 		"cfg_cat_dark":       "Dark",
 		"cfg_cat_light":      "Light",
@@ -118,6 +119,7 @@ var translations = map[string]map[string]string{
 		"dlg_config_title":   "CONFIGURAÇÕES & PREFERÊNCIAS",
 		"cfg_sec_language":   "Idioma da Interface:",
 		"cfg_sec_theme":      "Tema de Cores:",
+		"cfg_sec_font":       "Tipografia / Fonte:",
 		"cfg_cat_system":     "Sistema",
 		"cfg_cat_dark":       "Escuro",
 		"cfg_cat_light":      "Claro",
@@ -191,8 +193,9 @@ var translations = map[string]map[string]string{
 
 		// Configuration Dialog
 		"dlg_config_title":   "CONFIGURACIÓN & PREFERENCIAS",
-		"cfg_sec_language":   "Idioma de la Interfaz:",
+		"cfg_sec_language":   "Idioma de Interfaz:",
 		"cfg_sec_theme":      "Tema de Colores:",
+		"cfg_sec_font":       "Tipografía / Fuente:",
 		"cfg_cat_system":     "Sistema",
 		"cfg_cat_dark":       "Oscuro",
 		"cfg_cat_light":      "Claro",
@@ -266,8 +269,9 @@ var translations = map[string]map[string]string{
 
 		// Configuration Dialog
 		"dlg_config_title":   "INSTELLINGEN & VOORKEUREN",
-		"cfg_sec_language":   "Taal van Interface:",
+		"cfg_sec_language":   "Interfacetaal:",
 		"cfg_sec_theme":      "Kleurthema:",
+		"cfg_sec_font":       "Typografie / Lettertype:",
 		"cfg_cat_system":     "Systeem",
 		"cfg_cat_dark":       "Donker",
 		"cfg_cat_light":      "Licht",
@@ -341,8 +345,9 @@ var translations = map[string]map[string]string{
 
 		// Configuration Dialog
 		"dlg_config_title":   "CONFIGURATION & PRÉFÉRENCES",
-		"cfg_sec_language":   "Langue de l'Interface:",
+		"cfg_sec_language":   "Langue de l'interface:",
 		"cfg_sec_theme":      "Thème de Couleurs:",
+		"cfg_sec_font":       "Typographie / Police:",
 		"cfg_cat_system":     "Système",
 		"cfg_cat_dark":       "Sombre",
 		"cfg_cat_light":      "Clair",

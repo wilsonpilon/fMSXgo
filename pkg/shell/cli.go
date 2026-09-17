@@ -14,6 +14,7 @@ import (
 	"fmsxgo/pkg/i18n"
 	"fmsxgo/pkg/msx"
 	"fmsxgo/pkg/storage"
+	"fmsxgo/pkg/ui/font"
 	"fmsxgo/pkg/ui/theme"
 )
 
@@ -87,6 +88,9 @@ func (sh *Shell) ExecuteCommand(line string) bool {
 
 	case "theme":
 		sh.cmdTheme(args)
+
+	case "font", "typeface":
+		sh.cmdFont(args)
 
 	case "roms", "catalog":
 		sh.cmdRoms(args)
@@ -232,6 +236,42 @@ func (sh *Shell) cmdTheme(args []string) {
 	}
 }
 
+func (sh *Shell) cmdFont(args []string) {
+	if len(args) == 0 {
+		active := font.ActiveFamily()
+		fontName := "Ubuntu"
+		if active != nil {
+			fontName = active.Name
+		}
+		fmt.Fprintf(sh.Out, "Current UI font: %s (%s)\n", font.GetCurrent(), fontName)
+		fmt.Fprintln(sh.Out, "Available font families:")
+		for _, f := range font.ListFamilies() {
+			marker := "  "
+			if f.ID == font.GetCurrent() {
+				marker = "* "
+			}
+			monoTag := ""
+			if f.IsMonospace {
+				monoTag = " [Monospace]"
+			}
+			fmt.Fprintf(sh.Out, "  %s%-18s - %s (%s)%s\n", marker, f.ID, f.Name, f.Path, monoTag)
+		}
+		fmt.Fprintln(sh.Out, "Usage: font <id> (e.g. 'font ubuntu', 'font sourcecodepro')")
+		return
+	}
+
+	target := args[0]
+	if font.SetCurrent(target) {
+		f := font.GetFamily(target)
+		fmt.Fprintf(sh.Out, "UI font changed to: %s (%s)\n", f.ID, f.Name)
+		if sh.Machine != nil && sh.Machine.DB != nil {
+			_ = sh.Machine.DB.SetConfig("font", f.ID)
+		}
+	} else {
+		fmt.Fprintf(sh.Out, "Unknown font family: %q. Type 'font' to list available fonts.\n", target)
+	}
+}
+
 func (sh *Shell) cmdHelp() {
 	fmt.Fprintln(sh.Out)
 	fmt.Fprintf(sh.Out, "=== %s ===\n", i18n.T("cli_welcome"))
@@ -241,6 +281,7 @@ func (sh *Shell) cmdHelp() {
 	fmt.Fprintf(sh.Out, "  QUIT / EXIT               %s\n", i18n.T("cli_quit_desc"))
 	fmt.Fprintf(sh.Out, "  lang [code]               %s\n", i18n.T("cli_lang_desc"))
 	fmt.Fprintf(sh.Out, "  theme [id]                %s\n", i18n.T("cli_theme_desc"))
+	fmt.Fprintf(sh.Out, "  font [id]                 Select active UI font (e.g. ubuntu, sourcecodepro)\n")
 	fmt.Fprintf(sh.Out, "  roms [cmd]                %s\n", i18n.T("cli_roms_desc"))
 	fmt.Fprintln(sh.Out)
 	fmt.Fprintln(sh.Out, "Registers & CPU:")

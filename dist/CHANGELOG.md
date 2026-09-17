@@ -4,6 +4,40 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and version numbers follow the **`V X.Y.Z`** scheme with creative release codenames inspired by **Horror Cinema, MSX Classics, and Heavy Metal**.
 
+## [V 0.3.3] - "Vampire Killer" - 2026-09-17
+
+### Added
+- **Modern Typography & Dynamic Vector Font Subsystem (`pkg/ui/font`)**:
+  - High-DPI anti-aliased TrueType and OpenType vector font rendering engine using `github.com/hajimehoshi/ebiten/v2/text/v2` (`GoTextFace`).
+  - **Embedded Zero-Dependency Fonts**:
+    - **Ubuntu** (Regular & Bold) set as the default UI typography for exceptional readability on both high-res displays and compact dialogs.
+    - **Source Code Pro** (Regular & Bold) for sharp, monospace developer displays.
+  - **Zero Host-OS Installation Needed**:
+    - Fonts are loaded directly from embedded memory or from distribution directories without requiring administrative rights or installation into `C:\Windows\Fonts`.
+  - **Dynamic External Font Discovery**:
+    - Automatically scans `./fonts`, `dist/fonts`, and `third-party/fonts` at startup to discover and register any user-supplied `.ttf` or `.otf` font families on the fly.
+  - **3-Column Configuration Modal Dialog (`Setup -> Configuration...`)**:
+    - Integrated typography selector alongside Language and Theme pickers.
+    - Live click-to-preview font switching.
+    - Persistent font choice saved in SQLite `fmsxgo.db` (`config` table key `font`).
+  - **CLI & Command-Line Support**:
+    - `--font <id>` startup flag to specify the active UI font.
+    - Interactive CLI monitor command `font` (lists all embedded and discovered fonts with active indicator `*`) and `font <id>` (switches font and saves to DB).
+  - **Automated Distribution Packaging**:
+    - `build.ps1` now bundles the `fonts/` directory directly into `dist/fonts/` and documentation screenshots into `dist/images/`.
+- **Visual Documentation & Screenshots Integration**:
+  - Integrated high-resolution screenshots into `README.md`, `MANUAL.md`, and `SPEC.md`:
+    - `images/fmsxgo-00.png`: Workstation Overview (graphical window, live MSX2/CPU state, Dracula theme, Ubuntu typography).
+    - `images/fmsxgo-01.png`: Interactive Debugger, slot visualizer (`slots`), dynamic disassembler (`u`), and runtime mini-assembler (`a`).
+    - `images/fmsxgo-02.png`: Command-Line Options help and mirror fidelity reference.
+  - Restructured and renumbered `MANUAL.md` sections for consistency across all 7 operational modules.
+
+### Changed
+- Migrated all graphical UI text rendering (`pkg/ui/gui.go`) from debug bitmap prints to `font.Draw`, `font.DrawBold`, and `font.DrawCode`.
+- Harmonized all text colors with active themes (`eff.MenuBarText`, `eff.ScreenText`, `eff.DialogText`, `eff.ButtonText`, `eff.SelectedText`, `eff.StatusTitle`, `eff.StatusValue`, `eff.StatusLabel`), ensuring high-contrast rendering on both light (e.g. GitHub Light, Solarized Light, Simple Light) and dark themes.
+
+---
+
 ## [V 0.3.1] - "Vampire Killer" - 2026-09-17
 
 ### Added

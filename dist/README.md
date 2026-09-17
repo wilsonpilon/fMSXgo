@@ -7,6 +7,8 @@
 
 **fMSXgo** is a faithful and modern port of the acclaimed **fMSX** emulator (originally authored in C by **Marat Fayzullin**) to pure **Go (64-bit)**, targeting **Windows and Linux**.
 
+![fMSXgo Workstation Overview](images/fmsxgo-00.png)
+
 In addition to inheriting the time-tested accuracy of fMSX, **fMSXgo** is designed from the ground up to serve as a **high-end workstation for MSX software developers, hackers, and reverse engineers**, featuring:
 
 * **Pure Go 64-bit Z80 CPU Core**: Cycle-accurate execution, precomputed flag tables (`ZSTable`, `PZSTable`), and BIOS patch hook (`ED FE`).
@@ -21,6 +23,10 @@ In addition to inheriting the time-tested accuracy of fMSX, **fMSXgo** is design
   * **Modern Dark**: **VS Code Dark+**, **Dracula**, **Monokai Pro**, **One Dark Pro**.
   * **Modern Light**: **Solarized Light**, **One Light**.
   * **Simple Dark** & **Simple Light**.
+* **Modern Vector Typography & Dynamic Font Subsystem**:
+  * High-DPI anti-aliased TrueType/OpenType vector rendering with theme color contrast.
+  * **Ubuntu** (Default UI font) and **Source Code Pro** (Monospace hacker font) embedded directly inside the binary.
+  * **Zero OS Installation Required**: Drop any `.ttf` or `.otf` font file into `./fonts` or `dist/fonts` and it becomes immediately available in the UI and CLI without installing it into Windows/Linux system fonts.
 * **Dual Operating Modes**:
   * **ROM & Hardware Catalog Subsystem (SQLite CRUD)**: Embedded SQLite database (`rom_catalog`) managing BIOS, BASIC, SubROMs, Disk ROMs, and hardware expansions with SHA-1 verification and execution guarantees.
   * **Guaranteed Execution (Garantia de Execução)**: Official standard fMSX ROMs are pre-seeded, verified, and flagged as active defaults with protection against accidental deletion.
@@ -38,7 +44,7 @@ fMSXgo follows strict **`V X.Y.Z`** semantic versioning with creative codenames 
 * **`Y` (Feature)**: Incremented upon completing and integrating a functional subsystem.
 * **`X` (Major)**: Incremented upon closing a major architectural milestone (e.g. Z80 certification = V 1.0.0).
 
-Current Version: **V 0.3.1 ("Vampire Killer")**
+Current Version: **V 0.3.3 ("Vampire Killer")**
 
 For complete phase tracking and immediate next steps, see [SPEC.md](SPEC.md).
 
@@ -68,6 +74,16 @@ Or with custom hardware options:
 .\fmsxgo.exe --no-window -msx2 -ram 8
 ```
 
+The interactive CLI monitor provides instruction tracing, memory inspection, slot visualization, and an integrated Z80 mini-assembler:
+
+![fMSXgo Debugger & Mini-Assembler](images/fmsxgo-01.png)
+
+### Command-Line Options & Flags
+fMSXgo provides full command-line parity with the original fMSX, plus modern developer workstation extensions:
+
+![fMSXgo Command-Line Options](images/fmsxgo-02.png)
+
+
 ### 4. ROM & Hardware Catalog (SQLite CRUD)
 * **Graphical Mode**: Click `Setup -> ROMs & HW Catalog...` to view all registered ROMs and execution guarantees, and click any ROM to toggle it as the active default.
 * **CLI Monitor Mode**:
@@ -79,14 +95,20 @@ Or with custom hardware options:
   * `roms export <name> <file>` - Export binary BLOB to disk.
   * `roms verify` - Validate SHA-1 checksums and BLOB data integrity.
 
-### 5. Configuration & Preferences (Language & Themes)
-* **Graphical Mode**: Click `Setup -> Configuration...` to open the modal dialog. Click any of the 5 languages or 11 themes for an instant live preview, then click `[ Save & Close ]`.
+### 5. Configuration & Preferences (Language, Themes & Typography)
+* **Graphical Mode**: Click `Setup -> Configuration...` to open the 3-column modal dialog:
+  * **Column 1**: Choose between English, Portuguese, Spanish, Dutch, and French.
+  * **Column 2**: Choose from 11 curated modern dark and light color themes.
+  * **Column 3**: Choose from embedded typography (**Ubuntu**, **Source Code Pro**) or any custom `.ttf`/`.otf` font dropped into the `fonts/` folder.
+  * Live click-to-preview on all elements, then click `[ Save & Close ]`.
 * **CLI Monitor Mode**:
   * Type `lang` or `lang <code>` (`en`, `pt`, `es`, `nl`, `fr`).
   * Type `theme` or `theme <id>` (`system`, `github-dark`, `dracula`, `solarized-light`, etc.).
+  * Type `font` or `font <id>` (`ubuntu`, `sourcecodepro`, or custom).
 * **Startup Flags**:
   * Pass `--lang pt` to start in Portuguese.
   * Pass `--theme dracula` to start with the Dracula theme.
+  * Pass `--font ubuntu` or `--font sourcecodepro` to choose typography.
 
 All preferences are automatically persisted in `fmsxgo.db` across sessions.
 

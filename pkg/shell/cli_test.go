@@ -99,6 +99,22 @@ func TestShellCommands(t *testing.T) {
 		t.Fatalf("Expected dracula theme change, got:\n%s", outBuf.String())
 	}
 
+	// Test Font command
+	outBuf.Reset()
+	sh.ExecuteCommand("font")
+	if !strings.Contains(outBuf.String(), "Available font families") {
+		t.Fatalf("Expected font families list, got:\n%s", outBuf.String())
+	}
+
+	outBuf.Reset()
+	sh.ExecuteCommand("font sourcecodepro")
+	if !strings.Contains(outBuf.String(), "sourcecodepro") {
+		t.Fatalf("Expected font change confirmation, got:\n%s", outBuf.String())
+	}
+
+	// Switch back to default Ubuntu
+	sh.ExecuteCommand("font ubuntu")
+
 	outBuf.Reset()
 	sh.ExecuteCommand("theme github-dark")
 	if !strings.Contains(outBuf.String(), "github-dark") {
