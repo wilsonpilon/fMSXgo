@@ -14,9 +14,15 @@ In addition to inheriting the time-tested accuracy of fMSX, **fMSXgo** is design
 * **Dynamic Disassembler**: Disassemble arbitrary memory regions with parameter and length decoding.
 * **Accurate Slot Matrix & Memory Management**: 4 Primary Slots (`0xA8`), 4 Secondary Subslots (`0xFFFF`), and a **RAM Mapper** (`0xFC`..`0xFF`) supporting 64KB up to 4MB of RAM.
 * **Unified SQLite Persistence (`fmsxgo.db`)**: BIOS ROMs (`MSX.ROM`, `MSX2.ROM`, `MSX2EXT.ROM`, `DISK.ROM`), configuration settings, machine profiles, and documentation are bundled into a single SQLite database (`BLOB` storage), eliminating loose ROM file folders in distribution.
-* **Multi-Language UI (i18n)**: Native UI support for **English (default)**, **Portuguese**, **Spanish**, **Dutch**, **French**, and **Japanese**. Command names remain standard English (`HELP`, `QUIT`, `r`, `d`, `a`, `t`), while menus, status dialogs, hints, and command help dynamically reflect the chosen language. User preferences are automatically persisted in SQLite.
+* **Multi-Language UI (i18n)**: Native UI support for **English (default)**, **Portuguese**, **Spanish**, **Dutch**, and **French**. Command names remain standard English (`HELP`, `QUIT`, `lang`, `theme`, `r`, `d`, `a`, `t`), while menus, status dialogs, hints, and command help dynamically reflect the chosen language.
+* **11 Modern Color Themes**: Inspired by modern IDEs and editors:
+  * **Auto (System OS)**: Automatically tracks OS Dark or Light mode.
+  * **GitHub Dark** & **GitHub Light**.
+  * **Modern Dark**: **VS Code Dark+**, **Dracula**, **Monokai Pro**, **One Dark Pro**.
+  * **Modern Light**: **Solarized Light**, **One Light**.
+  * **Simple Dark** & **Simple Light**.
 * **Dual Operating Modes**:
-  * **Graphical Window (Ebitengine)**: Clean 640x480 interface with top menu bar (`File -> Reset / Exit`, `Setup -> Language`, `Help -> About`) and live CPU/machine status.
+  * **Graphical Window (Ebitengine)**: Clean 640x480 interface with top menu bar (`File -> Reset / Exit`, `Setup -> Configuration...`, `Help -> About`) and live CPU/machine status.
   * **Headless Developer CLI Monitor (`--no-window`)**: Terminal REPL ("Developer OS") with register inspection, hexdump, raw byte editing, instruction stepping (`step-in`, `step-over`), breakpoints, slot visualizer, and I/O port testing.
 * **Automated Build & Packaging (`build.ps1`)**: Dependency resolution, unit tests, automatic build increment, and self-contained `dist/` creation.
 
@@ -30,7 +36,7 @@ fMSXgo follows strict **`V X.Y.Z`** semantic versioning with creative codenames 
 * **`Y` (Feature)**: Incremented upon completing and integrating a functional subsystem.
 * **`X` (Major)**: Incremented upon closing a major architectural milestone (e.g. Z80 certification = V 1.0.0).
 
-Current Version: **V 0.1.1 ("Phantasm")**
+Current Version: **V 0.1.3 ("Phantasm")**
 
 For complete phase tracking and immediate next steps, see [SPEC.md](SPEC.md).
 
@@ -60,13 +66,16 @@ Or with custom hardware options:
 .\fmsxgo.exe --no-window -msx2 -ram 8
 ```
 
-### 4. Language Selection
-On first launch, the interface defaults to English. You can switch languages at any time:
-* **Graphical Mode**: Click `Setup -> Language` and choose **English**, **Português**, **Español**, **Nederlands**, **Français**, or **Nihongo**.
-* **CLI Monitor Mode**: Type `lang` to view current and available languages, or `lang pt` (or `en`, `es`, `nl`, `fr`, `ja`) to switch instantly.
-* **Startup Flag**: Pass `--lang pt` to start with a specific language.
+### 4. Configuration & Preferences (Language & Themes)
+* **Graphical Mode**: Click `Setup -> Configuration...` to open the modal dialog. Click any of the 5 languages or 11 themes for an instant live preview, then click `[ Save & Close ]`.
+* **CLI Monitor Mode**:
+  * Type `lang` or `lang <code>` (`en`, `pt`, `es`, `nl`, `fr`).
+  * Type `theme` or `theme <id>` (`system`, `github-dark`, `dracula`, `solarized-light`, etc.).
+* **Startup Flags**:
+  * Pass `--lang pt` to start in Portuguese.
+  * Pass `--theme dracula` to start with the Dracula theme.
 
-Your language selection is saved automatically in `fmsxgo.db` and persists across sessions.
+All preferences are automatically persisted in `fmsxgo.db` across sessions.
 
 ---
 

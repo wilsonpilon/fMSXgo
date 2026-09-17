@@ -20,14 +20,15 @@ The emulator opens a 640x480 graphical window featuring a top menu bar:
   * `Reset Machine`: Resets the CPU, slot bus, and VDP to initial power-on state.
   * `Exit`: Gracefully shuts down the emulator (shortcut: `[ESC]`).
 * **`Setup` Menu**:
-  * `Language`: Opens a language selector allowing you to switch between:
-    * **English** (default)
-    * **Português** (Portuguese)
-    * **Español** (Spanish)
-    * **Nederlands** (Dutch)
-    * **Français** (French)
-    * **Nihongo** (Japanese)
-    * The active language is indicated with an asterisk `[*]`, and your selection is immediately saved to `fmsxgo.db` for future sessions.
+  * `Configuration...`: Opens the comprehensive **Configuration & Preferences** modal dialog:
+    * **Language Selection**: Switch dynamically between **English** (default), **Português**, **Español**, **Nederlands**, and **Français**.
+    * **Color Theme Selection**: Choose from 11 modern, editor-inspired themes with instant visual preview:
+      * **Auto (System OS)**: Automatically tracks your operating system's light or dark mode.
+      * **GitHub Dark** & **GitHub Light**: Clean official GitHub palettes.
+      * **Modern Dark**: **VS Code Dark+**, **Dracula**, **Monokai Pro**, **One Dark Pro**.
+      * **Modern Light**: **Solarized Light**, **One Light**.
+      * **Simple Fallbacks**: **Simple Dark**, **Simple Light**.
+    * Selections are applied immediately to all menus, windows, and dialogs, and persisted automatically to SQLite (`fmsxgo.db`).
 * **`Help` Menu**:
   * `About fMSXgo`: Displays an interactive dialog with the version, codename, Marat Fayzullin & Wilson Pilon credits, and non-commercial license notice.
 
@@ -53,7 +54,8 @@ fMSXgo supports both modern double-dash (`--`) flags and classic single-dash (`-
 | :--- | :--- |
 | `--help`, `-help`, `-h` | Display full command-line help and usage instructions. |
 | `--no-window`, `-cli` | Disable the graphical window and run in interactive CLI monitor mode. |
-| `--lang <code>` | Set initial UI language (`en`, `pt`, `es`, `nl`, `fr`, `ja`). Persists to SQLite. |
+| `--lang <code>` | Set initial UI language (`en`, `pt`, `es`, `nl`, `fr`). Persists to SQLite. |
+| `--theme <id>` | Set initial UI theme (`system`, `github-dark`, `dracula`, etc.). Persists to SQLite. |
 | `--db <path>` | Path to SQLite database file (default: `fmsxgo.db`). |
 | `-test` | Run internal self-diagnostics on CPU, memory, and slot mapping. |
 | `-exec "<commands>"` | Execute semicolon-separated shell commands in batch mode then exit. |
@@ -89,7 +91,9 @@ Command names are always standard English (`HELP`, `QUIT`, `lang`, `r`, `d`, `a`
 * **`HELP`** (or `?`): Display the command summary and description in the active language.
 * **`QUIT`** (or `EXIT`, `q`): Exit fMSXgo.
 * **`lang`**: Display current language and list supported language codes.
-* **`lang <code>`**: Switch UI language to `en`, `pt`, `es`, `nl`, `fr`, or `ja`. Persists to `fmsxgo.db`.
+* **`lang <code>`**: Switch UI language to `en`, `pt`, `es`, `nl`, or `fr`. Persists to `fmsxgo.db`.
+* **`theme`**: Display current theme and list all 11 available themes.
+* **`theme <id>`**: Switch active theme (e.g. `theme dracula`, `theme github-dark`, `theme system`). Persists to `fmsxgo.db`.
 * **`cls`** (or `clear`): Clear terminal screen.
 
 ### CPU & Register Commands

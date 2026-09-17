@@ -11,6 +11,7 @@ import (
 	"fmsxgo/pkg/cpu/z80"
 	"fmsxgo/pkg/i18n"
 	"fmsxgo/pkg/msx"
+	"fmsxgo/pkg/ui/theme"
 )
 
 // Shell provides an interactive CLI monitor ("Developer OS") for fMSXgo.
@@ -80,6 +81,9 @@ func (sh *Shell) ExecuteCommand(line string) bool {
 
 	case "lang", "language":
 		sh.cmdLang(args)
+
+	case "theme":
+		sh.cmdTheme(args)
 
 	case "r", "reg", "regs":
 		if len(args) == 0 {
@@ -178,7 +182,7 @@ func (sh *Shell) videoName() string {
 func (sh *Shell) cmdLang(args []string) {
 	if len(args) == 0 {
 		fmt.Fprintf(sh.Out, "Current UI language: %s (%s)\n", i18n.GetLanguage(), i18n.GetLanguageName())
-		fmt.Fprintln(sh.Out, "Available: en (English), pt (Português), es (Español), nl (Nederlands), fr (Français), ja (Nihongo)")
+		fmt.Fprintln(sh.Out, "Available: en (English), pt (Português), es (Español), nl (Nederlands), fr (Français)")
 		fmt.Fprintln(sh.Out, "Usage: lang <code> (e.g. 'lang pt')")
 		return
 	}
@@ -190,7 +194,35 @@ func (sh *Shell) cmdLang(args []string) {
 			_ = sh.Machine.DB.SetConfig("language", i18n.GetLanguage())
 		}
 	} else {
-		fmt.Fprintf(sh.Out, "Unknown language code: %s. Supported: en, pt, es, nl, fr, ja\n", target)
+		fmt.Fprintf(sh.Out, "Unknown language code: %s. Supported: en, pt, es, nl, fr\n", target)
+	}
+}
+
+func (sh *Shell) cmdTheme(args []string) {
+	if len(args) == 0 {
+		eff := theme.GetEffective()
+		fmt.Fprintf(sh.Out, "Current UI theme: %s (%s) [effective: %s]\n", theme.GetCurrent(), eff.Name, eff.ID)
+		fmt.Fprintln(sh.Out, "Available themes:")
+		for _, th := range theme.List() {
+			marker := "  "
+			if th.ID == theme.GetCurrent() {
+				marker = "* "
+			}
+			fmt.Fprintf(sh.Out, "  %s%-16s - %s [%s]\n", marker, th.ID, th.Name, th.Category)
+		}
+		fmt.Fprintln(sh.Out, "Usage: theme <id> (e.g. 'theme dracula', 'theme github-dark', 'theme system')")
+		return
+	}
+
+	target := args[0]
+	if theme.SetCurrent(target) {
+		th, _ := theme.Get(target)
+		fmt.Fprintf(sh.Out, "%s %s (%s)\n", i18n.T("cli_theme_changed"), th.ID, th.Name)
+		if sh.Machine != nil && sh.Machine.DB != nil {
+			_ = sh.Machine.DB.SetConfig("theme", th.ID)
+		}
+	} else {
+		fmt.Fprintf(sh.Out, "Unknown theme: %q. Type 'theme' to list available themes.\n", target)
 	}
 }
 
@@ -202,6 +234,7 @@ func (sh *Shell) cmdHelp() {
 	fmt.Fprintf(sh.Out, "  HELP                      %s\n", i18n.T("cli_help_desc"))
 	fmt.Fprintf(sh.Out, "  QUIT / EXIT               %s\n", i18n.T("cli_quit_desc"))
 	fmt.Fprintf(sh.Out, "  lang [code]               %s\n", i18n.T("cli_lang_desc"))
+	fmt.Fprintf(sh.Out, "  theme [id]                %s\n", i18n.T("cli_theme_desc"))
 	fmt.Fprintln(sh.Out)
 	fmt.Fprintln(sh.Out, "Registers & CPU:")
 	fmt.Fprintf(sh.Out, "  r                         %s\n", i18n.T("cli_regs_desc"))

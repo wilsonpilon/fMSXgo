@@ -4,6 +4,35 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and version numbers follow the **`V X.Y.Z`** scheme with creative release codenames inspired by **Horror Cinema, MSX Classics, and Heavy Metal**.
 
+## [V 0.1.5] - "Phantasm (The Tall Man)" - 2026-09-16
+
+### Changed
+- **Language Selection**:
+  - Temporarily removed Japanese (`ja`) from active supported languages per project requirements. Active languages are: **English (`en`)**, **Portuguese (`pt`)**, **Spanish (`es`)**, **Dutch (`nl`)**, and **French (`fr`)**.
+
+---
+
+## [V 0.1.3] - "Phantasm (The Tall Man)" - 2026-09-16
+
+### Added
+- **Configuration Dialog & Modern Themes Subsystem**:
+  - **11 Curated Color Themes** (`pkg/ui/theme`):
+    - **Auto (System OS)**: Automatically queries Windows Registry (`AppsUseLightTheme`) to match the OS light or dark mode.
+    - **GitHub Dark** & **GitHub Light**: Clean official palettes.
+    - **Modern Dark**: **VS Code Dark+**, **Dracula**, **Monokai Pro**, and **One Dark Pro**.
+    - **Modern Light**: **Solarized Light** and **One Light**.
+    - **Simple Fallbacks**: **Simple Dark** and **Simple Light**.
+  - **Interactive Configuration Modal Dialog** in GUI:
+    - Accessible via **`Setup -> Configuration...`**.
+    - Dual-column layout: Language selection on the left, Theme selection on the right.
+    - Clicking any language or theme provides **instant live preview** with real-time UI recoloring.
+    - `[ Save & Close ]` button with automatic persistence to SQLite `fmsxgo.db`.
+  - **Developer CLI Monitor Integration**:
+    - Added **`theme`** command (lists active and available themes with categories).
+    - Added **`theme <id>`** command (switches theme dynamically in CLI and saves to DB).
+    - Added **`--theme <id>`** startup command-line flag.
+  - Multi-language translation updates across all 6 languages for all new configuration terms.
+
 ---
 
 ## [V 0.1.1] - "Phantasm (The Tall Man)" - 2026-09-16

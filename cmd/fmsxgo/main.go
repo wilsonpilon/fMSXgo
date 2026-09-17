@@ -12,6 +12,7 @@ import (
 	"fmsxgo/pkg/shell"
 	"fmsxgo/pkg/storage"
 	"fmsxgo/pkg/ui"
+	"fmsxgo/pkg/ui/theme"
 )
 
 var (
@@ -31,7 +32,8 @@ Usage:
 Primary Options:
   --help, -help, -h   Show this help message and exit
   --no-window         Disable graphical window and run in interactive CLI monitor mode
-  --lang <code>       Set UI language (en, pt, es, nl, fr, ja; default: en)
+  --lang <code>       Set UI language (en, pt, es, nl, fr; default: en)
+  --theme <id>        Set UI theme (system, github-dark, github-light, etc.)
   --db <path>         Path to SQLite database file (default: fmsxgo.db)
 
 Hardware Options (fMSX compatible):
@@ -70,6 +72,7 @@ func main() {
 	runTests := false
 	dbPath := "fmsxgo.db"
 	langFlag := ""
+	themeFlag := ""
 
 	args := os.Args[1:]
 	for i := 0; i < len(args); i++ {
@@ -86,6 +89,12 @@ func main() {
 			if i+1 < len(args) {
 				i++
 				langFlag = args[i]
+			}
+
+		case "--theme", "-theme":
+			if i+1 < len(args) {
+				i++
+				themeFlag = args[i]
 			}
 
 		case "--db", "-db":
@@ -202,11 +211,28 @@ func main() {
 			savedLang := db.GetConfig("language", "en")
 			i18n.SetLanguage(savedLang)
 		}
+
+		// Initialize UI theme
+		if themeFlag != "" {
+			if theme.SetCurrent(themeFlag) {
+				_ = db.SetConfig("theme", theme.GetCurrent())
+			} else {
+				fmt.Fprintf(os.Stderr, "Warning: Unsupported theme %q. Defaulting to %s.\n", themeFlag, theme.GetCurrent())
+			}
+		} else {
+			savedTheme := db.GetConfig("theme", "system")
+			theme.SetCurrent(savedTheme)
+		}
 	}
 
-	// Fallback if DB was not loaded but --lang was specified
-	if db == nil && langFlag != "" {
-		i18n.SetLanguage(langFlag)
+	// Fallback if DB was not loaded but flags were specified
+	if db == nil {
+		if langFlag != "" {
+			i18n.SetLanguage(langFlag)
+		}
+		if themeFlag != "" {
+			theme.SetCurrent(themeFlag)
+		}
 	}
 
 	if runTests {

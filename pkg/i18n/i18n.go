@@ -18,7 +18,6 @@ var SupportedLanguages = []LanguageInfo{
 	{Code: "es", Name: "Spanish", NativeName: "Español"},
 	{Code: "nl", Name: "Dutch", NativeName: "Nederlands"},
 	{Code: "fr", Name: "French", NativeName: "Français"},
-	{Code: "ja", Name: "Japanese", NativeName: "Nihongo (Japanese)"},
 }
 
 var (
@@ -34,9 +33,19 @@ var translations = map[string]map[string]string{
 		"menu_reset":         "Reset Machine",
 		"menu_exit":          "Exit",
 		"menu_setup":         "Setup",
+		"menu_config":        "Configuration...",
 		"menu_language":      "Language",
 		"menu_help":          "Help",
 		"menu_about":         "About fMSXgo",
+
+		// Configuration Dialog
+		"dlg_config_title":   "CONFIGURATION & PREFERENCES",
+		"cfg_sec_language":   "UI Language:",
+		"cfg_sec_theme":      "Color Theme:",
+		"cfg_cat_system":     "System",
+		"cfg_cat_dark":       "Dark",
+		"cfg_cat_light":      "Light",
+		"btn_save_close":     "  [ Save & Close ]  ",
 
 		// About Dialog
 		"about_title":        "ABOUT fMSXgo",
@@ -66,7 +75,7 @@ var translations = map[string]map[string]string{
 		"cli_main_ctrls":     "Main Controls:",
 		"cli_help_desc":      "Display this command summary and help",
 		"cli_quit_desc":      "Exit fMSXgo",
-		"cli_lang_desc":      "View or set UI language (en, pt, es, nl, fr, ja)",
+		"cli_lang_desc":      "View or set UI language (en, pt, es, nl, fr)",
 		"cli_regs_desc":      "View all registers, flags, and instruction at PC",
 		"cli_setreg_desc":    "Set register value (e.g. 'r a 0xFF', 'r pc 0xC000')",
 		"cli_dump_desc":      "Hexdump and ASCII memory display",
@@ -85,6 +94,8 @@ var translations = map[string]map[string]string{
 		"cli_reset_desc":     "Reset CPU and MSX hardware",
 		"cli_cls_desc":       "Clear console screen",
 		"cli_lang_changed":   "Language set to:",
+		"cli_theme_desc":     "View or set UI theme (system, github-dark, dracula, etc.)",
+		"cli_theme_changed":  "Theme set to:",
 	},
 	"pt": {
 		// Menus
@@ -92,9 +103,19 @@ var translations = map[string]map[string]string{
 		"menu_reset":         "Reiniciar Máquina",
 		"menu_exit":          "Sair",
 		"menu_setup":         "Configuração",
+		"menu_config":        "Configurações...",
 		"menu_language":      "Idioma",
 		"menu_help":          "Ajuda",
 		"menu_about":         "Sobre o fMSXgo",
+
+		// Configuration Dialog
+		"dlg_config_title":   "CONFIGURAÇÕES & PREFERÊNCIAS",
+		"cfg_sec_language":   "Idioma da Interface:",
+		"cfg_sec_theme":      "Tema de Cores:",
+		"cfg_cat_system":     "Sistema",
+		"cfg_cat_dark":       "Escuro",
+		"cfg_cat_light":      "Claro",
+		"btn_save_close":     "  [ Salvar & Fechar ]  ",
 
 		// About Dialog
 		"about_title":        "SOBRE O fMSXgo",
@@ -124,7 +145,7 @@ var translations = map[string]map[string]string{
 		"cli_main_ctrls":     "Controles Principais:",
 		"cli_help_desc":      "Exibe este resumo de comandos e ajuda",
 		"cli_quit_desc":      "Encerra o fMSXgo",
-		"cli_lang_desc":      "Ver ou alterar idioma (en, pt, es, nl, fr, ja)",
+		"cli_lang_desc":      "Ver ou alterar idioma (en, pt, es, nl, fr)",
 		"cli_regs_desc":      "Exibe registradores, flags e instrução no PC",
 		"cli_setreg_desc":    "Altera valor de registrador (ex: 'r a 0xFF', 'r pc 0xC000')",
 		"cli_dump_desc":      "Exibe hexdump e ASCII da memória",
@@ -143,6 +164,8 @@ var translations = map[string]map[string]string{
 		"cli_reset_desc":     "Reinicia a CPU e o hardware MSX",
 		"cli_cls_desc":       "Limpa a tela do console",
 		"cli_lang_changed":   "Idioma alterado para:",
+		"cli_theme_desc":     "Ver ou alterar tema (system, github-dark, dracula, etc.)",
+		"cli_theme_changed":  "Tema alterado para:",
 	},
 	"es": {
 		// Menus
@@ -150,9 +173,19 @@ var translations = map[string]map[string]string{
 		"menu_reset":         "Reiniciar Máquina",
 		"menu_exit":          "Salir",
 		"menu_setup":         "Configuración",
+		"menu_config":        "Configuración...",
 		"menu_language":      "Idioma",
 		"menu_help":          "Ayuda",
 		"menu_about":         "Acerca de fMSXgo",
+
+		// Configuration Dialog
+		"dlg_config_title":   "CONFIGURACIÓN & PREFERENCIAS",
+		"cfg_sec_language":   "Idioma de la Interfaz:",
+		"cfg_sec_theme":      "Tema de Colores:",
+		"cfg_cat_system":     "Sistema",
+		"cfg_cat_dark":       "Oscuro",
+		"cfg_cat_light":      "Claro",
+		"btn_save_close":     "  [ Guardar & Cerrar ]  ",
 
 		// About Dialog
 		"about_title":        "ACERCA DE fMSXgo",
@@ -182,7 +215,7 @@ var translations = map[string]map[string]string{
 		"cli_main_ctrls":     "Controles Principales:",
 		"cli_help_desc":      "Muestra este resumen de comandos y ayuda",
 		"cli_quit_desc":      "Cierra fMSXgo",
-		"cli_lang_desc":      "Ver o cambiar idioma (en, pt, es, nl, fr, ja)",
+		"cli_lang_desc":      "Ver o cambiar idioma (en, pt, es, nl, fr)",
 		"cli_regs_desc":      "Ver registros, banderas e instrucción en PC",
 		"cli_setreg_desc":    "Modificar valor de registro (ej: 'r a 0xFF', 'r pc 0xC000')",
 		"cli_dump_desc":      "Muestra volcado hexadecimal y ASCII",
@@ -201,6 +234,8 @@ var translations = map[string]map[string]string{
 		"cli_reset_desc":     "Reinicia CPU y hardware MSX",
 		"cli_cls_desc":       "Limpia la pantalla",
 		"cli_lang_changed":   "Idioma cambiado a:",
+		"cli_theme_desc":     "Ver o cambiar tema (system, github-dark, dracula, etc.)",
+		"cli_theme_changed":  "Tema cambiado a:",
 	},
 	"nl": {
 		// Menus (Dutch - deeply tied to MSX history!)
@@ -208,9 +243,19 @@ var translations = map[string]map[string]string{
 		"menu_reset":         "Herstart Machine",
 		"menu_exit":          "Afsluiten",
 		"menu_setup":         "Instellingen",
+		"menu_config":        "Instellingen...",
 		"menu_language":      "Taal",
 		"menu_help":          "Help",
 		"menu_about":         "Over fMSXgo",
+
+		// Configuration Dialog
+		"dlg_config_title":   "INSTELLINGEN & VOORKEUREN",
+		"cfg_sec_language":   "Taal van Interface:",
+		"cfg_sec_theme":      "Kleurthema:",
+		"cfg_cat_system":     "Systeem",
+		"cfg_cat_dark":       "Donker",
+		"cfg_cat_light":      "Licht",
+		"btn_save_close":     "  [ Opslaan & Sluiten ]  ",
 
 		// About Dialog
 		"about_title":        "OVER fMSXgo",
@@ -240,7 +285,7 @@ var translations = map[string]map[string]string{
 		"cli_main_ctrls":     "Hoofdbesturing:",
 		"cli_help_desc":      "Toont dit overzicht van opdrachten",
 		"cli_quit_desc":      "Sluit fMSXgo af",
-		"cli_lang_desc":      "Bekijk of wijzig taal (en, pt, es, nl, fr, ja)",
+		"cli_lang_desc":      "Bekijk of wijzig taal (en, pt, es, nl, fr)",
 		"cli_regs_desc":      "Toon registers, vlaggen en instructie bij PC",
 		"cli_setreg_desc":    "Stel registerwaarde in (bijv. 'r a 0xFF')",
 		"cli_dump_desc":      "Geheugendump in hexadecimaal en ASCII",
@@ -259,6 +304,8 @@ var translations = map[string]map[string]string{
 		"cli_reset_desc":     "Herstart CPU en hardware",
 		"cli_cls_desc":       "Wis consolevenster",
 		"cli_lang_changed":   "Taal gewijzigd in:",
+		"cli_theme_desc":     "Bekijk of wijzig thema (system, github-dark, etc.)",
+		"cli_theme_changed":  "Thema gewijzigd naar:",
 	},
 	"fr": {
 		// Menus (French)
@@ -266,9 +313,19 @@ var translations = map[string]map[string]string{
 		"menu_reset":         "Redémarrer Machine",
 		"menu_exit":          "Quitter",
 		"menu_setup":         "Configuration",
+		"menu_config":        "Paramètres...",
 		"menu_language":      "Langue",
 		"menu_help":          "Aide",
 		"menu_about":         "À propos de fMSXgo",
+
+		// Configuration Dialog
+		"dlg_config_title":   "CONFIGURATION & PRÉFÉRENCES",
+		"cfg_sec_language":   "Langue de l'Interface:",
+		"cfg_sec_theme":      "Thème de Couleurs:",
+		"cfg_cat_system":     "Système",
+		"cfg_cat_dark":       "Sombre",
+		"cfg_cat_light":      "Clair",
+		"btn_save_close":     "  [ Enregistrer & Fermer ]  ",
 
 		// About Dialog
 		"about_title":        "À PROPOS DE fMSXgo",
@@ -298,7 +355,7 @@ var translations = map[string]map[string]string{
 		"cli_main_ctrls":     "Contrôles Principaux:",
 		"cli_help_desc":      "Affiche ce résumé des commandes et l'aide",
 		"cli_quit_desc":      "Quitte fMSXgo",
-		"cli_lang_desc":      "Voir ou changer la langue (en, pt, es, nl, fr, ja)",
+		"cli_lang_desc":      "Voir ou changer la langue (en, pt, es, nl, fr)",
 		"cli_regs_desc":      "Affiche les registres, drapeaux et instruction au PC",
 		"cli_setreg_desc":    "Modifie la valeur d'un registre",
 		"cli_dump_desc":      "Vidage hexadécimal et ASCII de la mémoire",
@@ -317,64 +374,8 @@ var translations = map[string]map[string]string{
 		"cli_reset_desc":     "Réinitialise la CPU et le matériel",
 		"cli_cls_desc":       "Efface la console",
 		"cli_lang_changed":   "Langue modifiée en:",
-	},
-	"ja": {
-		// Menus (Japanese - Latin-1 compatible display representation for retro feel)
-		"menu_file":          "File (Fairu)",
-		"menu_reset":         "Reset Machine",
-		"menu_exit":          "Exit (Shuuryou)",
-		"menu_setup":         "Setup (Settei)",
-		"menu_language":      "Language (Gengo)",
-		"menu_help":          "Help (Tasukeru)",
-		"menu_about":         "About (fMSXgo ni tsuite)",
-
-		// About Dialog
-		"about_title":        "ABOUT fMSXgo (Nihongo)",
-		"about_app":          "fMSXgo - MSX Emulator & Dev Workstation",
-		"about_version":      "Version",
-		"about_core":         "Original Core: (C) Marat Fayzullin (fMSX)",
-		"about_port":         "Go Port & Tools: (C) Wilson Pilon",
-		"about_license":      "Strictly Non-Commercial Use Only",
-		"btn_ok":             "  [ OK ]  ",
-
-		// Screen Labels
-		"lbl_title":          "=== fMSXgo - MSX Emulator & Kaihatsu Station ===",
-		"lbl_model":          "Hardware Model :",
-		"lbl_video":          "Video Standard :",
-		"lbl_ram":            "Main RAM       :",
-		"lbl_vram":           "VRAM           :",
-		"lbl_cpu_state":      "--- Z80 CPU Joutai ---",
-		"lbl_tips":           "Hinto (Tips):",
-		"lbl_tip_exit":       " - 'File -> Exit' matawa [ESC] de shuuryou.",
-		"lbl_tip_about":      " - 'Help -> About' de kurejitto to raisensu.",
-		"lbl_tip_cli":        " - '--no-window' de CLI monitor wo kidou.",
-		"lbl_tip_lang":       " - 'Setup -> Language' de gengo henkou.",
-
-		// CLI
-		"cli_welcome":        "fMSXgo - MSX Emulator & Kaihatsu Konsoru",
-		"cli_help_hint":      "'HELP' de komando ichiran, 'a' de assembura, 't' de suteppu.",
-		"cli_main_ctrls":     "Omo na Sousa (Main Controls):",
-		"cli_help_desc":      "Komando ichiran to tasuke wo hyouji",
-		"cli_quit_desc":      "fMSXgo wo shuuryou suru",
-		"cli_lang_desc":      "Gengo no kakunin to henkou (en, pt, es, nl, fr, ja)",
-		"cli_regs_desc":      "Rejisuta, furagu, PC meirei wo hyouji",
-		"cli_setreg_desc":    "Rejisuta no chi wo henkou (rei: 'r a 0xFF')",
-		"cli_dump_desc":      "Memori no 16-shinsuu to ASCII dasteppu",
-		"cli_enter_desc":     "Memori ni baite wo chokusetsu kaki komi",
-		"cli_dasm_desc":      "Gyaku-assemburu meirei",
-		"cli_asm_desc":       "Mini-assembura moudo",
-		"cli_step_desc":      "Suteppu jikkou (step-in)",
-		"cli_next_desc":      "Suteppu oobaa (CALL/RST/DJNZ)",
-		"cli_run_desc":       "Bureekupointo made jikkou",
-		"cli_bp_desc":        "Bureekupointo no kanri",
-		"cli_slots_desc":     "Surotto no wariate wo kenshou",
-		"cli_mapper_desc":    "RAM mappaa no wariate wo kenshou",
-		"cli_in_desc":        "I/O pooto kara baite wo yomi komi",
-		"cli_out_desc":       "I/O pooto ni baite wo kaki komi",
-		"cli_info_desc":      "Mashin no kousei wo hyouji",
-		"cli_reset_desc":     "CPU to MSX haadowea wo risetto",
-		"cli_cls_desc":       "Gamen wo kurea",
-		"cli_lang_changed":   "Gengo ga henkou saremashita:",
+		"cli_theme_desc":     "Voir ou changer le thème (system, github-dark, etc.)",
+		"cli_theme_changed":  "Thème modifié en:",
 	},
 }
 

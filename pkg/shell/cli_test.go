@@ -82,4 +82,26 @@ func TestShellCommands(t *testing.T) {
 
 	// Switch back to English
 	sh.ExecuteCommand("lang en")
+
+	// Test Theme command
+	outBuf.Reset()
+	sh.ExecuteCommand("theme")
+	if !strings.Contains(outBuf.String(), "Available themes") {
+		t.Fatalf("Expected available themes, got:\n%s", outBuf.String())
+	}
+
+	outBuf.Reset()
+	sh.ExecuteCommand("theme dracula")
+	if !strings.Contains(outBuf.String(), "dracula") {
+		t.Fatalf("Expected dracula theme change, got:\n%s", outBuf.String())
+	}
+
+	outBuf.Reset()
+	sh.ExecuteCommand("theme github-dark")
+	if !strings.Contains(outBuf.String(), "github-dark") {
+		t.Fatalf("Expected github-dark theme change, got:\n%s", outBuf.String())
+	}
+
+	// Reset theme to system
+	sh.ExecuteCommand("theme system")
 }

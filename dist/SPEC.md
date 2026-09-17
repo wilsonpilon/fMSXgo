@@ -44,20 +44,26 @@ fMSXgo follows the strict semantic versioning format: **`V X.Y.Z`**
   - [x] Direct BIOS ROM loading from SQLite `BLOB` storage, removing loose ROM folders.
   - [x] Automatic database seeding from `third-party/fMSX/ROMs`.
 - [x] Multi-Language UI (i18n) Subsystem (`pkg/i18n`):
-  - [x] Full translation dictionaries for 6 languages: English (`en`, default), Portuguese (`pt`), Spanish (`es`), Dutch (`nl`), French (`fr`), and Japanese (`ja`).
+  - [x] Full translation dictionaries for 5 languages: English (`en`, default), Portuguese (`pt`), Spanish (`es`), Dutch (`nl`), and French (`fr`) (Japanese deferred for now).
   - [x] Dynamic runtime switching with thread-safe getters and setters.
   - [x] Persistent language preference saved in `fmsxgo.db`.
   - [x] CLI flag `--lang <code>` and CLI monitor command `lang <code>`.
+- [x] Modern Theme Subsystem (`pkg/ui/theme`):
+  - [x] 11 curated color themes: Auto (System OS), GitHub Dark, GitHub Light, VS Code Dark+, Dracula, Monokai Pro, One Dark Pro, Solarized Light, One Light, Simple Dark, Simple Light.
+  - [x] Windows Registry OS Theme Auto-Detection (`AppsUseLightTheme`).
+  - [x] Real-time live dynamic UI reskinning without restart.
+  - [x] CLI flag `--theme <id>` and monitor command `theme <id>`.
+  - [x] SQLite database persistence under `config` table (`theme`).
 - [x] Graphical User Interface (`pkg/ui/gui.go`):
   - [x] Cross-platform 640x480 window using pure Go Ebitengine (no CGO/GCC requirement on Windows).
   - [x] Top menu bar:
     - [x] `File`: `Reset Machine`, `Exit`.
-    - [x] `Setup`: `Language` selector supporting all 6 languages with active indicator `[*]`.
+    - [x] `Setup`: `Configuration...` modal dialog opening language & theme preferences with real-time preview.
     - [x] `Help`: `About fMSXgo` modal credits and non-commercial license dialog.
   - [x] Live machine configuration and CPU register state overlay.
 - [x] Interactive Developer Shell / CLI Monitor (`pkg/shell/cli.go`):
   - [x] Headless terminal mode via `--no-window` and `-cli`.
-  - [x] Commands: `HELP`, `QUIT`, `lang`, `r` (registers), `d` (hexdump), `e` (memory byte edit), `u` (disasm), `a` (mini-assembler), `t` (trace), `p` (step-over), `g` (run), `bp` (breakpoints), `slots`, `mapper`, `in`, `out`, `reset`, `cls`.
+  - [x] Commands: `HELP`, `QUIT`, `lang`, `theme`, `r` (registers), `d` (hexdump), `e` (memory byte edit), `u` (disasm), `a` (mini-assembler), `t` (trace), `p` (step-over), `g` (run), `bp` (breakpoints), `slots`, `mapper`, `in`, `out`, `reset`, `cls`.
   - [x] Localized help and banner messages based on active language while keeping command names in standard English.
 - [x] Automation & Build Tooling (`build.ps1`):
   - [x] Resolves dependencies, auto-increments build number `Z` in `version.json`.
