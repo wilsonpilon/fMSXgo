@@ -41,8 +41,8 @@ func TestZ80BasicExecution(t *testing.T) {
 	// 0104: ADD A, B
 	// 0105: HALT
 	prog := []string{
-		"LD A, 10",
-		"LD B, 20",
+		"LD A, d10",
+		"LD B, d20",
 		"ADD A, B",
 		"HALT",
 	}

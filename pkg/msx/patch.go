@@ -30,12 +30,18 @@ var DiskPatches = []uint16{
 
 // FloppyDrive represents a virtual MSX floppy disk drive (A: or B:)
 type FloppyDrive struct {
-	ID       int
-	Path     string
-	Data     []byte
-	SecSize  int
-	Sectors  int
-	Modified bool
+	ID          int
+	Path        string
+	Data        []byte
+	SecSize     int
+	Sectors     int
+	Modified    bool
+	Tracks      int
+	Sides       int
+	SecPerTrack int
+	MediaID     uint8
+	FormatDesc  string
+	DiskType    string
 }
 
 // TapeDrive represents a virtual cassette tape drive
@@ -184,14 +190,72 @@ func (m *Machine) LoadDisk(drive int, path string) error {
 	}
 	secSize := 512
 	sectors := len(data) / secSize
+	tracks, sides, secPerTrack, mediaID, formatDesc, diskType := DetectDiskGeometry(data)
+
 	m.FDD[drive] = &FloppyDrive{
-		ID:      drive,
-		Path:    path,
-		Data:    data,
-		SecSize: secSize,
-		Sectors: sectors,
+		ID:          drive,
+		Path:        path,
+		Data:        data,
+		SecSize:     secSize,
+		Sectors:     sectors,
+		Tracks:      tracks,
+		Sides:       sides,
+		SecPerTrack: secPerTrack,
+		MediaID:     mediaID,
+		FormatDesc:  formatDesc,
+		DiskType:    diskType,
 	}
 	return nil
+}
+
+// DetectDiskGeometry analyzes disk image data (boot sector or size) and returns disk geometry:
+// tracks, sides (heads), sectors per track, media ID, short description, and full type description.
+// Accurately recognizes 180KB, 360KB, 720KB, 640KB, 320KB, 160KB, 5 1/4" and 3 1/2",
+// single/double sided (simples/dupla face), and single/double density (simples/dupla densidade).
+func DetectDiskGeometry(data []byte) (tracks, sides, secPerTrack int, mediaID uint8, formatDesc, diskType string) {
+	if len(data) >= 512 {
+		mediaID = data[0x15]
+	}
+
+	switch mediaID {
+	case 0xF8:
+		return 80, 2, 9, 0xF8, "3.5\" DS/DD 80T 9S", "3.5\" 720KB (Dupla Face / Dupla Densidade)"
+	case 0xF9:
+		return 80, 2, 9, 0xF9, "3.5\" DS/DD 80T 9S", "3.5\" 720KB (Dupla Face / Dupla Densidade)"
+	case 0xFA:
+		return 80, 1, 8, 0xFA, "3.5\" SS/DD 80T 8S", "3.5\" 320KB (Simples Face / Dupla Densidade)"
+	case 0xFB:
+		return 80, 2, 8, 0xFB, "3.5\" DS/DD 80T 8S", "3.5\" 640KB (Dupla Face / Dupla Densidade)"
+	case 0xFC:
+		return 40, 1, 9, 0xFC, "5.25\" SS/DD 40T 9S", "5 1/4\" 180KB (Simples Face / Dupla Densidade)"
+	case 0xFD:
+		return 40, 2, 9, 0xFD, "5.25\" DS/DD 40T 9S", "5 1/4\" 360KB (Dupla Face / Dupla Densidade)"
+	case 0xFE:
+		return 40, 1, 8, 0xFE, "5.25\" SS/SD 40T 8S", "5 1/4\" 160KB (Simples Face / Simples Densidade)"
+	case 0xFF:
+		return 40, 2, 8, 0xFF, "5.25\" DS/SD 40T 8S", "5 1/4\" 320KB (Dupla Face / Simples Densidade)"
+	}
+
+	// If media descriptor is 0 or non-standard, infer from total byte length
+	sz := len(data)
+	switch sz {
+	case 737280:
+		return 80, 2, 9, 0xF8, "3.5\" DS/DD 80T 9S", "3.5\" 720KB (Dupla Face / Dupla Densidade)"
+	case 368640:
+		return 40, 2, 9, 0xFD, "5.25\" DS/DD 40T 9S", "5 1/4\" 360KB (Dupla Face / Dupla Densidade)"
+	case 184320:
+		return 40, 1, 9, 0xFC, "5.25\" SS/DD 40T 9S", "5 1/4\" 180KB (Simples Face / Dupla Densidade)"
+	case 655360:
+		return 80, 2, 8, 0xFB, "3.5\" DS/DD 80T 8S", "3.5\" 640KB (Dupla Face / Dupla Densidade)"
+	case 327680:
+		return 40, 2, 8, 0xFF, "5.25\" DS/SD 40T 8S", "5 1/4\" 320KB (Dupla Face / Simples Densidade)"
+	case 163840:
+		return 40, 1, 8, 0xFE, "5.25\" SS/SD 40T 8S", "5 1/4\" 160KB (Simples Face / Simples Densidade)"
+	default:
+		sectors := sz / 512
+		kb := sz / 1024
+		return 80, 2, 9, mediaID, fmt.Sprintf("%d KB", kb), fmt.Sprintf("Custom %d KB (%d setores)", kb, sectors)
+	}
 }
 
 // LoadTape loads a .CAS tape image into the virtual cassette mechanism.

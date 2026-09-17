@@ -89,10 +89,25 @@ fMSXgo Workstation & Developer Extensions:
   -exec "<cmds>"      Execute semicolon-separated commands in batch mode and exit
   -test               Run internal self-diagnostics and exit
 
+MSX Floppy Disk Manipulation Utility:
+  fmsxgo disk create <disk.dsk> [format]
+                      Create a formatted blank MSX disk (720KB, 360KB, 180KB)
+  fmsxgo disk list <disk.dsk> [-l]
+                      List files on an MSX disk image (-l for detailed view)
+  fmsxgo disk add <disk.dsk> <file1> [file2 ...]
+                      Add host file(s) into MSX disk image (supports wildcards)
+  fmsxgo disk extract <disk.dsk> [-d out_dir] [mask ...]
+                      Extract file(s) from MSX disk image (e.g. *.BAS, AUTOEXEC.BAT)
+  fmsxgo disk delete <disk.dsk> <filename>
+                      Delete a file from MSX disk image
+
 Examples:
   fmsxgo                              (launches graphical emulator with menus)
   fmsxgo game.rom                     (runs cartridge A directly)
   fmsxgo -msx2 -diska disk.dsk        (boots MSX2 with floppy disk A)
+  fmsxgo disk create blank.dsk 720k   (creates blank 720KB MSX disk)
+  fmsxgo disk list blank.dsk -l       (shows detailed disk directory)
+  fmsxgo disk add blank.dsk *.bas     (inserts BASIC files into disk)
   fmsxgo -carta game.rom -cartb scc.rom
   fmsxgo --no-window                  (starts interactive CLI monitor)
   fmsxgo -cli -exec "roms; r pc; q"   (runs batch commands in CLI)
@@ -115,10 +130,42 @@ func main() {
 	joyCount := 0
 
 	args := os.Args[1:]
+
+	// Fast-path: MSX Floppy Disk Manager Subcommand
+	if len(args) > 0 {
+		first := strings.ToLower(args[0])
+		if first == "disk" || first == "dsk" || first == "diskutil" {
+			runDiskCLI(args[1:])
+			return
+		}
+	}
+
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		lower := strings.ToLower(arg)
 		switch lower {
+		case "-dsk-create", "--disk-create":
+			if i+1 < len(args) {
+				subArgs := []string{"create", args[i+1]}
+				i++
+				if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
+					subArgs = append(subArgs, args[i+1])
+					i++
+				}
+				runDiskCLI(subArgs)
+				return
+			}
+		case "-dsk-list", "--disk-list":
+			if i+1 < len(args) {
+				subArgs := []string{"list", args[i+1]}
+				i++
+				if i+1 < len(args) && (args[i+1] == "-l" || args[i+1] == "--long") {
+					subArgs = append(subArgs, "-l")
+					i++
+				}
+				runDiskCLI(subArgs)
+				return
+			}
 		case "--help", "-help", "-h", "/?":
 			printUsage()
 			return
@@ -480,6 +527,12 @@ func main() {
 	if noWindow {
 		sh := shell.New(machine, os.Stdin, os.Stdout)
 		sh.Run()
+		if sh.SwitchToGUI {
+			gui := ui.New(machine)
+			if err := gui.Run(); err != nil {
+				fmt.Fprintf(os.Stderr, "GUI Window closed or failed: %v.\n", err)
+			}
+		}
 		return
 	}
 

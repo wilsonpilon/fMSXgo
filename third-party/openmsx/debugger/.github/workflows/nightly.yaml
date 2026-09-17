@@ -1,0 +1,36 @@
+name: Nightly
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-windows:
+    uses: ./.github/workflows/workflow-build-windows.yaml
+  build-macos:
+    uses: ./.github/workflows/workflow-build-macos.yaml
+  build-ubuntu:
+    uses: ./.github/workflows/workflow-build-ubuntu.yaml
+  nightly:
+    name: Release packages automatically on push
+    runs-on: ubuntu-latest
+    needs: [build-windows, build-macos, build-ubuntu]
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4.1.7
+      - name: Create info file
+        run: |
+          echo "ref: ${GITHUB_REF}" > info.txt
+          echo "commit: ${GITHUB_SHA}" >> info.txt
+          echo "build: $(date +"%Y-%m-%dT%H:%M:%SZ")" >> info.txt
+      - name: Publish nightly builds
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: info.txt, ubuntu/openmsx-debugger-ubuntu-gh.tbz, macos/openmsx-debugger-macos-gh.tbz, mingw32/openmsx-debugger-mingw32-gh.zip
+          body: "Build number ${{ github.run_number }}\n${{ github.event.head_commit.message }}\n\nTo run the Debugger on Mac OS or GNU/Linux, qt5 should be installed."
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: nightly
+          allowUpdates: true

@@ -3,29 +3,34 @@ package shell
 import (
 	"bufio"
 	"crypto/sha1"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"fmsxgo/pkg/cpu/z80"
 	"fmsxgo/pkg/i18n"
 	"fmsxgo/pkg/msx"
 	"fmsxgo/pkg/storage"
+	"fmsxgo/pkg/tui"
 	"fmsxgo/pkg/ui/font"
 	"fmsxgo/pkg/ui/theme"
 )
 
 // Shell provides an interactive CLI monitor ("Developer OS") for fMSXgo.
 type Shell struct {
-	Machine     *msx.Machine
-	Breakpoints map[uint16]bool
-	LastDump    uint16
-	LastDasm    uint16
-	In          io.Reader
-	Out         io.Writer
+	Machine       *msx.Machine
+	Breakpoints   map[uint16]bool
+	LastDump      uint16
+	LastDasm      uint16
+	LastPath      string
+	LastDiskDrive int
+	LastSector    int
+	In            io.Reader
+	Out           io.Writer
+	SwitchToGUI   bool
 }
 
 // New creates a new Shell instance.
@@ -75,9 +80,26 @@ func (sh *Shell) ExecuteCommand(line string) bool {
 	cmd := strings.ToLower(parts[0])
 	args := parts[1:]
 
+	if strings.HasPrefix(cmd, "dm") && len(cmd) > 2 {
+		rest := parts[0][2:]
+		cmd = "dm"
+		args = append([]string{rest}, args...)
+	}
+
+	if strings.HasPrefix(cmd, "zap") && len(cmd) > 3 {
+		rest := parts[0][3:]
+		cmd = "zap"
+		args = append([]string{rest}, args...)
+	}
+
 	switch cmd {
-	case "exit", "quit", "q":
+	case "exit", "quit", "q", "ba", "basic", "qt":
 		fmt.Fprintln(sh.Out, "Exiting fMSXgo...")
+		return true
+
+	case "windows", "window", "gui":
+		fmt.Fprintln(sh.Out, "Switching to Graphical Window (GUI)...")
+		sh.SwitchToGUI = true
 		return true
 
 	case "help", "?":
@@ -95,7 +117,7 @@ func (sh *Shell) ExecuteCommand(line string) bool {
 	case "roms", "catalog":
 		sh.cmdRoms(args)
 
-	case "r", "reg", "regs":
+	case "r", "reg", "regs", "x", "rg":
 		if len(args) == 0 {
 			sh.cmdRegs()
 		} else if len(args) >= 2 {
@@ -107,37 +129,49 @@ func (sh *Shell) ExecuteCommand(line string) bool {
 	case "d", "dump":
 		sh.cmdDump(args)
 
+	case "dm":
+		sh.cmdDM(args)
+
 	case "e", "enter":
 		sh.cmdEnter(args)
 
-	case "u", "dasm":
+	case "u", "dasm", "l", "i":
 		sh.cmdDasm(args)
 
 	case "a", "asm":
 		sh.cmdAsm(args)
 
-	case "t", "step":
+	case "t", "step", "tr":
 		sh.cmdStep(args)
 
 	case "p", "next":
 		sh.cmdNext()
 
-	case "g", "run":
+	case "g", "run", "go":
 		sh.cmdRun(args)
 
 	case "bp", "break":
 		sh.cmdBreakpoint(args)
 
-	case "slots":
+	case "slots", "page", "page?":
 		sh.cmdSlots()
 
 	case "mapper":
 		sh.cmdMapper()
 
-	case "in":
+	case "diskcreate", "createdsk", "newdsk", "mkdsk":
+		sh.cmdDiskCreate(args)
+
+	case "loaddsk", "dskload", "dsk", "diska":
+		sh.cmdLoadDSK(args)
+
+	case "zap", "superzap", "diskzap", "szap":
+		sh.cmdZAP(args)
+
+	case "in", "pi":
 		sh.cmdIn(args)
 
-	case "out":
+	case "out", "po":
 		sh.cmdOut(args)
 
 	case "reset":
@@ -278,35 +312,40 @@ func (sh *Shell) cmdHelp() {
 	fmt.Fprintln(sh.Out, "-----------------------------------------------------------------")
 	fmt.Fprintf(sh.Out, "%s\n", i18n.T("cli_main_ctrls"))
 	fmt.Fprintf(sh.Out, "  HELP                      %s\n", i18n.T("cli_help_desc"))
-	fmt.Fprintf(sh.Out, "  QUIT / EXIT               %s\n", i18n.T("cli_quit_desc"))
+	fmt.Fprintf(sh.Out, "  QUIT / BA / QT / EXIT     %s\n", i18n.T("cli_quit_desc"))
+	fmt.Fprintf(sh.Out, "  windows / window / gui    %s\n", i18n.T("cli_windows_desc"))
 	fmt.Fprintf(sh.Out, "  lang [code]               %s\n", i18n.T("cli_lang_desc"))
 	fmt.Fprintf(sh.Out, "  theme [id]                %s\n", i18n.T("cli_theme_desc"))
 	fmt.Fprintf(sh.Out, "  font [id]                 Select active UI font (e.g. ubuntu, sourcecodepro)\n")
 	fmt.Fprintf(sh.Out, "  roms [cmd]                %s\n", i18n.T("cli_roms_desc"))
 	fmt.Fprintln(sh.Out)
 	fmt.Fprintln(sh.Out, "Registers & CPU:")
-	fmt.Fprintf(sh.Out, "  r                         %s\n", i18n.T("cli_regs_desc"))
+	fmt.Fprintf(sh.Out, "  r / x / rg                %s\n", i18n.T("cli_regs_desc"))
 	fmt.Fprintf(sh.Out, "  r <reg> <val>             %s\n", i18n.T("cli_setreg_desc"))
 	fmt.Fprintln(sh.Out)
 	fmt.Fprintln(sh.Out, "Memory Inspection & Editing:")
 	fmt.Fprintf(sh.Out, "  d [addr] [len]            %s\n", i18n.T("cli_dump_desc"))
+	fmt.Fprintf(sh.Out, "  dm [addr] [desloc] [len]  %s\n", i18n.T("cli_dm_desc"))
 	fmt.Fprintf(sh.Out, "  e <addr> <b0> [b1...]     %s\n", i18n.T("cli_enter_desc"))
 	fmt.Fprintln(sh.Out)
 	fmt.Fprintln(sh.Out, "Disassembly & Assembly:")
-	fmt.Fprintf(sh.Out, "  u [addr] [count]          %s\n", i18n.T("cli_dasm_desc"))
+	fmt.Fprintf(sh.Out, "  u / l / i [addr] [count]  %s\n", i18n.T("cli_dasm_desc"))
 	fmt.Fprintf(sh.Out, "  a <addr>                  %s\n", i18n.T("cli_asm_desc"))
 	fmt.Fprintln(sh.Out)
 	fmt.Fprintln(sh.Out, "Execution & Debugging:")
-	fmt.Fprintf(sh.Out, "  t [n]                     %s\n", i18n.T("cli_step_desc"))
+	fmt.Fprintf(sh.Out, "  t / tr [n]                %s\n", i18n.T("cli_step_desc"))
 	fmt.Fprintf(sh.Out, "  p                         %s\n", i18n.T("cli_next_desc"))
-	fmt.Fprintf(sh.Out, "  g [addr]                  %s\n", i18n.T("cli_run_desc"))
+	fmt.Fprintf(sh.Out, "  g / go [addr]             %s\n", i18n.T("cli_run_desc"))
 	fmt.Fprintf(sh.Out, "  bp                        %s\n", i18n.T("cli_bp_desc"))
 	fmt.Fprintln(sh.Out)
 	fmt.Fprintln(sh.Out, "MSX Hardware & Slots:")
-	fmt.Fprintf(sh.Out, "  slots                     %s\n", i18n.T("cli_slots_desc"))
+	fmt.Fprintf(sh.Out, "  slots / page              %s\n", i18n.T("cli_slots_desc"))
 	fmt.Fprintf(sh.Out, "  mapper                    %s\n", i18n.T("cli_mapper_desc"))
-	fmt.Fprintf(sh.Out, "  in <port>                 %s\n", i18n.T("cli_in_desc"))
-	fmt.Fprintf(sh.Out, "  out <port> <val>          %s\n", i18n.T("cli_out_desc"))
+	fmt.Fprintf(sh.Out, "  diskcreate [name] [size]  %s\n", i18n.T("cli_diskcreate_desc"))
+	fmt.Fprintf(sh.Out, "  loaddsk [file]            %s\n", i18n.T("cli_loaddsk_desc"))
+	fmt.Fprintf(sh.Out, "  zap [sec] [desloc] [len]  %s\n", i18n.T("cli_zap_desc"))
+	fmt.Fprintf(sh.Out, "  in / pi <port>            %s\n", i18n.T("cli_in_desc"))
+	fmt.Fprintf(sh.Out, "  out / po <port> <val>     %s\n", i18n.T("cli_out_desc"))
 	fmt.Fprintf(sh.Out, "  info                      %s\n", i18n.T("cli_info_desc"))
 	fmt.Fprintf(sh.Out, "  reset                     %s\n", i18n.T("cli_reset_desc"))
 	fmt.Fprintf(sh.Out, "  cls                       %s\n", i18n.T("cli_cls_desc"))
@@ -737,37 +776,10 @@ func (sh *Shell) cmdInfo() {
 	}
 }
 
+// parseHex parses numeric literals according to the fMSXgo standard via z80.ParseNumber:
+// default hex, with b/d/h/o prefixes and standard suffixes.
 func parseHex(s string) (uint64, error) {
-	s = strings.TrimSpace(s)
-	if strings.HasPrefix(s, "$") {
-		return strconv.ParseUint(s[1:], 16, 64)
-	}
-	if strings.HasPrefix(strings.ToLower(s), "0x") {
-		return strconv.ParseUint(s[2:], 16, 64)
-	}
-	if strings.HasSuffix(strings.ToLower(s), "h") {
-		return strconv.ParseUint(s[:len(s)-1], 16, 64)
-	}
-	if len(s) > 1 && (strings.HasSuffix(s, "d") || strings.HasSuffix(s, "D")) {
-		pre := s[:len(s)-1]
-		if isDigits(pre) {
-			return strconv.ParseUint(pre, 10, 64)
-		}
-	}
-	if strings.HasPrefix(s, "#") {
-		return strconv.ParseUint(s[1:], 10, 64)
-	}
-	// In low-level MSX debuggers and monitors, default number base is hex
-	return strconv.ParseUint(s, 16, 64)
-}
-
-func isDigits(s string) bool {
-	for _, c := range s {
-		if c < '0' || c > '9' {
-			return false
-		}
-	}
-	return len(s) > 0
+	return z80.ParseNumber(s)
 }
 
 // ---------------------------------------------------------------------
@@ -1068,3 +1080,150 @@ func (sh *Shell) cmdRomsVerify() {
 		fmt.Fprintln(sh.Out, "Warning: Some catalog entries had integrity issues.")
 	}
 }
+
+// cmdLoadDSK mounts a .DSK disk image into virtual floppy drive A: (or B:).
+// If an argument is provided, attempts to load directly without opening the browser.
+// If no argument is provided, launches the interactive TUI file browser.
+func (sh *Shell) cmdLoadDSK(args []string) {
+	var filePath string
+	drive := 0
+
+	// Check if drive ID was specified, e.g. "loaddsk b game.dsk" or "loaddsk 1 game.dsk"
+	if len(args) >= 2 && (strings.EqualFold(args[0], "b") || args[0] == "1") {
+		drive = 1
+		args = args[1:]
+	} else if len(args) >= 2 && (strings.EqualFold(args[0], "a") || args[0] == "0") {
+		drive = 0
+		args = args[1:]
+	}
+
+	if len(args) > 0 {
+		// 1. Direct path passed on command line -> load directly without opening browser
+		filePath = strings.Trim(strings.Join(args, " "), "\"' ")
+	} else {
+		// 2. No argument given -> open interactive TUI file browser
+		opts := tui.FilePickerOptions{
+			Title:        "Select MSX Disk Image (.DSK)",
+			Extensions:   []string{".dsk", ".di1", ".di2", ".img"},
+			StartPath:    sh.LastPath,
+			FilterActive: true,
+			In:           sh.In,
+			Out:          sh.Out,
+		}
+
+		selected, err := tui.OpenFilePicker(opts)
+		if err != nil {
+			if errors.Is(err, tui.ErrCancelled) {
+				fmt.Fprintln(sh.Out, "Disk selection cancelled.")
+				return
+			}
+			if errors.Is(err, tui.ErrNonInteractive) {
+				fmt.Fprintln(sh.Out, "Usage: loaddsk <path_to_disk.dsk>")
+				fmt.Fprintln(sh.Out, "Note: Interactive file browser requires a terminal (TTY).")
+				return
+			}
+			fmt.Fprintf(sh.Out, "Error in file browser: %v\n", err)
+			return
+		}
+		filePath = selected
+	}
+
+	if filePath == "" {
+		fmt.Fprintln(sh.Out, "No disk file specified.")
+		return
+	}
+
+	resolvedPath, err := sh.resolveDiskPath(filePath)
+	if err != nil {
+		fmt.Fprintf(sh.Out, "Error: %v\n", err)
+		return
+	}
+
+	err = sh.Machine.LoadDisk(drive, resolvedPath)
+	if err != nil {
+		fmt.Fprintf(sh.Out, "Failed to load disk into Drive %c:: %v\n", 'A'+drive, err)
+		return
+	}
+
+	sh.LastPath = filepath.Dir(resolvedPath)
+	sh.LastDiskDrive = drive
+	sh.LastSector = 0
+
+	fdd := sh.Machine.FDD[drive]
+	formatDesc := detectDiskFormat(fdd.Data)
+
+	driveLetter := 'A' + drive
+	fmt.Fprintln(sh.Out, "-----------------------------------------------------------------")
+	fmt.Fprintf(sh.Out, "  MSX Floppy Drive %c: Mounted Successfully\n", driveLetter)
+	fmt.Fprintln(sh.Out, "-----------------------------------------------------------------")
+	fmt.Fprintf(sh.Out, "  File:         %s\n", filepath.Base(resolvedPath))
+	fmt.Fprintf(sh.Out, "  Full Path:    %s\n", resolvedPath)
+	fmt.Fprintf(sh.Out, "  Size:         %s (%d bytes)\n", tui.FormatFileSize(int64(len(fdd.Data))), len(fdd.Data))
+	fmt.Fprintf(sh.Out, "  Sectors:      %d sectors (%d bytes/sector)\n", fdd.Sectors, fdd.SecSize)
+	fmt.Fprintf(sh.Out, "  Format:       %s\n", formatDesc)
+	fmt.Fprintf(sh.Out, "  Memory State: Mounted in host RAM / Virtual FDD %d (Drive %c:)\n", drive, driveLetter)
+	fmt.Fprintln(sh.Out, "  Ready for sector operations.")
+	fmt.Fprintln(sh.Out, "-----------------------------------------------------------------")
+}
+
+func (sh *Shell) resolveDiskPath(path string) (string, error) {
+	// 1. Direct absolute or relative path
+	abs, err := filepath.Abs(path)
+	if err == nil {
+		if fi, err := os.Stat(abs); err == nil && !fi.IsDir() {
+			return abs, nil
+		}
+	}
+
+	// 2. Relative to LastPath
+	if sh.LastPath != "" {
+		cand := filepath.Join(sh.LastPath, path)
+		if fi, err := os.Stat(cand); err == nil && !fi.IsDir() {
+			return filepath.Abs(cand)
+		}
+	}
+
+	// 3. In ./disks subdirectory
+	cand := filepath.Join("disks", path)
+	if fi, err := os.Stat(cand); err == nil && !fi.IsDir() {
+		return filepath.Abs(cand)
+	}
+
+	// 4. Try appending .dsk if missing
+	if !strings.HasSuffix(strings.ToLower(path), ".dsk") {
+		return sh.resolveDiskPath(path + ".dsk")
+	}
+
+	return "", fmt.Errorf("disk file %q not found", path)
+}
+
+func detectDiskFormat(data []byte) string {
+	if len(data) < 512 {
+		return fmt.Sprintf("%d bytes", len(data))
+	}
+
+	media := data[0x15]
+	switch media {
+	case 0xF8:
+		return "3.5\" 720KB (2 sides, 80 tracks, 9 sectors/track)"
+	case 0xF9:
+		return "3.5\" 720KB (2 sides, 80 tracks, 9 sectors/track, 512B)"
+	case 0xFA:
+		return "3.5\" 320KB/640KB (8 sectors/track)"
+	case 0xFB:
+		return "3.5\" 640KB (2 sides, 80 tracks, 8 sectors/track)"
+	case 0xFC:
+		return "5.25\" 180KB/360KB (1 side, 40 tracks, 9 sectors/track)"
+	case 0xFD:
+		return "5.25\" 360KB (2 sides, 40 tracks, 9 sectors/track)"
+	case 0xFE:
+		return "5.25\" 160KB (1 side, 40 tracks, 8 sectors/track)"
+	case 0xFF:
+		return "5.25\" 320KB (2 sides, 40 tracks, 8 sectors/track)"
+	default:
+		sectors := len(data) / 512
+		kb := len(data) / 1024
+		return fmt.Sprintf("Custom %d KB (%d sectors, media ID %02Xh)", kb, sectors, media)
+	}
+}
+

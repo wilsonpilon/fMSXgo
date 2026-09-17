@@ -2,7 +2,6 @@ package z80
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 )
 
@@ -710,43 +709,11 @@ func splitOperands(s string) []string {
 }
 
 func parseNumber(s string) (uint32, error) {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return 0, fmt.Errorf("empty number")
+	v, err := ParseNumber(s)
+	if err != nil {
+		return 0, err
 	}
-	// Binary: %1010 or 0b1010
-	if strings.HasPrefix(s, "%") {
-		v, err := strconv.ParseUint(s[1:], 2, 32)
-		return uint32(v), err
-	}
-	if strings.HasPrefix(strings.ToLower(s), "0b") {
-		v, err := strconv.ParseUint(s[2:], 2, 32)
-		return uint32(v), err
-	}
-	// Hex: $12, 0x12, 12h, 12H
-	if strings.HasPrefix(s, "$") {
-		v, err := strconv.ParseUint(s[1:], 16, 32)
-		return uint32(v), err
-	}
-	if strings.HasPrefix(strings.ToLower(s), "0x") {
-		v, err := strconv.ParseUint(s[2:], 16, 32)
-		return uint32(v), err
-	}
-	if strings.HasSuffix(strings.ToLower(s), "h") {
-		v, err := strconv.ParseUint(s[:len(s)-1], 16, 32)
-		return uint32(v), err
-	}
-	// Decimal
-	v, err := strconv.ParseUint(s, 10, 32)
-	if err == nil {
-		return uint32(v), nil
-	}
-	// If standard decimal failed, try hex as fallback
-	vHex, errHex := strconv.ParseUint(s, 16, 32)
-	if errHex == nil {
-		return uint32(vHex), nil
-	}
-	return 0, err
+	return uint32(v), nil
 }
 
 func calculateRelativeOffset(currentPC uint16, targetAddr uint32) int8 {

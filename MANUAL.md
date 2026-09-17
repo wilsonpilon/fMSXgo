@@ -103,6 +103,14 @@ fmsxgo [options] [filename1] [filename2]
 | `-test` | Run internal self-diagnostics on CPU, memory, and slot mapping. | — |
 | `-exec "<commands>"` | Execute semicolon-separated shell commands in batch mode then exit. | — |
 
+### MSX Floppy Disk Manipulation Subcommand (`fmsxgo disk ...`)
+fMSXgo includes a standalone, scriptable FAT12 disk manipulation utility ported from the reference C tools and modernized:
+* **`fmsxgo disk create <disk.dsk> [format]`**: Creates and formats a new MSX-DOS disk image (`720k` default, `360k`, or `180k`).
+* **`fmsxgo disk list <disk.dsk> [-l]`**: Lists all files stored on the disk (`-l` displays detailed file size, timestamps, and cluster count).
+* **`fmsxgo disk add <disk.dsk> <file1> [file2 ...]`**: Injects host files into the MSX disk image, supporting wildcards (e.g. `*.BAS`).
+* **`fmsxgo disk extract <disk.dsk> [-d out_dir] [mask ...]`**: Extracts files matching optional wildcards into the destination directory.
+* **`fmsxgo disk delete <disk.dsk> <filename>`**: Deletes a file from the disk image and reclaims its FAT cluster chain.
+
 ---
 
 ## 3. High-Fidelity Subsystems (fMSX Mirror)
@@ -144,11 +152,22 @@ The interactive CLI monitor provides instruction tracing, memory inspection, slo
 
 ![fMSXgo Interactive Debugger, Disassembler & Mini-Assembler](images/fmsxgo-01.png)
 
-Command names are always standard English (`HELP`, `QUIT`, `lang`, `r`, `d`, `a`, `t`, etc.), while descriptions and prompts adapt to the active UI language.
+Command names support standard CLI mnemonics as well as 100% compatible commands from **MegaAssembler** and **Super-X**:
+
+### Standardized Number Bases (Default Hexadecimal)
+To provide a fast, seamless experience matching classic 8-bit MSX machine monitors (MegaAssembler and Super-X), **all numbers are accepted as HEXADECIMAL by default across all debugger commands and in the mini-assembler**.
+
+When specifying values in other numeric bases, explicit letter prefixes are available:
+* **`b`** (or `B`): **Binary** (base 2) — e.g. `b1010`, `B11110000`, `%1010`, `0b1010` (or suffix `1010b`).
+* **`d`** (or `D`): **Decimal** (base 10) — e.g. `d10`, `D255`, `d1000`, `#10` (or suffix `10d`).
+* **`h`** (or `H`): **Hexadecimal** (base 16) — reinforces hex e.g. `h10`, `hC000`, `$C000`, `0xC000` (or suffix `10h`).
+* **`o`** (or `O`): **Octal** (base 8) — e.g. `o77`, `O12`, `0o77`, `@77` (or suffix `77o`, `77q`).
+* **Bare numbers** (no prefix): Interpreted as **Hexadecimal** by default (e.g. `10` = `0x10` = 16 decimal; `C000` = `0xC000`).
 
 ### Main Control Commands
 * **`HELP`** (or `?`): Display the command summary and description in the active language.
-* **`QUIT`** (or `EXIT`, `q`): Exit fMSXgo.
+* **`QUIT`** (or **`BA`** [MegaAssembler], **`QT`** [Super-X], **`BASIC`**, **`EXIT`**, **`q`**): Exit the interactive debugger monitor and fMSXgo.
+* **`windows`** (or **`window`**, **`gui`**): Launch or refocus the graphical window interface (GUI). If fMSXgo was started in CLI mode (`--no-window`), typing `windows` seamlessly boots the graphical window; if launched from the GUI's `File -> Developer CLI`, typing `windows` refocuses the window.
 * **`lang`**: Display current language and list supported language codes.
 * **`lang <code>`**: Switch UI language to `en`, `pt`, `es`, `nl`, or `fr`. Persists to `fmsxgo.db`.
 * **`theme`**: Display current theme and list all 11 available themes.
@@ -158,12 +177,12 @@ Command names are always standard English (`HELP`, `QUIT`, `lang`, `r`, `d`, `a`
 * **`cls`** (or `clear`): Clear terminal screen.
 
 ### CPU & Register Commands
-* **`r`** (or `regs`): Display all main registers (`AF`, `BC`, `DE`, `HL`), alternate registers (`AF'`, `BC'`, `DE'`, `HL'`), index registers (`IX`, `IY`), stack pointer (`SP`), `PC`, `I`, `R`, interrupt mode (`IM`), individual condition flags (`[SZ5H3PNC]`), and disassembles the pending instruction at `PC`.
-* **`r <reg> <val>`**: Modify a register's value (hexadecimal):
+* **`r`** (or `regs`, **`x`** [MegaAssembler], **`rg`** [Super-X]): Display all main registers (`AF`, `BC`, `DE`, `HL`), alternate registers (`AF'`, `BC'`, `DE'`, `HL'`), index registers (`IX`, `IY`), stack pointer (`SP`), `PC`, `I`, `R`, interrupt mode (`IM`), individual condition flags (`[SZ5H3PNC]`), and disassembles the pending instruction at `PC`.
+* **`r <reg> <val>`** (or **`x <reg> <val>`**, **`rg <reg> <val>`**): Modify a register's value (hexadecimal):
   ```text
   fMSXgo [0000h]> r a 42h
-  fMSXgo [0000h]> r pc C000h
-  fMSXgo [C000h]> r sp F000h
+  fMSXgo [0000h]> x pc C000h
+  fMSXgo [C000h]> rg sp F000h
   ```
 
 ### Memory Inspection & Editing
@@ -173,6 +192,29 @@ Command names are always standard English (`HELP`, `QUIT`, `lang`, `r`, `d`, `a`
   0000:  F3 C3 16 04 BF 1B 98 98 C3 83 26 00 C3 F5 01 00  |..........&.....|
   0010:  C3 86 26 00 C3 25 02 00 C3 45 1B 00 C3 17 02 00  |..&..%...E......|
   ```
+* **`dm [addr][,[desloc][,bytes]]`** (or compact **`DM<addr>,<desloc>,<bytes>`** [MegaAssembler]): Interactive memory display and editor with scrambled text offset (displacement) and optional byte size:
+  - **All numbers are HEXADECIMAL by default**: Consistent with the debugger standard, every parameter (`addr`, `desloc`, `bytes`) is parsed in hexadecimal unless an explicit base prefix is used (e.g. `d` for decimal).
+    - `dm c000,41,80`: Everything is hex! Address `C000h`, displacement `41h` (`+65` decimal), length `80h` (`128` bytes).
+    - `dm c000,,d512`: Double comma omits displacement (default `0`), `d512` is decimal 512 bytes. (Without `d`, `512` is hex `0x512` = 1298 bytes).
+  - **Memory Dump & Length (`bytes`)**: Total bytes to inspect/edit (optional, default: 128 / `80h`). Always rounded to the nearest multiple of 128 bytes (e.g. `80h` = 128, `100h` = 256, `200h` = 512, `d512` = 512, `d1024` = 1024...). In non-interactive/batch mode, outputs the full range; in interactive mode, manages the full session buffer.
+  - **Displacement (`desloc`)**: Optional Caesar displacement to decode/encode scrambled text strings in games and ROMs:
+    - Positive displacement (e.g. `1` or `+1`, `41`): adds value to each byte on display (`'A'` becomes `'B'`).
+    - Negative displacement (e.g. `-1`): subtracts value (`'B'` becomes `'A'`).
+  - **Interactive Editing & Seamless Scrolling**:
+    - **Arrow Keys**: Navigate memory bytes on screen. When reaching the edges (top row, bottom row, byte 0 or byte 127), the view automatically **scrolls line by line** (16 bytes at a time) continuously through memory.
+    - **`PageUp` / `PageDown`** (or **`TAB`**): Roll memory 128 bytes backward or forward at a time.
+    - **Hexadecimal digits** (`0`-`9`, `A`-`F`): Edit bytes directly in memory.
+    - **`ENTER`**: Confirm byte entry (automatically converting displayed displaced values to underlying memory bytes).
+    - **`ESC`**: Exit the interactive editor and return to the shell prompt (updating `LastDump` to where you navigated).
+  ```text
+  fMSXgo [C000h]> dm c000,41,80
+  === Display & Memory Edit (DM) ===
+  Range: C000h..C07Fh (128 bytes) | Displacement: +65 | Cursor: C000h
+  [Arrows]: Navigate/Scroll  [PgUp/PgDn/TAB]: ±128B  [0-9, A-F]: Edit  [ESC]: Exit
+  -----------------------------------------------------------------
+  C000:  42 43 44 00 00 00 00 00  00 00 00 00 00 00 00 00  |BCD.............|
+  ...
+  ```
 * **`e <addr> <b0> [b1 b2 ...]`**: Write raw hexadecimal bytes into memory:
   ```text
   fMSXgo [0000h]> e C000 3E 42 76
@@ -180,7 +222,7 @@ Command names are always standard English (`HELP`, `QUIT`, `lang`, `r`, `d`, `a`
   ```
 
 ### Disassembly
-* **`u [addr] [count]`**: Disassemble `count` instructions starting from `addr` (default: 10):
+* **`u [addr] [count]`** (or **`l`** [MegaAssembler], **`i`** [Super-X], `dasm`): Disassemble `count` instructions starting from `addr` (default: 10):
   ```text
   fMSXgo [C000h]> u C000 3
   => C000:  3E 42         LD A, 42h
@@ -208,20 +250,44 @@ fMSXgo includes an integrated Z80 assembler!
   ```
 
 ### Stepping & Debugging
-* **`t [n]`**: Trace / step-in `n` instructions (default: 1). Shows the executed mnemonic and register delta at each step.
-* **`p`**: Step-over (`CALL`, `RST`, `DJNZ`), treating subroutines as atomic blocks.
-* **`g [addr]`**: Continuous execution from `addr` (or current `PC`) until a breakpoint or `HALT`.
+* **`t [n]`** (or **`tr`** [Super-X], `step`): Trace / step-in `n` instructions (default: 1). Shows the executed mnemonic and register delta at each step.
+* **`p`** (or `next`): Step-over (`CALL`, `RST`, `DJNZ`), treating subroutines as atomic blocks.
+* **`g [addr]`** (or **`go`** [Super-X], `run`): Continuous execution from `addr` (or current `PC`) until a breakpoint or `HALT`.
 * **`bp`**: Manage breakpoints:
   * `bp`: List all active breakpoints.
-  * `bp add <addr>`: Add breakpoint at address.
-  * `bp del <addr>`: Delete breakpoint at address.
+  * `bp add <addr>`: Add breakpoint at 16-bit address (e.g. `bp add 0x0038`).
+  * `bp del <addr>`: Remove breakpoint.
   * `bp clear`: Clear all breakpoints.
 
 ### MSX Hardware, Slots & I/O
-* **`slots`**: Detailed report of the Primary Slot Register (`A8h`), Secondary Slot Registers (`FFFFh`), and current slot/subslot routing for all four 16KB Z80 pages.
+* **`slots`** (or **`page`**, **`page?`** [MegaAssembler]): Detailed report of the Primary Slot Register (`A8h`), Secondary Slot Registers (`FFFFh`), and current slot/subslot routing for all four 16KB Z80 pages.
 * **`mapper`**: Inspect RAM Mapper allocation registers (`0xFC`..`0xFF`) and active banks.
-* **`in <port>`**: Read a byte from an I/O port (hex).
-* **`out <port> <val>`**: Write a byte to an I/O port (hex).
+* **`diskcreate [filename] [format]`** (or **`createdsk`**, **`newdsk`**, **`mkdsk`**): Creates and formats a new MSX FAT12 disk image (`720k` default, `360k`, or `180k`).
+  * **Direct Creation**: If the filename is specified (e.g. `diskcreate mydisk.dsk` or `diskcreate blank.dsk 360`), creates the disk directly in the current working directory and automatically mounts it into Drive A:.
+  * **Interactive TUI Save Browser**: If invoked without arguments (`diskcreate`), opens a full-screen terminal save dialog allowing directory navigation, Windows drive selection (`C:`, `D:`, etc.), filename editing (`[N]`), and saving (`[S]` or `[ENTER]` on `[+] SAVE HERE`).
+  * **Auto-Mount**: Once created, the disk is automatically loaded into virtual floppy Drive A:, immediately ready for `zap`, files, or booting.
+* **`loaddsk [file]`** (or **`dskload`**, **`dsk`**, **`diska`**): Mount a `.DSK` disk image into memory (Drive A: or specified drive).
+  * **Direct Loading**: If the filename is specified on the command line (e.g. `loaddsk game.dsk` or `loaddsk b game.dsk`), fMSXgo loads it immediately without opening the navigator.
+  * **Interactive TUI File Browser**: If invoked without arguments (`loaddsk`), opens a full-screen terminal file picker with directory navigation, extension filtering, size/date inspection, and keyboard shortcuts (`[↑/↓]`: navigate, `[ENTER]`: open/select, `[BKSP]`: parent dir, `[TAB/F]`: toggle filter, `[ESC]`: cancel).
+  * **Memory Staging**: The disk sectors are loaded into host RAM / virtual floppy drive memory ready for subsequent sector operations.
+* **`zap <sector>[[,<desloc>[,<bytes>]]`** (or **`superzap`**, **`diskzap`**): Classic MSX interactive disk sector editor (operates on the disk image loaded in memory):
+  * **Automatic Disk Adaptation**: Detects and enforces sector boundaries and physical CHS geometry according to the loaded disk:
+    * **720 KB (3.5" DS/DD)**: 1440 sectors (`0..1439` / `0000h..059Fh`), 80 tracks, 2 sides (dupla face), 9 sectors/track (dupla densidade).
+    * **640 KB (3.5" DS/DD)**: 1280 sectors (`0..1279` / `0000h..04FFh`), 80 tracks, 2 sides, 8 sectors/track.
+    * **360 KB (5 1/4" DS/DD)**: 720 sectors (`0..719` / `0000h..02CFh`), 40 tracks, 2 sides, 9 sectors/track.
+    * **180 KB (5 1/4" SS/DD)**: 360 sectors (`0..359` / `0000h..0167h`), 40 tracks, 1 side (simples face), 9 sectors/track.
+    * **320 KB / 160 KB**: Automatically configured for single/double sided, single/double density formats.
+  * **Sector Size & Limit**: By default displays the full 512 bytes (`200h`) of the sector. Parameter `bytes` can be set to inspect smaller chunks (128, 256, 384, or 512 bytes).
+  * **Displacement (`desloc`)**: Caesar offset applied to displayed hex/ASCII to inspect encoded game strings and secret text (e.g. `zap 0, 41, 100`).
+  * **Interactive Sector Navigation & In-Memory Editing**:
+    * **Arrow Keys**: Move cursor across sector bytes.
+    * **`PageUp` / `PageDown`**: Jump directly to the previous or next sector (`sector--` / `sector++`).
+    * **`TAB`**: Advance to the next sector (cycles through disk).
+    * **Hexadecimal Digits (`0-9`, `A-F`)**: Edit raw bytes directly in virtual floppy disk memory (`fdd.Modified = true`).
+    * **`ENTER`**: Confirm byte edit.
+    * **`ESC`**: Exit sector editor and return to debugger prompt.
+* **`in <port>`** (or **`pi`** [Super-X]): Read a byte from an I/O port (hex).
+* **`out <port> <val>`** (or **`po`** [Super-X]): Write a byte to an I/O port (hex).
 * **`info`**: Display active machine configuration (Model, Video standard, RAM size).
 * **`reset`**: Reset the MSX hardware bus and zero the CPU.
 
@@ -301,7 +367,18 @@ In the graphical interface, select **`Setup -> Configuration...`**:
 To build the project and create the final distribution package:
 
 ```powershell
+# Standard build & packaging:
 .\build.ps1
+
+# Build and automatically run from dist/ (--no-window by default, returns to current dir on exit):
+.\build.ps1 --Run
+
+# Build and run in Graphical Window mode (GUI):
+.\build.ps1 --Run --window
+
+# Build and run with custom arguments forwarded to fmsxgo:
+.\build.ps1 --Run game.rom
+.\build.ps1 --Run -msx2 -diska disk.dsk
 ```
 
 The script automatically performs:
@@ -312,4 +389,9 @@ The script automatically performs:
 5. Initializes and seeds `fmsxgo.db` with the official verified BIOS ROM catalog.
 6. Copies TrueType fonts to `dist/fonts/` and screenshots to `dist/images/`.
 7. Copies documentation and creates convenient batch launchers (`run-gui.bat` and `run-cli.bat`).
+8. If `--Run` (or `-Run`, `-r`) is supplied:
+   - Defaults to running with `--no-window` in terminal CLI developer mode.
+   - If `--window` (or `-w`, `--gui`) is passed after `--Run`, launches the graphical window GUI.
+   - Switches working directory into `dist/`, launches `fmsxgo.exe`, and upon program exit returns seamlessly to the previous directory (`Pop-Location`).
+
 

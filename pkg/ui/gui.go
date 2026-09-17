@@ -3,12 +3,15 @@ package ui
 import (
 	"fmt"
 	"image/color"
+	"os"
+	"sync"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 
 	"fmsxgo/pkg/i18n"
 	"fmsxgo/pkg/msx"
+	"fmsxgo/pkg/shell"
 	"fmsxgo/pkg/ui/font"
 	"fmsxgo/pkg/ui/theme"
 )
@@ -33,12 +36,17 @@ type UI struct {
 	// Drawing buffers (re-skinned dynamically when theme changes)
 	barImg        *ebiten.Image
 	menuBg        *ebiten.Image
+	fileMenuBg    *ebiten.Image
 	dialogBg      *ebiten.Image
 	configDlgBg   *ebiten.Image
 	catalogDlgBg  *ebiten.Image
 	buttonBg      *ebiten.Image
 	screenBg      *ebiten.Image
 	selectedRowBg *ebiten.Image
+
+	// Interactive CLI goroutine management
+	cliRunning bool
+	cliMutex   sync.Mutex
 }
 
 // New creates a new UI instance.
@@ -66,6 +74,12 @@ func (u *UI) ApplyTheme() {
 		u.menuBg = ebiten.NewImage(230, 65)
 	}
 	u.menuBg.Fill(eff.MenuDropdownBg)
+
+	// 2b. File dropdown menu background (3 items: Reset, CLI, Exit)
+	if u.fileMenuBg == nil {
+		u.fileMenuBg = ebiten.NewImage(230, 95)
+	}
+	u.fileMenuBg.Fill(eff.MenuDropdownBg)
 
 	// 3. Screen background
 	if u.screenBg == nil {
@@ -199,12 +213,17 @@ func (u *UI) handleClick(x, y int) {
 	// 4. Click on File dropdown
 	if u.ActiveMenu == "File" {
 		if x >= 10 && x <= 240 {
-			if y >= MenuBarH && y < MenuBarH+32 {
+			if y >= MenuBarH && y < MenuBarH+30 {
 				// Reset Machine
 				u.ActiveMenu = ""
 				u.Machine.Reset()
 				return
-			} else if y >= MenuBarH+32 && y < MenuBarH+65 {
+			} else if y >= MenuBarH+30 && y < MenuBarH+60 {
+				// Launch / Activate CLI
+				u.ActiveMenu = ""
+				u.ActivateCLI()
+				return
+			} else if y >= MenuBarH+60 && y < MenuBarH+95 {
 				// Exit
 				u.ShouldExit = true
 				return
@@ -340,9 +359,10 @@ func (u *UI) Draw(screen *ebiten.Image) {
 	if u.ActiveMenu == "File" {
 		dropOp := &ebiten.DrawImageOptions{}
 		dropOp.GeoM.Translate(10, MenuBarH)
-		screen.DrawImage(u.menuBg, dropOp)
+		screen.DrawImage(u.fileMenuBg, dropOp)
 		font.Draw(screen, i18n.T("menu_reset"), 18, MenuBarH+6, 13, eff.MenuDropdownText)
-		font.Draw(screen, i18n.T("menu_exit"), 18, MenuBarH+34, 13, eff.MenuDropdownText)
+		font.Draw(screen, i18n.T("menu_cli"), 18, MenuBarH+34, 13, eff.MenuDropdownText)
+		font.Draw(screen, i18n.T("menu_exit"), 18, MenuBarH+64, 13, eff.MenuDropdownText)
 	} else if u.ActiveMenu == "Setup" {
 		dropOp := &ebiten.DrawImageOptions{}
 		dropOp.GeoM.Translate(70, MenuBarH)
@@ -666,6 +686,48 @@ func (u *UI) drawCatalogModal(screen *ebiten.Image) {
 // Layout defines the logical window resolution.
 func (u *UI) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return WindowWidth, WindowHeight
+}
+
+// ActivateCLI launches the interactive CLI console in a background goroutine
+// if not already running.
+func (u *UI) ActivateCLI() {
+	u.cliMutex.Lock()
+	if u.cliRunning {
+		u.cliMutex.Unlock()
+		fmt.Println("\n[fMSXgo] Interactive CLI is already active in this terminal. Please use this console.")
+		return
+	}
+	u.cliRunning = true
+	u.cliMutex.Unlock()
+
+	go func() {
+		defer func() {
+			u.cliMutex.Lock()
+			u.cliRunning = false
+			u.cliMutex.Unlock()
+		}()
+
+		fmt.Println()
+		fmt.Println("=================================================================")
+		fmt.Println("       fMSXgo Developer CLI Shell (Activated from GUI)           ")
+		fmt.Println("=================================================================")
+		fmt.Println(" Type 'windows', 'window' or 'gui' to refocus the Graphical Window.")
+		fmt.Println(" Type 'quit', 'exit' or 'q' to terminate fMSXgo.")
+		fmt.Println("-----------------------------------------------------------------")
+
+		sh := shell.New(u.Machine, os.Stdin, os.Stdout)
+		sh.Run()
+
+		if sh.SwitchToGUI {
+			if ebiten.IsWindowMinimized() {
+				ebiten.RestoreWindow()
+			}
+			fmt.Println("[fMSXgo] Refocusing Graphical Window (GUI)...")
+		} else {
+			// User exited the shell via quit/exit/q
+			u.ShouldExit = true
+		}
+	}()
 }
 
 func init() {

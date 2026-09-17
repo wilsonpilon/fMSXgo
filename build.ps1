@@ -10,6 +10,30 @@
 #    all BIOS ROMs and documentation bundled inside a single SQLite database!
 # =====================================================================
 
+[CmdletBinding()]
+param(
+    [Alias("r")]
+    [switch]$Run,
+
+    [Parameter(ValueFromRemainingArguments = $true)]
+    [string[]]$RemainingArgs
+)
+
+# Extract any extra parameters forwarded to fmsxgo (and detect --Run / -Run and --window / -window)
+$ExecArgs = @()
+$WindowMode = $false
+if ($RemainingArgs) {
+    foreach ($arg in $RemainingArgs) {
+        if ($arg -in @("--Run", "--run", "-Run", "-run", "-r", "--r")) {
+            $Run = $true
+        } elseif ($arg -in @("--window", "-window", "--win", "-win", "-w", "--gui", "-gui")) {
+            $WindowMode = $true
+        } else {
+            $ExecArgs += $arg
+        }
+    }
+}
+
 $ErrorActionPreference = "Stop"
 
 Write-Host "=================================================================" -ForegroundColor Cyan
@@ -91,7 +115,7 @@ $DistFonts = Join-Path $DistDir "fonts"
 if (!(Test-Path $DistFonts)) {
     New-Item -ItemType Directory -Path $DistFonts | Out-Null
 }
-$SrcFonts = Join-Path $PSScriptRoot "third-party" "fonts"
+$SrcFonts = Join-Path (Join-Path $PSScriptRoot "third-party") "fonts"
 if (Test-Path $SrcFonts) {
     Copy-Item -Path (Join-Path $SrcFonts "*.ttf") -Destination $DistFonts -Force
 }
@@ -104,6 +128,16 @@ if (Test-Path $SrcImages) {
         New-Item -ItemType Directory -Path $DistImages | Out-Null
     }
     Copy-Item -Path (Join-Path $SrcImages "*.*") -Destination $DistImages -Force
+}
+
+# Copy sample disk images to dist/disks
+$SrcDisks = Join-Path $PSScriptRoot "disks"
+$DistDisks = Join-Path $DistDir "disks"
+if (Test-Path $SrcDisks) {
+    if (!(Test-Path $DistDisks)) {
+        New-Item -ItemType Directory -Path $DistDisks | Out-Null
+    }
+    Copy-Item -Path (Join-Path $SrcDisks "*.*") -Destination $DistDisks -Force
 }
 
 # Create convenience launcher bat files in dist/
@@ -129,3 +163,32 @@ Get-ChildItem -Path $DistDir | ForEach-Object {
     Write-Host "   - $($_.Name) ($sizeKb KB)" -ForegroundColor Gray
 }
 Write-Host "=================================================================" -ForegroundColor Green
+
+# 6. Execute binary if --Run / -Run option was passed
+if ($Run) {
+    # Default to --no-window unless --window / -window was specified
+    $RunArgs = @()
+    if ($WindowMode) {
+        $RunArgs = $ExecArgs
+    } else {
+        if ($ExecArgs -notcontains "--no-window" -and $ExecArgs -notcontains "-cli") {
+            $RunArgs = @("--no-window") + $ExecArgs
+        } else {
+            $RunArgs = $ExecArgs
+        }
+    }
+
+    Write-Host "`n[Auto-Run] Changing directory to: $DistDir" -ForegroundColor Cyan
+    Write-Host "[Auto-Run] Launching fmsxgo.exe $($RunArgs -join ' ')..." -ForegroundColor Cyan
+    Push-Location $DistDir
+    try {
+        if ($RunArgs.Count -gt 0) {
+            & .\fmsxgo.exe @RunArgs
+        } else {
+            & .\fmsxgo.exe
+        }
+    } finally {
+        Pop-Location
+        Write-Host "[Auto-Run] Execution completed. Returned to: $PWD`n" -ForegroundColor Cyan
+    }
+}

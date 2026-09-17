@@ -1,0 +1,272 @@
+[
+  {
+    "group": "Primeiros passos",
+    "title": "Visao geral do projeto",
+    "file" : "home.md"
+  },
+  {
+    "group": "Primeiros passos",
+    "title": "Instalacao",
+    "file" : "install.md"
+  },
+  {
+    "group": "Primeiros passos",
+    "title": "Primeiros passos",
+    "file" : "gettingstarted.md"
+  },
+  {
+    "group": "Primeiros passos",
+    "title": "Uso e opcoes de linha de comando",
+    "file" : "usage.md"
+  },
+  {
+    "group": "Guia de referencia",
+    "title": "Visao geral da referencia",
+    "file" : "documentation.md"
+  },
+  {
+    "group": "Guia de referencia",
+    "title": "Limitacoes e diferencas ao compilar",
+    "file" : "compiling-code.md"
+  },
+  {
+    "group": "Guia de referencia",
+    "title": "Diretivas de recursos (assets)",
+    "file" : "resource-directives.md"
+  },
+  {
+    "group": "Guia de referencia",
+    "title": "Comandos estendidos",
+    "file" : "extended-commands.md"
+  },
+  {
+    "group": "Guia de referencia",
+    "title": "Funcoes estendidas",
+    "file" : "extended-functions.md"
+  },
+  {
+    "group": "Guia de referencia",
+    "title": "Musica (Arkos Tracker)",
+    "file" : "music-support.md"
+  },
+  {
+    "group": "Guia de referencia",
+    "title": "Mapas de tela (MSX Tile Forge)",
+    "file" : "mtf-support.md"
+  },
+  {
+    "group": "Guia de referencia",
+    "title": "Mapas de tela (nMSXTiles)",
+    "file" : "nmt-support.md"
+  },
+  {
+    "group": "Guia de referencia",
+    "title": "Sprites (Tiny Sprite)",
+    "file" : "ts-support.md"
+  },
+  {
+    "group": "Guia de referencia",
+    "title": "Integracao com VSCode",
+    "file" : "vscode_integration.md"
+  },
+  {
+    "group": "Guia de referencia",
+    "title": "VSCode - configuracao manual",
+    "file" : "msxbas2rom_vscode_manual_setup.md"
+  },
+  {
+    "group": "Guia de referencia",
+    "title": "Depuracao com o openMSX",
+    "file" : "debugging_with_openmsx.md"
+  },
+  {
+    "group": "Guia de referencia",
+    "title": "Arquitetura do compilador",
+    "file" : "compiler-architecture.md"
+  },
+  {
+    "group": "Guia de referencia",
+    "title": "Como obter ajuda",
+    "file" : "getting-help.md"
+  },
+  {
+    "group": "Exemplos",
+    "title": "Exemplos prontos",
+    "file" : "examples.md"
+  },
+  {
+    "group": "Demo: Game Demo 1",
+    "title": "gd1.bas",
+    "file" : "..\\demo\\Game Demo 1\\gd1.bas"
+  },
+  {
+    "group": "Demo: Game Demo 2",
+    "title": "gd2.bas",
+    "file" : "..\\demo\\Game Demo 2\\gd2.bas"
+  },
+  {
+    "group": "Exemplos (demo)",
+    "title": "README.md",
+    "file" : "..\\demo\\README.md"
+  },
+  {
+    "group": "Demo: scroll1",
+    "title": "scroll1.bas",
+    "file" : "..\\demo\\scroll1\\scroll1.bas"
+  },
+  {
+    "group": "Demo: scroll2",
+    "title": "scroll2.bas",
+    "file" : "..\\demo\\scroll2\\scroll2.bas"
+  },
+  {
+    "group": "Demo: scroll3",
+    "title": "scroll3.bas",
+    "file" : "..\\demo\\scroll3\\scroll3.bas"
+  },
+  {
+    "group": "Demo: scroll4",
+    "title": "scroll4.bas",
+    "file" : "..\\demo\\scroll4\\scroll4.bas"
+  },
+  {
+    "group": "Demo: scroll5",
+    "title": "SCR02.BAS",
+    "file" : "..\\demo\\scroll5\\SCR02.BAS"
+  },
+  {
+    "group": "Demo: scroll5",
+    "title": "SCR07.BAS",
+    "file" : "..\\demo\\scroll5\\SCR07.BAS"
+  },
+  {
+    "group": "Demo: scroll5",
+    "title": "SCR08.BAS",
+    "file" : "..\\demo\\scroll5\\SCR08.BAS"
+  },
+  {
+    "group": "Demo: scroll5",
+    "title": "SCR12.BAS",
+    "file" : "..\\demo\\scroll5\\SCR12.BAS"
+  },
+  {
+    "group": "Demo: Tesouro Perdido",
+    "title": "tesperd.bas",
+    "file" : "..\\demo\\Tesouro Perdido\\tesperd.bas"
+  },
+  {
+    "group": "Jogo: Bobby",
+    "title": "bobby.bas",
+    "file" : "..\\games\\Bobby\\bobby.bas"
+  },
+  {
+    "group": "Jogo: Bobby",
+    "title": "README.md",
+    "file" : "..\\games\\Bobby\\README.md"
+  },
+  {
+    "group": "Jogo: Donkey",
+    "title": "DONKEY.BAS",
+    "file" : "..\\games\\Donkey\\DONKEY.BAS"
+  },
+  {
+    "group": "Jogo: Donkey",
+    "title": "README.md",
+    "file" : "..\\games\\Donkey\\README.md"
+  },
+  {
+    "group": "Jogo: Dragon Treasure",
+    "title": "drgtsr.bas",
+    "file" : "..\\games\\Dragon Treasure\\drgtsr.bas"
+  },
+  {
+    "group": "Jogo: Dragon Treasure",
+    "title": "music\\extra\\dragon_scream.bas",
+    "file" : "..\\games\\Dragon Treasure\\music\\extra\\dragon_scream.bas"
+  },
+  {
+    "group": "Jogo: Dragon Treasure",
+    "title": "README.md",
+    "file" : "..\\games\\Dragon Treasure\\README.md"
+  },
+  {
+    "group": "Jogo: Flubber",
+    "title": "flubber.bas",
+    "file" : "..\\games\\Flubber\\flubber.bas"
+  },
+  {
+    "group": "Jogo: Flubber",
+    "title": "README.md",
+    "file" : "..\\games\\Flubber\\README.md"
+  },
+  {
+    "group": "Jogo: Fortknox",
+    "title": "disk\\AUTOEXEC.BAS",
+    "file" : "..\\games\\Fortknox\\disk\\AUTOEXEC.BAS"
+  },
+  {
+    "group": "Jogo: Fortknox",
+    "title": "disk\\FORTKNOX.BAS",
+    "file" : "..\\games\\Fortknox\\disk\\FORTKNOX.BAS"
+  },
+  {
+    "group": "Jogo: Fortknox",
+    "title": "fortknox.bas",
+    "file" : "..\\games\\Fortknox\\fortknox.bas"
+  },
+  {
+    "group": "Jogo: Fortknox",
+    "title": "README.md",
+    "file" : "..\\games\\Fortknox\\README.md"
+  },
+  {
+    "group": "Jogo: Kwirk",
+    "title": "kwirk.bas",
+    "file" : "..\\games\\Kwirk\\kwirk.bas"
+  },
+  {
+    "group": "Jogo: Kwirk",
+    "title": "README.md",
+    "file" : "..\\games\\Kwirk\\README.md"
+  },
+  {
+    "group": "Jogo: PickinX",
+    "title": "pickinx.bas",
+    "file" : "..\\games\\PickinX\\pickinx.bas"
+  },
+  {
+    "group": "Jogo: PickinX",
+    "title": "README.md",
+    "file" : "..\\games\\PickinX\\README.md"
+  },
+  {
+    "group": "Jogo: QbertDemo",
+    "title": "qbertdem.bas",
+    "file" : "..\\games\\QbertDemo\\qbertdem.bas"
+  },
+  {
+    "group": "Jogo: QbertDemo",
+    "title": "README.md",
+    "file" : "..\\games\\QbertDemo\\README.md"
+  },
+  {
+    "group": "Jogos MSX BASIC (msxbasic)",
+    "title": "README.md",
+    "file" : "..\\games\\README.md"
+  },
+  {
+    "group": "Jogo: Spider",
+    "title": "README.md",
+    "file" : "..\\games\\Spider\\README.md"
+  },
+  {
+    "group": "Jogo: Spider",
+    "title": "spider.bas",
+    "file" : "..\\games\\Spider\\spider.bas"
+  },
+  {
+    "group": "Jogo: Superman",
+    "title": "superman.bas",
+    "file" : "..\\games\\Superman\\superman.bas"
+  }
+]
