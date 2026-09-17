@@ -24,16 +24,18 @@ type UI struct {
 	Machine *msx.Machine
 
 	// Modal and menu state
-	ActiveMenu string // "File", "Setup", "Help", or ""
-	ShowAbout  bool
-	ShowConfig bool
-	ShouldExit bool
+	ActiveMenu  string // "File", "Setup", "Help", or ""
+	ShowAbout   bool
+	ShowConfig  bool
+	ShowCatalog bool
+	ShouldExit  bool
 
 	// Drawing buffers (re-skinned dynamically when theme changes)
 	barImg        *ebiten.Image
 	menuBg        *ebiten.Image
 	dialogBg      *ebiten.Image
 	configDlgBg   *ebiten.Image
+	catalogDlgBg  *ebiten.Image
 	buttonBg      *ebiten.Image
 	screenBg      *ebiten.Image
 	selectedRowBg *ebiten.Image
@@ -61,7 +63,7 @@ func (u *UI) ApplyTheme() {
 
 	// 2. Dropdown menu background
 	if u.menuBg == nil {
-		u.menuBg = ebiten.NewImage(180, 65)
+		u.menuBg = ebiten.NewImage(230, 65)
 	}
 	u.menuBg.Fill(eff.MenuDropdownBg)
 
@@ -82,6 +84,12 @@ func (u *UI) ApplyTheme() {
 		u.configDlgBg = ebiten.NewImage(580, 420)
 	}
 	u.configDlgBg.Fill(eff.DialogBg)
+
+	// 5b. Catalog Dialog background (620 x 440)
+	if u.catalogDlgBg == nil {
+		u.catalogDlgBg = ebiten.NewImage(620, 440)
+	}
+	u.catalogDlgBg.Fill(eff.DialogBg)
 
 	// 6. Action button
 	if u.buttonBg == nil {
@@ -113,6 +121,10 @@ func (u *UI) Update() error {
 
 	// Escape key handling
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
+		if u.ShowCatalog {
+			u.ShowCatalog = false
+			return nil
+		}
 		if u.ShowConfig {
 			u.ShowConfig = false
 			return nil
@@ -138,6 +150,12 @@ func (u *UI) Update() error {
 }
 
 func (u *UI) handleClick(x, y int) {
+	// 0. If Catalog dialog is open, handle its interactions
+	if u.ShowCatalog {
+		u.handleCatalogClick(x, y)
+		return
+	}
+
 	// 1. If Configuration dialog is open, handle its interactions
 	if u.ShowConfig {
 		u.handleConfigClick(x, y)
@@ -194,10 +212,13 @@ func (u *UI) handleClick(x, y int) {
 
 	// 5. Click on Setup dropdown
 	if u.ActiveMenu == "Setup" {
-		if x >= 70 && x <= 250 && y >= MenuBarH && y <= MenuBarH+65 {
+		if x >= 70 && x <= 300 && y >= MenuBarH && y <= MenuBarH+65 {
 			relY := y - MenuBarH
-			if relY < 35 {
+			if relY < 32 {
 				u.ShowConfig = true
+				u.ActiveMenu = ""
+			} else {
+				u.ShowCatalog = true
 				u.ActiveMenu = ""
 			}
 			return
@@ -295,7 +316,8 @@ func (u *UI) Draw(screen *ebiten.Image) {
 		dropOp := &ebiten.DrawImageOptions{}
 		dropOp.GeoM.Translate(70, MenuBarH)
 		screen.DrawImage(u.menuBg, dropOp)
-		ebitenutil.DebugPrintAt(screen, i18n.T("menu_config"), 78, MenuBarH+10)
+		ebitenutil.DebugPrintAt(screen, i18n.T("menu_config"), 78, MenuBarH+8)
+		ebitenutil.DebugPrintAt(screen, i18n.T("menu_catalog"), 78, MenuBarH+36)
 	} else if u.ActiveMenu == "Help" {
 		dropOp := &ebiten.DrawImageOptions{}
 		dropOp.GeoM.Translate(150, MenuBarH)
@@ -311,6 +333,11 @@ func (u *UI) Draw(screen *ebiten.Image) {
 	// 5. Draw Configuration Modal Dialog
 	if u.ShowConfig {
 		u.drawConfigModal(screen)
+	}
+
+	// 6. Draw ROM Catalog Modal Dialog
+	if u.ShowCatalog {
+		u.drawCatalogModal(screen)
 	}
 }
 
@@ -442,6 +469,117 @@ func (u *UI) drawConfigModal(screen *ebiten.Image) {
 	ebitenutil.DebugPrintAt(screen, i18n.T("btn_save_close"), diagX+225, diagY+386)
 }
 
+func (u *UI) handleCatalogClick(x, y int) {
+	diagX := (WindowWidth - 620) / 2
+	diagY := (WindowHeight - 440) / 2
+
+	// Click outside closes modal
+	if x < diagX || x > diagX+620 || y < diagY || y > diagY+440 {
+		u.ShowCatalog = false
+		return
+	}
+
+	// Click Close Button
+	if x >= diagX+220 && x <= diagX+400 && y >= diagY+395 && y <= diagY+425 {
+		u.ShowCatalog = false
+		return
+	}
+
+	// Click row to toggle default
+	startY := diagY + 90
+	if u.Machine != nil && u.Machine.DB != nil {
+		items, err := u.Machine.DB.ListCatalog("", "")
+		if err == nil {
+			for i, item := range items {
+				if i >= 10 {
+					break
+				}
+				rowY := startY + (i * 26)
+				if y >= rowY && y < rowY+24 && x >= diagX+15 && x <= diagX+605 {
+					_ = u.Machine.DB.SetCatalogDefault(item.Name)
+					return
+				}
+			}
+		}
+	}
+}
+
+func (u *UI) drawCatalogModal(screen *ebiten.Image) {
+	diagX := (WindowWidth - 620) / 2
+	diagY := (WindowHeight - 440) / 2
+
+	// 1. Dialog background
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(float64(diagX), float64(diagY))
+	screen.DrawImage(u.catalogDlgBg, op)
+
+	// 2. Title & Help
+	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("=== %s ===", i18n.T("dlg_catalog_title")), diagX+120, diagY+14)
+	ebitenutil.DebugPrintAt(screen, i18n.T("cat_sec_actions"), diagX+20, diagY+36)
+	ebitenutil.DebugPrintAt(screen, "--------------------------------------------------------------------------------", diagX+20, diagY+52)
+
+	// Table Header
+	header := fmt.Sprintf("   %-13s %-8s %-6s %-7s %-10s %s", "NAME", "CAT", "MODEL", "SIZE", "FLAGS", "TITLE")
+	ebitenutil.DebugPrintAt(screen, header, diagX+20, diagY+68)
+
+	// Rows from SQLite
+	startY := diagY + 90
+	if u.Machine != nil && u.Machine.DB != nil {
+		items, err := u.Machine.DB.ListCatalog("", "")
+		if err == nil {
+			verifiedCount := 0
+			for i, item := range items {
+				if item.IsVerified {
+					verifiedCount++
+				}
+				if i >= 10 {
+					continue
+				}
+				rowY := startY + (i * 26)
+				if item.IsDefault {
+					rowOp := &ebiten.DrawImageOptions{}
+					rowOp.GeoM.Scale(2.25, 1.0)
+					rowOp.GeoM.Translate(float64(diagX+15), float64(rowY-2))
+					screen.DrawImage(u.selectedRowBg, rowOp)
+				}
+
+				pref := "[ ]"
+				if item.IsDefault {
+					pref = "[*]"
+				}
+				flags := ""
+				if item.IsDefault {
+					flags += "[DEF]"
+				} else {
+					flags += "     "
+				}
+				if item.IsVerified {
+					flags += "[VER]"
+				}
+
+				sizeStr := fmt.Sprintf("%dK", item.Size/1024)
+				rowStr := fmt.Sprintf("%s %-13s %-8s %-6s %-7s %-10s %s",
+					pref, item.Name, item.Category, item.MachineModel, sizeStr, flags, item.Title)
+				if len(rowStr) > 78 {
+					rowStr = rowStr[:78]
+				}
+				ebitenutil.DebugPrintAt(screen, rowStr, diagX+20, rowY+2)
+			}
+
+			// Footer summary
+			statusLine := fmt.Sprintf("%s: %d/8 | Total: %d ROMs",
+				i18n.T("cat_official_verified"), verifiedCount, len(items))
+			ebitenutil.DebugPrintAt(screen, statusLine, diagX+20, diagY+365)
+		}
+	}
+
+	// Close Button
+	btnOp := &ebiten.DrawImageOptions{}
+	btnOp.GeoM.Translate(float64(diagX+220), float64(diagY+395))
+	screen.DrawImage(u.buttonBg, btnOp)
+	ebitenutil.DebugPrintAt(screen, i18n.T("btn_save_close"), diagX+245, diagY+401)
+}
+
 // Layout defines the logical window resolution.
 func (u *UI) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return WindowWidth, WindowHeight
@@ -450,3 +588,4 @@ func (u *UI) Layout(outsideWidth, outsideHeight int) (int, int) {
 func init() {
 	_ = color.RGBA{}
 }
+

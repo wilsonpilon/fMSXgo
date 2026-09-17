@@ -2,10 +2,13 @@ package shell
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"fmsxgo/pkg/msx"
+	"fmsxgo/pkg/storage"
 )
 
 func TestShellCommands(t *testing.T) {
@@ -105,3 +108,114 @@ func TestShellCommands(t *testing.T) {
 	// Reset theme to system
 	sh.ExecuteCommand("theme system")
 }
+
+func TestShellRomsCommand(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "roms_test.db")
+	db, err := storage.Open(dbPath)
+	if err != nil {
+		t.Fatalf("Failed to open DB: %v", err)
+	}
+	defer db.Close()
+
+	// Seed catalog using self-contained temp ROM directory
+	tempROMDir := t.TempDir()
+	os.WriteFile(filepath.Join(tempROMDir, "MSX.ROM"), []byte("DUMMY_MSX1_ROM_DATA_1234567890"), 0644)
+	os.WriteFile(filepath.Join(tempROMDir, "MSX2.ROM"), []byte("DUMMY_MSX2_ROM_DATA_1234567890"), 0644)
+	os.WriteFile(filepath.Join(tempROMDir, "DISK.ROM"), []byte("DUMMY_DISK_ROM_DATA_1234567890"), 0644)
+
+	seeded, err := db.SeedFromROMDir(tempROMDir)
+	if err != nil || seeded != 3 {
+		t.Fatalf("Failed to seed ROMs: %v, seeded: %d", err, seeded)
+	}
+
+	cfg := msx.DefaultConfig()
+	cfg.DB = db
+	cfg.ROMDir = tempROMDir
+	machine, err := msx.NewMachine(cfg)
+	if err != nil {
+		t.Fatalf("Failed to create machine: %v", err)
+	}
+
+	var inBuf bytes.Buffer
+	var outBuf bytes.Buffer
+	sh := New(machine, &inBuf, &outBuf)
+
+	// 1. Test roms list
+	outBuf.Reset()
+	sh.ExecuteCommand("roms list")
+	listOut := outBuf.String()
+	if !strings.Contains(listOut, "MSX2.ROM") || !strings.Contains(listOut, "DEF") || !strings.Contains(listOut, "VER") {
+		t.Fatalf("Expected roms list to contain MSX2.ROM with DEF/VER flags, got:\n%s", listOut)
+	}
+
+	// 2. Test roms info
+	outBuf.Reset()
+	sh.ExecuteCommand("roms info MSX2.ROM")
+	infoOut := outBuf.String()
+	if !strings.Contains(infoOut, "ROM Catalog Record: MSX2.ROM") || !strings.Contains(infoOut, "Guaranteed Execution") {
+		t.Fatalf("Expected roms info to contain details and Guaranteed Execution, got:\n%s", infoOut)
+	}
+
+	// 3. Test roms verify
+	outBuf.Reset()
+	sh.ExecuteCommand("roms verify")
+	verifyOut := outBuf.String()
+	if !strings.Contains(verifyOut, "All catalog ROMs passed SHA-1 and BLOB integrity checks") {
+		t.Fatalf("Expected all catalog ROMs to pass integrity check, got:\n%s", verifyOut)
+	}
+
+	// 4. Test roms default
+	outBuf.Reset()
+	sh.ExecuteCommand("roms default MSX.ROM")
+	defOut := outBuf.String()
+	if !strings.Contains(defOut, "active default") {
+		t.Fatalf("Expected active default confirmation, got:\n%s", defOut)
+	}
+
+	// 5. Test roms add with a dummy custom ROM file
+	tmpROM := filepath.Join(t.TempDir(), "CUSTOM_TEST.ROM")
+	testData := []byte("MSX_CUSTOM_TEST_ROM_CONTENT_12345")
+	if err := os.WriteFile(tmpROM, testData, 0644); err != nil {
+		t.Fatalf("Failed to create temp ROM: %v", err)
+	}
+
+	outBuf.Reset()
+	sh.ExecuteCommand("roms add " + tmpROM + " cartridge MSX2 CUSTOM_TEST.ROM CustomTestTitle")
+	addOut := outBuf.String()
+	if !strings.Contains(addOut, "Successfully registered ROM") {
+		t.Fatalf("Expected successful registration, got:\n%s", addOut)
+	}
+
+	// Verify custom item is in catalog
+	item, err := db.GetCatalogItem("CUSTOM_TEST.ROM")
+	if err != nil || item.Title != "CustomTestTitle" {
+		t.Fatalf("Failed to retrieve custom ROM item: %v, item: %+v", err, item)
+	}
+
+	// 6. Test roms export
+	exportFile := filepath.Join(t.TempDir(), "EXPORTED.ROM")
+	outBuf.Reset()
+	sh.ExecuteCommand("roms export CUSTOM_TEST.ROM " + exportFile)
+	if !strings.Contains(outBuf.String(), "Exported ROM") {
+		t.Fatalf("Expected export success, got:\n%s", outBuf.String())
+	}
+	exportedData, err := os.ReadFile(exportFile)
+	if err != nil || string(exportedData) != string(testData) {
+		t.Fatalf("Exported data does not match original: %v, got %q", err, string(exportedData))
+	}
+
+	// 7. Test roms del protection on verified official system ROM
+	outBuf.Reset()
+	sh.ExecuteCommand("roms del MSX2.ROM")
+	if !strings.Contains(outBuf.String(), "Cannot delete ROM") {
+		t.Fatalf("Expected deletion error on official verified system ROM without force, got:\n%s", outBuf.String())
+	}
+
+	// Delete the custom ROM
+	outBuf.Reset()
+	sh.ExecuteCommand("roms del CUSTOM_TEST.ROM")
+	if !strings.Contains(outBuf.String(), "removed from catalog") {
+		t.Fatalf("Expected custom ROM deletion, got:\n%s", outBuf.String())
+	}
+}
+

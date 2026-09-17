@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"fmsxgo/pkg/storage"
 )
@@ -50,9 +51,9 @@ func (rm *ROMManager) LoadROM(name string) ([]byte, error) {
 		return data, nil
 	}
 
-	// 1. Try loading from SQLite database first
-	if rm.DB != nil && rm.DB.HasROM(name) {
-		data, err := rm.DB.GetROM(name)
+	// 1. Try loading from SQLite database catalog first
+	if rm.DB != nil {
+		data, err := rm.DB.GetCatalogData(name)
 		if err == nil && len(data) > 0 {
 			rm.LoadedROMs[name] = data
 			return data, nil
@@ -77,4 +78,56 @@ func (rm *ROMManager) LoadROM(name string) ([]byte, error) {
 
 	rm.LoadedROMs[name] = data
 	return data, nil
+}
+
+// LoadDefaultROM loads the active default ROM from the catalog for a given category and machine model.
+func (rm *ROMManager) LoadDefaultROM(category, machineModel string) ([]byte, string, error) {
+	if rm.DB != nil {
+		item, data, err := rm.DB.GetDefaultROM(category, machineModel)
+		if err == nil && len(data) > 0 {
+			rm.LoadedROMs[item.Name] = data
+			return data, item.Name, nil
+		}
+	}
+
+	// Fallback to official fMSX default filenames
+	var fallbackName string
+	catLower := strings.ToLower(category)
+	switch catLower {
+	case "bios", "basic":
+		switch strings.ToUpper(machineModel) {
+		case "MSX1":
+			fallbackName = "MSX.ROM"
+		case "MSX2":
+			fallbackName = "MSX2.ROM"
+		case "MSX2+", "MSX2P":
+			fallbackName = "MSX2P.ROM"
+		default:
+			fallbackName = "MSX.ROM"
+		}
+	case "subrom":
+		switch strings.ToUpper(machineModel) {
+		case "MSX2":
+			fallbackName = "MSX2EXT.ROM"
+		case "MSX2+", "MSX2P":
+			fallbackName = "MSX2PEXT.ROM"
+		default:
+			fallbackName = "MSX2EXT.ROM"
+		}
+	case "disk":
+		fallbackName = "DISK.ROM"
+	case "hardware":
+		fallbackName = "FMPAC.ROM"
+	case "cartridge":
+		fallbackName = "PAINTER.ROM"
+	}
+
+	if fallbackName != "" {
+		data, err := rm.LoadROM(fallbackName)
+		if err == nil {
+			return data, fallbackName, nil
+		}
+	}
+
+	return nil, "", fmt.Errorf("no default ROM found for category %q and model %q", category, machineModel)
 }

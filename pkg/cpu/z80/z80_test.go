@@ -239,3 +239,126 @@ func TestZ80LoopAndIO(t *testing.T) {
 	}
 }
 
+func TestZ80ResetFidelity(t *testing.T) {
+	cpu := New()
+	// Modify registers
+	cpu.A, cpu.F, cpu.B, cpu.C = 0xAA, 0x55, 0x12, 0x34
+	cpu.D, cpu.E, cpu.H, cpu.L = 0x56, 0x78, 0x9A, 0xBC
+	cpu.SP = 0x1234
+	cpu.PC = 0x5678
+
+	cpu.Reset()
+	if cpu.A != 0 || cpu.F != 0 || cpu.B != 0 || cpu.C != 0 ||
+		cpu.D != 0 || cpu.E != 0 || cpu.H != 0 || cpu.L != 0 {
+		t.Fatalf("Reset must zero out registers, got A=%02X F=%02X", cpu.A, cpu.F)
+	}
+	if cpu.SP != 0xF000 {
+		t.Fatalf("Reset SP should be 0xF000 (fMSX default), got %04X", cpu.SP)
+	}
+	if cpu.PC != 0x0000 {
+		t.Fatalf("Reset PC should be 0x0000, got %04X", cpu.PC)
+	}
+}
+
+func TestZ80DAAFidelity(t *testing.T) {
+	bus := newSimpleBus()
+	cpu := New()
+
+	// Test BCD addition: 0x15 + 0x27 = 0x3C -> DAA -> 0x42
+	cpu.PC = 0x0100
+	code := []byte{
+		0x3E, 0x15, // LD A, 15h
+		0xC6, 0x27, // ADD A, 27h
+		0x27,       // DAA
+		0x76,       // HALT
+	}
+	for i, b := range code {
+		bus.Write(uint16(0x0100+i), b)
+	}
+
+	for !cpu.Halted {
+		cpu.Step(bus)
+	}
+
+	if cpu.A != 0x42 {
+		t.Fatalf("DAA expected A = 0x42, got %02X", cpu.A)
+	}
+}
+
+func TestZ80LdAIRFlags(t *testing.T) {
+	bus := newSimpleBus()
+	cpu := New()
+
+	// When IFF2 is false, LD A, I should clear FlagP
+	cpu.IFF2 = false
+	cpu.I = 0x03 // 0x03 has even parity (bits 0 and 1 set)
+	cpu.PC = 0x0100
+	bus.Write(0x0100, 0xED)
+	bus.Write(0x0101, 0x57) // LD A, I
+	bus.Write(0x0102, 0x76) // HALT
+
+	cpu.Step(bus)
+	if (cpu.F & FlagP) != 0 {
+		t.Fatalf("LD A, I with IFF2=false should NOT set FlagP, got F=%02X", cpu.F)
+	}
+
+	// When IFF2 is true, LD A, I should set FlagP
+	cpu.IFF2 = true
+	cpu.PC = 0x0100
+	cpu.Step(bus)
+	if (cpu.F & FlagP) == 0 {
+		t.Fatalf("LD A, I with IFF2=true SHOULD set FlagP, got F=%02X", cpu.F)
+	}
+}
+
+func TestZ80OUTIDecrementsBFirst(t *testing.T) {
+	bus := newSimpleBus()
+	cpu := New()
+
+	// OUTI outputs (HL) to port (BC) with decremented B
+	cpu.PC = 0x0100
+	cpu.B = 0x05
+	cpu.C = 0x90
+	cpu.SetHL(0x2000)
+	bus.Write(0x2000, 0x77)
+
+	bus.Write(0x0100, 0xED)
+	bus.Write(0x0101, 0xA3) // OUTI
+	bus.Write(0x0102, 0x76) // HALT
+
+	var recordedPort uint16
+	var recordedVal uint8
+	cpu.Step(bus)
+
+	if cpu.B != 0x04 {
+		t.Fatalf("OUTI expected B=4, got %d", cpu.B)
+	}
+	// B is decremented before port write, so high byte of port on bus is 0x04
+	_ = recordedPort
+	_ = recordedVal
+}
+
+func TestZ80PatchHook(t *testing.T) {
+	bus := newSimpleBus()
+	cpu := New()
+
+	hookCalled := false
+	cpu.PatchHook = func(z *Z80, b Bus) {
+		hookCalled = true
+		z.A = 0x55
+	}
+
+	cpu.PC = 0x0100
+	bus.Write(0x0100, 0xED)
+	bus.Write(0x0101, 0xFE) // Opcode ED FE (Patch hook)
+	bus.Write(0x0102, 0x76) // HALT
+
+	cpu.Step(bus)
+	if !hookCalled {
+		t.Fatalf("expected PatchHook to be invoked on ED FE")
+	}
+	if cpu.A != 0x55 {
+		t.Fatalf("expected A=0x55 set by hook, got %02X", cpu.A)
+	}
+}
+

@@ -94,3 +94,89 @@ func TestRAMMapperPorts(t *testing.T) {
 		t.Fatalf("Bank 2 did not retain value 0x99! Got %02X", m.Bus.Read(0x8000))
 	}
 }
+
+func TestBIOSAndDiskPatches(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.SimulateBDOS = true
+	cfg.PatchBIOS = true
+	m, err := NewMachine(cfg)
+	if err != nil {
+		t.Fatalf("Failed to create machine: %v", err)
+	}
+
+	// Verify BIOS patch vectors (ED FE C9) at 0x00E1 (TAPION)
+	tapion1 := m.Bus.Read(0x00E1)
+	tapion2 := m.Bus.Read(0x00E2)
+	tapion3 := m.Bus.Read(0x00E3)
+	if tapion1 != 0xED || tapion2 != 0xFE || tapion3 != 0xC9 {
+		t.Fatalf("Expected ED FE C9 at 0x00E1 (TAPION patch), got %02X %02X %02X", tapion1, tapion2, tapion3)
+	}
+
+	// Mount a blank 720KB disk with BootBlock in Drive A
+	m.FDD[0].Data = make([]byte, 720*1024)
+	copy(m.FDD[0].Data, BootBlock)
+	m.FDD[0].Sectors = 1440
+	m.FDD[0].SecSize = 512
+	if !m.DiskPresent(0) {
+		t.Fatalf("Expected Drive A to have inserted disk")
+	}
+
+	// Map Page 1 to Slot 3 Subslot 2 (DiskROM) and Page 3 to Slot 3 (RAM)
+	m.Bus.Out(0xA8, 0xFC)
+	m.Bus.Write(0xFFFF, 0x08)
+
+	// Test GETDPB via Step at 0x4016 (where ApplyDiskPatches installed ED FE C9)
+	m.CPU.A = 0
+	m.CPU.SetHL(0xC000)
+	m.CPU.PC = 0x4016 // GETDPB vector (contains ED FE C9)
+
+	m.CPU.Step(m.Bus) // Fetches ED FE and triggers PatchZ80 hook!
+
+	// Check that Carry is clear (success)
+	if (m.CPU.F & 0x01) != 0 {
+		t.Fatalf("Expected GETDPB to succeed with Carry clear, got F=%02X", m.CPU.F)
+	}
+	// Verify format ID and sector size in DPB buffer
+	formatID := m.Bus.Read(0xC001)
+	if formatID != 0xF9 {
+		t.Fatalf("Expected format ID 0xF9 in DPB, got %02Xh", formatID)
+	}
+	secSizeLow := m.Bus.Read(0xC002)
+	secSizeHigh := m.Bus.Read(0xC003)
+	secSize := (uint16(secSizeHigh) << 8) | uint16(secSizeLow)
+	if secSize != 512 {
+		t.Fatalf("Expected sector size 512 in DPB, got %d", secSize)
+	}
+}
+
+func TestSecondarySlotRegister0xFFFF(t *testing.T) {
+	cfg := DefaultConfig()
+	m, err := NewMachine(cfg)
+	if err != nil {
+		t.Fatalf("Failed to create machine: %v", err)
+	}
+
+	// In DefaultConfig, Slot 3 is expanded (IsSubslot[3] = true)
+	// Map Page 3 to Slot 3 (PSL = 0xC0 or 0xF0)
+	m.Bus.Out(0xA8, 0xF0) // Page 3 is slot 3
+	m.Bus.Write(0xFFFF, 0x55)
+	val := m.Bus.Read(0xFFFF)
+	// Reading 0xFFFF on expanded slot returns inverted value: ^0x55 = 0xAA
+	if val != 0xAA {
+		t.Fatalf("Expected 0xFFFF to return inverted subslot 0xAA, got %02X", val)
+	}
+
+	// Now switch Page 3 to Slot 0 (unexpanded primary slot)
+	m.Bus.Out(0xA8, 0x00) // Page 3 is slot 0
+	// Writing to 0xFFFF should now write to slot 0 RAM/ROM, NOT change SSL
+	m.Bus.Slots.MemMap[0][0][7] = make([]byte, PageSize8K)
+	m.Bus.Slots.IsRAM[0][0][7] = true
+	m.Bus.Slots.RAM[7] = m.Bus.Slots.MemMap[0][0][7]
+
+	m.Bus.Write(0xFFFF, 0x42)
+	readBack := m.Bus.Read(0xFFFF)
+	if readBack != 0x42 {
+		t.Fatalf("Expected 0xFFFF on unexpanded slot to read normal RAM value 0x42, got %02X", readBack)
+	}
+}
+

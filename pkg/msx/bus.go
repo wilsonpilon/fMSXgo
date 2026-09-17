@@ -53,8 +53,8 @@ func NewMSXBus(slots *SlotBus, mapper *RAMMapper) *MSXBus {
 
 // Read reads a byte from the Z80 16-bit address space.
 func (b *MSXBus) Read(addr uint16) uint8 {
-	// Secondary slot selector register at 0xFFFF
-	if addr == 0xFFFF {
+	// Secondary slot selector register at 0xFFFF (only if slot in page 3 is expanded)
+	if addr == 0xFFFF && b.Slots.IsSubslot[b.Slots.CurPSL[3]] {
 		return b.Slots.GetSSL()
 	}
 
@@ -69,8 +69,8 @@ func (b *MSXBus) Read(addr uint16) uint8 {
 
 // Write writes a byte to the Z80 16-bit address space.
 func (b *MSXBus) Write(addr uint16, val uint8) {
-	// Secondary slot selector register at 0xFFFF
-	if addr == 0xFFFF {
+	// Secondary slot selector register at 0xFFFF (only if slot in page 3 is expanded)
+	if addr == 0xFFFF && b.Slots.IsSubslot[b.Slots.CurPSL[3]] {
 		b.Slots.SetSSL(val)
 		return
 	}
@@ -78,9 +78,11 @@ func (b *MSXBus) Write(addr uint16, val uint8) {
 	page16k := addr >> 14
 	page8k := addr >> 13
 	offset := addr & 0x1FFF
+	psl := b.Slots.CurPSL[page16k]
+	ssl := b.Slots.CurSSL[page16k]
 
-	// If RAM is write-enabled on this page, write directly to memory
-	if b.Slots.EnWrite[page16k] {
+	// If RAM is write-enabled on this 8KB page, write directly to memory
+	if b.Slots.IsRAM[psl][ssl][page8k] {
 		pageSlice := b.Slots.RAM[page8k]
 		if pageSlice != nil && int(offset) < len(pageSlice) {
 			pageSlice[offset] = val
@@ -90,7 +92,6 @@ func (b *MSXBus) Write(addr uint16, val uint8) {
 
 	// If ROM area (0x4000 - 0xBFFF), check for cartridge bank switching
 	if addr >= 0x4000 && addr < 0xC000 {
-		psl := b.Slots.CurPSL[page16k]
 		if psl == 1 && b.CartA != nil {
 			if b.CartA.Write(addr, val) {
 				// Refresh cartridge bank mapping in slot 1
@@ -183,6 +184,15 @@ func (b *MSXBus) Out(port uint16, val uint8) {
 		b.KeyRow = val
 	case 0xAB: // PPI control register
 		b.PPICtrl = val
+		if (val & 0x80) == 0 {
+			// Bit Set/Reset operation on Port C (0xAA)
+			bit := (val >> 1) & 0x07
+			if (val & 0x01) != 0 {
+				b.KeyRow |= (1 << bit)
+			} else {
+				b.KeyRow &^= (1 << bit)
+			}
+		}
 
 	// RAM Mapper
 	case 0xFC, 0xFD, 0xFE, 0xFF:

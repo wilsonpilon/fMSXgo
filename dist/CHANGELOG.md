@@ -4,6 +4,93 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and version numbers follow the **`V X.Y.Z`** scheme with creative release codenames inspired by **Horror Cinema, MSX Classics, and Heavy Metal**.
 
+## [V 0.3.1] - "Vampire Killer" - 2026-09-17
+
+### Added
+- **100% Faithful fMSX Command-Line Interface Mirror**:
+  - Positional argument loading: `fmsxgo [options] [filename1] [filename2]` (Cartridge A and Cartridge B).
+  - Complete mirror of official fMSX options from `Help.h` & `fMSX.c`:
+    - `-verbose <level>`: 0=silent, 1=startup, 2=V9938, 4=Disk/Tape, 8=Memory, 16=Illegal Z80, 32=I/O.
+    - `-skip <percent>`: frame skip rate (0..99%).
+    - `-pal` / `-ntsc`: 50Hz / 60Hz timing.
+    - `-msx1` / `-msx2` / `-msx2+`: model selection.
+    - `-ram <pages>`: 16KB RAM pages (4 for MSX1, 8 for MSX2/2+).
+    - `-vram <pages>`: 16KB/64KB VRAM pages (2 for MSX1, 8 for MSX2/2+).
+    - `-rom <type|file>`: MegaROM mapper type (0..7, >7: guess) or cartridge file (up to two accepted).
+    - `-carta <file>` / `-cartb <file>`: direct slot 1 & 2 insertion.
+    - `-diska` / `-fda <file>` & `-diskb` / `-fdb <file>`: floppy disk mounting (.DSK, .IMG).
+    - `-tape` / `-cas <file>`: cassette tape mounting (.CAS).
+    - `-font` / `-fnt <file>`: fixed text font.
+    - `-logsnd <file>`: soundtrack logging to MIDI file.
+    - `-state` / `-sta <file>`: emulation state snapshot save/load.
+    - `-auto` / `-noauto`: autofire on Space key.
+    - `-joy <type>`: joystick port mode (0: none, 1: normal, 2: mouse/joy, 3: mouse).
+    - `-home` / `-romdir <dir>`: system ROM directory.
+    - `-simbdos` / `-wd1793`: simulated BDOS vs hardware WD1793 controller.
+    - `-sound [<quality>]` / `-nosound`: audio sample rate (Hz) or disabled.
+    - `-printer` / `-prn <file>`: printer output redirection.
+    - `-serial` / `-com <file>`: serial RS-232 I/O redirection.
+    - `-trap <addr|now>`: hex breakpoint or immediate trace.
+    - `-sync <freq>` / `-nosync`: screen update refresh synchronization.
+    - `-scale <factor>`: integer window scale multiplier.
+- **BIOS & DiskROM BDOS Patches Subsystem (`PatchZ80`)**:
+  - Full pure Go port of Marat Fayzullin's `Patch.c` with opcode `ED FE` (`PatchHook`).
+  - DiskROM vectors: `0x4010` (PHYDIO), `0x4013` (DSKCHG), `0x4016` (GETDPB), `0x401C` (DSKFMT), `0x401F` (DRVOFF).
+  - Main BIOS vectors: `0x00E1` (TAPION), `0x00E4` (TAPIN), `0x00E7` (TAPIOF), `0x00EA` (TAPOON), `0x00ED` (TAPOUT), `0x00F0` (TAPOOF), `0x00F3` (STMOTR).
+  - Virtual Floppy Drives A: and B: (`FloppyDrive`) and virtual Cassette Tape Drive (`TapeDrive`).
+  - Embedded 512-byte MSX-DOS standard boot sector template (`BootBlock`).
+
+### Fixed
+- **Z80 CPU Core**:
+  - `Reset()`: now resets all 8-bit registers (`A`, `F`, `B`, `C`, `D`, `E`, `H`, `L`, alternate set) to `0x00` and `SP` to `0xF000`, matching `ResetZ80()` in fMSX.
+  - `DAA`: converted from heuristic math to fMSX's 2048-entry hardware-verified lookup table (`DAATable`), ensuring 100% bit-exact results across all arithmetic flags.
+  - `LD A, I` & `LD A, R`: P/V flag now accurately reflects `IFF2` without spurious parity bits from `PZSTable`.
+  - `OUTI`, `OTIR`, `OUTD`, `OTDR`: register `B` is now decremented before the output port address is driven to the bus.
+- **MSX Bus & Slots**:
+  - Memory write protection now checks `IsRAM[psl][ssl][page8k]` per 8KB bank, preventing accidental ROM overwrite in mixed RAM/ROM 16KB slots.
+  - Intel 8255 PPI: writes to control port `0xAB` with bit 7 = 0 now perform Bit Set/Reset on Port C (`0xAA` - KeyRow / clicker / CAPS LED / cassette).
+  - Secondary Slot Register (`0xFFFF`): accesses to `0xFFFF` now pass through to normal RAM/ROM unless the primary slot in Page 3 is expanded.
+
+---
+
+## [V 0.2.1] - "Aleste Nightmare" - 2026-09-17
+
+### Added
+- **ROM & Hardware Catalog Subsystem (SQLite CRUD)**:
+  - **Relational Catalog Table (`rom_catalog`)**: Stores ROM metadata and binary data together:
+    - Fields: `id`, `name`, `title`, `category`, `machine_model`, `size`, `sha1`, `description`, `is_default`, `is_verified`, `data` (BLOB), `created_at`.
+    - Supported categories: `bios`, `basic`, `subrom`, `disk`, `hardware`, `cartridge`.
+    - Target machine models: `MSX1`, `MSX2`, `MSX2+`, `ALL`.
+  - **Guaranteed Execution (Garantia de Execução) & Official Defaults**:
+    - Official standard fMSX bundled ROMs are automatically seeded, validated, and flagged with `is_default = 1` and `is_verified = 1`:
+      - `MSX.ROM`: MSX 1 Standard BIOS & BASIC (`bios`, `MSX1`)
+      - `MSX2.ROM`: MSX 2 Main BIOS & BASIC (`bios`, `MSX2`)
+      - `MSX2EXT.ROM`: MSX 2 SubROM / ExtBIOS (`subrom`, `MSX2`)
+      - `MSX2P.ROM`: MSX 2+ Main BIOS & BASIC (`bios`, `MSX2+`)
+      - `MSX2PEXT.ROM`: MSX 2+ SubROM / ExtBIOS (`subrom`, `MSX2+`)
+      - `DISK.ROM`: Standard MSX-DOS Disk ROM (`disk`, `ALL`)
+      - `FMPAC.ROM`: FM-PAC (MSX-MUSIC / YM2413) Sound Hardware (`hardware`, `ALL`)
+      - `PAINTER.ROM`: MSX Painter Graphic Tool Cartridge (`cartridge`, `MSX2`)
+    - Accidental deletion protection: Official verified default ROMs are protected from deletion unless `--force` is explicitly specified.
+    - Single default constraint per category and machine model automatically enforced.
+  - **Interactive Developer Shell (`roms` / `catalog` commands)**:
+    - `roms` / `roms list [category] [model]`: formatted tabular overview with `[DEF]` and `[VER]` flags.
+    - `roms info <name>`: detailed record card (Title, Category, Model, Size, SHA-1, Execution guarantee, Description).
+    - `roms add <file> <category> <model> [name] [title]`: registers any custom MSX ROM into SQLite.
+    - `roms default <name>`: sets the chosen ROM as the active boot default.
+    - `roms del <name> [--force]`: removes a custom ROM from the catalog (with protection on system ROMs).
+    - `roms export <name> <path>`: exports raw ROM binary back to disk.
+    - `roms verify`: validates SHA-1 hashes and BLOB integrity of all registered catalog entries.
+  - **Graphical Interface (GUI) Catalog Modal**:
+    - Accessible via **`Setup -> ROMs & HW Catalog...`**.
+    - Interactive table displaying ROM names, categories, models, sizes, `[DEF]` / `[VER]` badges, and titles.
+    - Clicking any row toggles it as the active default for that machine slot.
+    - Real-time catalog summary indicator showing verified fMSX guaranteed execution count (8/8).
+  - **Multi-Language Support**:
+    - All catalog dialogs and CLI help text localized across 5 languages: English (`en`), Portuguese (`pt`), Spanish (`es`), Dutch (`nl`), French (`fr`).
+
+---
+
 ## [V 0.1.5] - "Phantasm (The Tall Man)" - 2026-09-16
 
 ### Changed

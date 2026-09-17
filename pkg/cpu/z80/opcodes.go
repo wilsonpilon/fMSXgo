@@ -274,37 +274,19 @@ func (z *Z80) sbc16(src uint16) {
 }
 
 func (z *Z80) daa() {
-	a := z.A
-	cf := (z.F & FlagC) != 0
-	hf := (z.F & FlagH) != 0
-	nf := (z.F & FlagN) != 0
-
-	var corr uint8 = 0
-	carry := false
-
-	if hf || (!nf && (a&0x0F) > 9) {
-		corr |= 0x06
+	idx := uint16(z.A)
+	if (z.F & FlagC) != 0 {
+		idx |= 256
 	}
-	if cf || (!nf && a > 0x99) {
-		corr |= 0x60
-		carry = true
+	if (z.F & FlagH) != 0 {
+		idx |= 512
 	}
-
-	if nf {
-		a -= corr
-	} else {
-		a += corr
+	if (z.F & FlagN) != 0 {
+		idx |= 1024
 	}
-
-	z.F &^= (FlagC | FlagH | FlagP | FlagZ | FlagS)
-	if carry {
-		z.F |= FlagC
-	}
-	if ((z.A ^ a) & 0x10) != 0 {
-		z.F |= FlagH
-	}
-	z.F |= PZSTable[a]
-	z.A = a
+	af := DAATable[idx]
+	z.A = uint8(af >> 8)
+	z.F = uint8(af)
 }
 
 // Bit Rotate / Shift Helpers
@@ -1334,7 +1316,7 @@ func (z *Z80) execOpcodeED(bus Bus) int {
 		z.I = z.A
 	case 0x57: // LD A, I
 		z.A = z.I
-		z.F = (z.F & FlagC) | PZSTable[z.A]
+		z.F = (z.F & FlagC) | ZSTable[z.A]
 		if z.IFF2 {
 			z.F |= FlagP
 		}
@@ -1342,7 +1324,7 @@ func (z *Z80) execOpcodeED(bus Bus) int {
 		z.R = z.A
 	case 0x5F: // LD A, R
 		z.A = z.R
-		z.F = (z.F & FlagC) | PZSTable[z.A]
+		z.F = (z.F & FlagC) | ZSTable[z.A]
 		if z.IFF2 {
 			z.F |= FlagP
 		}
@@ -1521,36 +1503,60 @@ func (z *Z80) execOpcodeED(bus Bus) int {
 		}
 
 	case 0xA3: // OUTI
-		bus.Out(z.BC(), bus.Read(z.HL()))
-		z.SetHL(z.HL() + 1)
 		z.B--
-		z.F = ZSTable[z.B] | FlagN
+		val := bus.Read(z.HL())
+		z.SetHL(z.HL() + 1)
+		bus.Out(z.BC(), val)
+		z.F = FlagN
+		if z.B == 0 {
+			z.F |= FlagZ
+		}
+		if uint16(z.L)+uint16(val) > 255 {
+			z.F |= FlagC | FlagH
+		}
 	case 0xB3: // OTIR
-		bus.Out(z.BC(), bus.Read(z.HL()))
-		z.SetHL(z.HL() + 1)
 		z.B--
-		z.F = ZSTable[z.B] | FlagN
+		val := bus.Read(z.HL())
+		z.SetHL(z.HL() + 1)
+		bus.Out(z.BC(), val)
+		z.F = FlagN
+		if uint16(z.L)+uint16(val) > 255 {
+			z.F |= FlagC | FlagH
+		}
 		if z.B != 0 {
 			z.PC -= 2
 			cycles = 21
 		} else {
+			z.F |= FlagZ
 			cycles = 16
 		}
 
 	case 0xAB: // OUTD
-		bus.Out(z.BC(), bus.Read(z.HL()))
-		z.SetHL(z.HL() - 1)
 		z.B--
-		z.F = ZSTable[z.B] | FlagN
+		val := bus.Read(z.HL())
+		z.SetHL(z.HL() - 1)
+		bus.Out(z.BC(), val)
+		z.F = FlagN
+		if z.B == 0 {
+			z.F |= FlagZ
+		}
+		if uint16(z.L)+uint16(val) > 255 {
+			z.F |= FlagC | FlagH
+		}
 	case 0xBB: // OTDR
-		bus.Out(z.BC(), bus.Read(z.HL()))
-		z.SetHL(z.HL() - 1)
 		z.B--
-		z.F = ZSTable[z.B] | FlagN
+		val := bus.Read(z.HL())
+		z.SetHL(z.HL() - 1)
+		bus.Out(z.BC(), val)
+		z.F = FlagN
+		if uint16(z.L)+uint16(val) > 255 {
+			z.F |= FlagC | FlagH
+		}
 		if z.B != 0 {
 			z.PC -= 2
 			cycles = 21
 		} else {
+			z.F |= FlagZ
 			cycles = 16
 		}
 	}

@@ -22,13 +22,31 @@ const (
 )
 
 // Config encapsulates the hardware configuration of the emulated MSX machine.
+// Contains 100% faithful fMSX options matching Help.h and MSX.h.
 type Config struct {
 	Model     int
 	Video     int
-	RAMPages  int // 16KB pages (default 4 = 64KB, 8 = 128KB, etc.)
-	VRAMPages int // 64KB VRAM pages (default 2 = 128KB)
+	RAMPages  int // 16KB pages (4 for MSX1 = 64KB, 8 for MSX2 = 128KB, etc.)
+	VRAMPages int // 16KB VRAM pages (2 for MSX1 = 32KB, 8 for MSX2 = 128KB)
 	ROMDir    string
 	DB        *storage.DB
+
+	// fMSX faithful options
+	Verbose      int    // Debug verbose level (0..32, default: 1)
+	FrameSkip    int    // Percentage of frames to skip (default: 25)
+	AutoFire     bool   // Autofire on SPACE (default: false)
+	SimulateBDOS bool   // Patch DiskROM BDOS routines with ED FE (default: true)
+	PatchBIOS    bool   // Patch BIOS tape/disk routines with ED FE (default: true)
+	PrinterPath  string // Redirect printer output to file
+	SerialPath   string // Redirect serial I/O to file
+	TapePath     string // Tape image path (.CAS)
+	FontPath     string // Fixed font file for text modes
+	LogSndPath   string // Soundtrack log file (.MID)
+	StatePath    string // Emulation state save file (.STA)
+	JoyType      [2]int // Joystick types (0: none, 1: normal, 2: mouse/joy, 3: mouse/real)
+	ROMType      [2]int // MegaROM mapper types (0..7, >7 = auto-guess)
+	SoundQuality int    // Sound emulation quality (Hz, default: 44100)
+	Trap         uint16 // Execution trap address (0xFFFF = off)
 
 	CartAPath string
 	CartBPath string
@@ -36,13 +54,20 @@ type Config struct {
 	DiskBPath string
 }
 
-// DefaultConfig returns standard MSX2 configuration.
+// DefaultConfig returns standard MSX2 configuration with fMSX defaults.
 func DefaultConfig() Config {
 	return Config{
-		Model:     ModelMSX2,
-		Video:     VideoNTSC,
-		RAMPages:  8, // 128KB RAM
-		VRAMPages: 2, // 128KB VRAM
+		Model:        ModelMSX2,
+		Video:        VideoNTSC,
+		RAMPages:     8, // 128KB RAM
+		VRAMPages:    8, // 128KB VRAM (8 x 16KB)
+		Verbose:      1, // Startup messages
+		FrameSkip:    25,
+		SimulateBDOS: true, // Simulate DiskROM calls (fMSX default)
+		PatchBIOS:    true, // Patch BIOS tape/disk hooks (fMSX default)
+		SoundQuality: 44100,
+		ROMType:      [2]int{8, 8}, // auto-guess mapper
+		Trap:         0xFFFF,
 	}
 }
 
@@ -55,6 +80,10 @@ type Machine struct {
 	Bus    *MSXBus
 	ROMs   *ROMManager
 	DB     *storage.DB
+
+	// Hardware Peripherals matching fMSX
+	FDD  [2]*FloppyDrive
+	Tape *TapeDrive
 
 	// State
 	Running bool
@@ -85,7 +114,15 @@ func NewMachine(cfg Config) (*Machine, error) {
 		Bus:    bus,
 		ROMs:   romMgr,
 		DB:     cfg.DB,
+		FDD: [2]*FloppyDrive{
+			{ID: 0, SecSize: 512},
+			{ID: 1, SecSize: 512},
+		},
+		Tape: &TapeDrive{},
 	}
+
+	// Connect CPU BIOS/BDOS patch hook to faithful PatchZ80 implementation
+	cpu.PatchHook = m.PatchZ80
 
 	// Initialize BIOS and Slot architecture
 	if err := m.initHardware(); err != nil {
@@ -104,20 +141,34 @@ func (m *Machine) initHardware() error {
 	}
 
 	// 2. Load and map BIOS ROMs based on selected Model
-	var mainBiosName, subBiosName string
+	var modelStr string
+	var defaultMain, defaultSub string
 	switch m.Config.Model {
 	case ModelMSX1:
-		mainBiosName = "MSX.ROM"
+		modelStr = "MSX1"
+		defaultMain = "MSX.ROM"
 	case ModelMSX2:
-		mainBiosName = "MSX2.ROM"
-		subBiosName = "MSX2EXT.ROM"
+		modelStr = "MSX2"
+		defaultMain = "MSX2.ROM"
+		defaultSub = "MSX2EXT.ROM"
 	case ModelMSX2P:
-		mainBiosName = "MSX2P.ROM"
-		subBiosName = "MSX2PEXT.ROM"
+		modelStr = "MSX2+"
+		defaultMain = "MSX2P.ROM"
+		defaultSub = "MSX2PEXT.ROM"
 	}
 
 	// Load Main BIOS (32KB: Pages 0 and 1) into Slot 0, Subslot 0
-	if mainBios, err := m.ROMs.LoadROM(mainBiosName); err == nil {
+	mainBios, mainName, err := m.ROMs.LoadDefaultROM("bios", modelStr)
+	if err != nil {
+		mainBios, err = m.ROMs.LoadROM(defaultMain)
+		mainName = defaultMain
+	}
+	if err == nil {
+		// Apply BIOS patches (ED FE C9) if enabled (fMSX default)
+		if m.Config.PatchBIOS {
+			mainBios = ApplyBIOSPatches(mainBios)
+		}
+
 		if len(mainBios) >= PageSize16K*2 {
 			m.Slots.Map16K(0, 0, 0, mainBios[:PageSize16K], false)
 			m.Slots.Map16K(0, 0, 1, mainBios[PageSize16K:PageSize16K*2], false)
@@ -125,23 +176,31 @@ func (m *Machine) initHardware() error {
 			m.Slots.Map16K(0, 0, 0, mainBios[:PageSize16K], false)
 		}
 	} else {
-		return fmt.Errorf("could not load main MSX BIOS (%s): %w", mainBiosName, err)
+		return fmt.Errorf("could not load main MSX BIOS (%s): %w", mainName, err)
 	}
 
 	// Load SubROM (MSX2/MSX2+ Extended BIOS, 16KB: Page 1) into Slot 3, Subslot 1
-	if subBiosName != "" {
-		if subBios, err := m.ROMs.LoadROM(subBiosName); err == nil {
-			if len(subBios) >= PageSize16K {
-				m.Slots.Map16K(3, 1, 1, subBios[:PageSize16K], false)
-			}
+	if defaultSub != "" {
+		subBios, _, err := m.ROMs.LoadDefaultROM("subrom", modelStr)
+		if err != nil {
+			subBios, err = m.ROMs.LoadROM(defaultSub)
+		}
+		if err == nil && len(subBios) >= PageSize16K {
+			m.Slots.Map16K(3, 1, 1, subBios[:PageSize16K], false)
 		}
 	}
 
 	// Load DiskROM if available (16KB: Page 1) into Slot 3, Subslot 2
-	if diskROM, err := m.ROMs.LoadROM("DISK.ROM"); err == nil {
-		if len(diskROM) >= PageSize16K {
-			m.Slots.Map16K(3, 2, 1, diskROM[:PageSize16K], false)
+	diskROM, _, err := m.ROMs.LoadDefaultROM("disk", "ALL")
+	if err != nil {
+		diskROM, err = m.ROMs.LoadROM("DISK.ROM")
+	}
+	if err == nil && len(diskROM) >= PageSize16K {
+		// Apply BDOS patches (ED FE C9) if SimulateBDOS is enabled (fMSX default)
+		if m.Config.SimulateBDOS {
+			diskROM = ApplyDiskPatches(diskROM)
 		}
+		m.Slots.Map16K(3, 2, 1, diskROM[:PageSize16K], false)
 	}
 
 	// 3. Load Cartridge A if specified
@@ -156,6 +215,21 @@ func (m *Machine) initHardware() error {
 		if err := m.LoadCartridge(2, m.Config.CartBPath); err != nil {
 			return fmt.Errorf("failed to load Cartridge B: %w", err)
 		}
+	}
+
+	// 5. Mount Floppy Disk A if specified
+	if m.Config.DiskAPath != "" {
+		_ = m.LoadDisk(0, m.Config.DiskAPath)
+	}
+
+	// 6. Mount Floppy Disk B if specified
+	if m.Config.DiskBPath != "" {
+		_ = m.LoadDisk(1, m.Config.DiskBPath)
+	}
+
+	// 7. Mount Tape image if specified
+	if m.Config.TapePath != "" {
+		_ = m.LoadTape(m.Config.TapePath)
 	}
 
 	return nil

@@ -22,8 +22,10 @@ In addition to inheriting the time-tested accuracy of fMSX, **fMSXgo** is design
   * **Modern Light**: **Solarized Light**, **One Light**.
   * **Simple Dark** & **Simple Light**.
 * **Dual Operating Modes**:
-  * **Graphical Window (Ebitengine)**: Clean 640x480 interface with top menu bar (`File -> Reset / Exit`, `Setup -> Configuration...`, `Help -> About`) and live CPU/machine status.
-  * **Headless Developer CLI Monitor (`--no-window`)**: Terminal REPL ("Developer OS") with register inspection, hexdump, raw byte editing, instruction stepping (`step-in`, `step-over`), breakpoints, slot visualizer, and I/O port testing.
+  * **ROM & Hardware Catalog Subsystem (SQLite CRUD)**: Embedded SQLite database (`rom_catalog`) managing BIOS, BASIC, SubROMs, Disk ROMs, and hardware expansions with SHA-1 verification and execution guarantees.
+  * **Guaranteed Execution (Garantia de Execução)**: Official standard fMSX ROMs are pre-seeded, verified, and flagged as active defaults with protection against accidental deletion.
+  * **Graphical Window (Ebitengine)**: Clean 640x480 interface with top menu bar (`File`, `Setup -> Configuration...`, `Setup -> ROMs & HW Catalog...`, `Help -> About`) and live CPU/machine status.
+  * **Headless Developer CLI Monitor (`--no-window`)**: Terminal REPL ("Developer OS") with register inspection, hexdump, raw byte editing, instruction stepping (`step-in`, `step-over`), breakpoints, slot visualizer, I/O port testing, and the `roms` suite.
 * **Automated Build & Packaging (`build.ps1`)**: Dependency resolution, unit tests, automatic build increment, and self-contained `dist/` creation.
 
 ---
@@ -36,7 +38,7 @@ fMSXgo follows strict **`V X.Y.Z`** semantic versioning with creative codenames 
 * **`Y` (Feature)**: Incremented upon completing and integrating a functional subsystem.
 * **`X` (Major)**: Incremented upon closing a major architectural milestone (e.g. Z80 certification = V 1.0.0).
 
-Current Version: **V 0.1.3 ("Phantasm")**
+Current Version: **V 0.3.1 ("Vampire Killer")**
 
 For complete phase tracking and immediate next steps, see [SPEC.md](SPEC.md).
 
@@ -49,7 +51,7 @@ Run the automated build script in PowerShell:
 ```powershell
 .\build.ps1
 ```
-This downloads dependencies, executes all unit tests, compiles the 64-bit binary, seeds `fmsxgo.db` with BIOS ROMs, and packages a ready-to-run `dist/` folder.
+This downloads dependencies, executes all unit tests, compiles the 64-bit binary, seeds `fmsxgo.db` with the verified ROM catalog, and packages a ready-to-run `dist/` folder.
 
 ### 2. Run in Graphical Mode (Default)
 ```powershell
@@ -66,7 +68,18 @@ Or with custom hardware options:
 .\fmsxgo.exe --no-window -msx2 -ram 8
 ```
 
-### 4. Configuration & Preferences (Language & Themes)
+### 4. ROM & Hardware Catalog (SQLite CRUD)
+* **Graphical Mode**: Click `Setup -> ROMs & HW Catalog...` to view all registered ROMs and execution guarantees, and click any ROM to toggle it as the active default.
+* **CLI Monitor Mode**:
+  * `roms list [category] [model]` - View all catalog ROMs, flags (`[DEF]`, `[VER]`), sizes, and titles.
+  * `roms info <name>` - Detailed inspection card with SHA-1 hash and guaranteed execution status.
+  * `roms add <file> <cat> <model>` - Import a custom MSX ROM into SQLite.
+  * `roms default <name>` - Set active boot default.
+  * `roms del <name> [--force]` - Delete custom ROM (system ROMs protected).
+  * `roms export <name> <file>` - Export binary BLOB to disk.
+  * `roms verify` - Validate SHA-1 checksums and BLOB data integrity.
+
+### 5. Configuration & Preferences (Language & Themes)
 * **Graphical Mode**: Click `Setup -> Configuration...` to open the modal dialog. Click any of the 5 languages or 11 themes for an instant live preview, then click `[ Save & Close ]`.
 * **CLI Monitor Mode**:
   * Type `lang` or `lang <code>` (`en`, `pt`, `es`, `nl`, `fr`).

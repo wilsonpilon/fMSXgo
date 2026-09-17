@@ -61,8 +61,7 @@ if (!(Test-Path $DistDir)) {
 $BinaryPath = Join-Path $DistDir "fmsxgo.exe"
 Write-Host "[4/5] Compiling fmsxgo.exe with version metadata..." -ForegroundColor Yellow
 
-$ldFlags = "-s -w -X main.Version=$VersionStr -X main.Codename=$Codename"
-go build -ldflags $ldFlags -o $BinaryPath ./cmd/fmsxgo
+go build -ldflags "-s -w -X main.Version=$VersionStr -X 'main.Codename=$Codename'" -o $BinaryPath ./cmd/fmsxgo
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Compilation failed! Aborting build."

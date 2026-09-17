@@ -45,36 +45,86 @@ This drops you directly into the **fMSXgo Shell**, an interactive REPL acting as
 
 ---
 
-## 2. Command-Line Options
+## 2. Command-Line Options & fMSX Mirror Fidelity
 
-fMSXgo supports both modern double-dash (`--`) flags and classic single-dash (`-`) fMSX parameters:
+fMSXgo achieves **100% parameter and behavior parity** with Marat Fayzullin's original fMSX emulator in C, while providing modern workstation extensions:
 
-### Primary Options
-| Option | Description |
-| :--- | :--- |
-| `--help`, `-help`, `-h` | Display full command-line help and usage instructions. |
-| `--no-window`, `-cli` | Disable the graphical window and run in interactive CLI monitor mode. |
-| `--lang <code>` | Set initial UI language (`en`, `pt`, `es`, `nl`, `fr`). Persists to SQLite. |
-| `--theme <id>` | Set initial UI theme (`system`, `github-dark`, `dracula`, etc.). Persists to SQLite. |
-| `--db <path>` | Path to SQLite database file (default: `fmsxgo.db`). |
-| `-test` | Run internal self-diagnostics on CPU, memory, and slot mapping. |
-| `-exec "<commands>"` | Execute semicolon-separated shell commands in batch mode then exit. |
+### Positional Arguments
+```text
+fmsxgo [options] [filename1] [filename2]
+```
+* `[filename1]`: Cartridge ROM to insert into **Slot 1** (Cartridge A).
+* `[filename2]`: Cartridge ROM to insert into **Slot 2** (Cartridge B).
 
-### MSX Hardware Configuration (fMSX Compatible)
-| Option | Description |
-| :--- | :--- |
-| `-msx1` | Emulate standard MSX 1 computer (TMS9918 VDP). |
-| `-msx2` | Emulate standard MSX 2 computer (V9938 VDP, default). |
-| `-msx2+` | Emulate standard MSX 2+ computer (V9958 VDP). |
-| `-pal` | Set video timing to European PAL standard (50Hz). |
-| `-ntsc` | Set video timing to NTSC standard (60Hz, default). |
-| `-ram <pages>` | Main RAM size in 16KB pages (default: `8` = 128KB). |
-| `-vram <pages>` | VRAM size in 64KB pages (default: `2` = 128KB). |
-| `-rom <file>`, `-carta` | Insert cartridge ROM into Slot 1. |
-| `-cartb <file>` | Insert cartridge ROM into Slot 2. |
-| `-diska <file>` | Insert `.DSK` disk image into virtual Drive A:. |
-| `-diskb <file>` | Insert `.DSK` disk image into virtual Drive B:. |
-| `-romdir <dir>` | Directory to search for external BIOS ROMs if seeding database. |
+### Emulation & Hardware Options (Official fMSX Mirror)
+| Option | Description | Default |
+| :--- | :--- | :--- |
+| `-verbose <level>` | Debugging verbosity: `0` (Silent), `1` (Startup), `2` (V9938), `4` (Disk/Tape), `8` (Memory), `16` (Illegal Z80), `32` (I/O). | `1` |
+| `-skip <percent>` | Percentage of frames to skip during rendering (`0`..`99`). | `25` |
+| `-pal` / `-ntsc` | Select European PAL (50Hz) or Japanese/US NTSC (60Hz) video timing. | `-ntsc` |
+| `-msx1` / `-msx2` / `-msx2+` | Select MSX model (TMS9918, V9938, or V9958 VDP architecture). | `-msx2` |
+| `-ram <pages>` | Number of 16KB RAM pages (`4` for MSX1 = 64KB, `8` for MSX2/2+ = 128KB). | `8` |
+| `-vram <pages>` | Number of 16KB/64KB VRAM pages (`2` for MSX1 = 32KB, `8` for MSX2/2+ = 128KB). | `2` (MSX1) / `8` (MSX2) |
+| `-rom <type\|file>` | MegaROM mapper type (`0`: Generic 8kB, `1`: Generic 16kB, `2`: Konami5, `3`: Konami4, `4`: ASCII 8kB, `5`: ASCII 16kB, `6`: GameMaster2, `7`: FMPAC, `>7`: Guess). If given a filename, loads cartridge in Slot 1 or Slot 2. | Guess (`>7`) |
+| `-carta <file>` | Explicitly insert cartridge into Slot 1. | `none` |
+| `-cartb <file>` | Explicitly insert cartridge into Slot 2. | `none` |
+| `-diska` / `-fda <file>` | Insert floppy disk image (`.DSK`, `.IMG`) into virtual Drive A:. | `none` |
+| `-diskb` / `-fdb <file>` | Insert floppy disk image (`.DSK`, `.IMG`) into virtual Drive B:. | `none` |
+| `-tape` / `-cas <file>` | Insert cassette tape image file (`.CAS`). | `none` |
+| `-font` / `-fnt <file>` | Load fixed font bitmap for text display modes. | Default |
+| `-logsnd <file>` | Record audio playback and PSG/OPLL soundtrack to MIDI file (`LOG.MID`). | `none` |
+| `-state` / `-sta <file>` | Load or save emulation state snapshot file. | Automatic |
+| `-auto` / `-noauto` | Enable or disable autofire on `[SPACE]` key. | `-noauto` |
+| `-joy <type>` | Set joystick port type: `0` (None), `1` (Normal Joystick), `2` (Mouse/Joy), `3` (Mouse). Accepted up to twice for Ports 1 and 2. | `0, 0` |
+| `-home` / `-romdir <dir>` | Directory to locate system ROM files (`MSX.ROM`, `MSX2.ROM`, etc.). | Current / DB |
+| `-simbdos` | Simulate DiskROM disk access calls via `PatchZ80` system hooks. | Enabled |
+| `-wd1793` | Emulate Western Digital WD1793 hardware floppy disk controller directly. | Optional |
+| `-sound [<quality>]` | Sound emulation sampling rate in Hz (e.g. `44100`, `22050`). | `44100` |
+| `-nosound` | Disable audio synthesis completely (`-sound 0`). | Enabled |
+| `-printer` / `-prn <file>`| Redirect printer output to specified file. | `stdout` |
+| `-serial` / `-com <file>` | Redirect serial RS-232 I/O to a file or stream. | `stdin/stdout` |
+| `-trap <addr\|now>` | Trap execution when PC reaches hex address (or `now` for immediate trace). | `FFFFh` |
+| `-sync <freq>` / `-nosync`| Synchronize display updates to vertical frequency or disable sync. | `60` |
+| `-scale <factor>` | Integer video display scaling factor (`1`x, `2`x, `3`x, `4`x). | `2` |
+| `-help`, `--help`, `-h`, `/?` | Print full command-line help page. | — |
+
+### Developer & Workstation Options (fMSXgo Extensions)
+| Option | Description | Default |
+| :--- | :--- | :--- |
+| `--no-window`, `-cli` | Disable the graphical window and run in interactive CLI monitor mode. | GUI Mode |
+| `--lang <code>` | Set initial UI language (`en`, `pt`, `es`, `nl`, `fr`). Persists to SQLite. | `en` |
+| `--theme <id>` | Set initial UI theme (`system`, `github-dark`, `dracula`, etc.). Persists to SQLite. | `system` |
+| `--db <path>` | Path to SQLite database file. | `fmsxgo.db` |
+| `-test` | Run internal self-diagnostics on CPU, memory, and slot mapping. | — |
+| `-exec "<commands>"` | Execute semicolon-separated shell commands in batch mode then exit. | — |
+
+---
+
+## 3. High-Fidelity Subsystems (fMSX Mirror)
+
+### BIOS & DiskROM Patches (`PatchZ80`)
+Like fMSX in C, fMSXgo includes full support for ROM patching via opcode `0xED, 0xFE, 0xC9` (hook vector):
+* **DiskROM BDOS Vectors (`0x4010` .. `0x401F`)**:
+  * `0x4010` **PHYDIO**: Physical sector read/write on Drives A: and B: (supporting 360KB, 720KB, 640KB, 1280KB `.DSK` disk images). Automatically turns on RAM across all slots, performs sector data streaming, and restores slot state.
+  * `0x4013` **DSKCHG**: Disk change status detection.
+  * `0x4016` **GETDPB**: Extracts the Drive Parameter Block (DPB) from sector 0 boot sector.
+  * `0x401C` **DSKFMT**: Formats virtual disks using the official MSX-DOS boot sector template (`BootBlock`).
+  * `0x401F` **DRVOFF**: Disk motor shutoff.
+* **Main BIOS Tape Vectors (`0x00E1` .. `0x00F3`)**:
+  * `0x00E1` **TAPION**: Read cassette header and synchronize.
+  * `0x00E4` **TAPIN**: Read single byte from `.CAS` tape stream.
+  * `0x00E7` **TAPIOF**: Stop cassette reading.
+  * `0x00EA` **TAPOON**: Initialize cassette recording.
+  * `0x00ED` **TAPOUT**: Write byte to tape stream.
+  * `0x00F0` **TAPOOF**: Stop cassette recording.
+  * `0x00F3` **STMOTR**: Motor control for cassette tape.
+
+### Z80 CPU Fidelity
+* **Power-on State**: All 8-bit registers (`A`, `F`, `B`, `C`, `D`, `E`, `H`, `L`, alternate set) initialize to `0x00`; `SP` initializes to `0xF000` (matching fMSX `ResetZ80()`).
+* **Decimal Adjust (DAA)**: Emulated using fMSX's hardware-verified 2048-entry `DAATable` for 100% bit-exact results across all arithmetic flags.
+* **Interrupt Flip-Flops & LD A, I/R**: `LD A, I` and `LD A, R` reflect `IFF2` into the P/V flag, preserving the sign and zero flags via `ZSTable`.
+* **Block I/O Instructions**: In `OUTI`, `OTIR`, `OUTD`, and `OTDR`, register `B` is decremented *before* the output port address is driven to the bus, exactly matching Zilog Z80 hardware specification.
+
 
 ---
 
@@ -164,17 +214,50 @@ fMSXgo includes an integrated Z80 assembler!
 * **`info`**: Display active machine configuration (Model, Video standard, RAM size).
 * **`reset`**: Reset the MSX hardware bus and zero the CPU.
 
+### ROMs & Hardware Catalog (SQLite CRUD)
+* **`roms`** or **`roms list [category] [model]`**: Lists all registered ROMs, sizes, active default flags (`[DEF]`), and verified execution flags (`[VER]`).
+* **`roms info <name>`**: Shows complete metadata card for a ROM, including SHA-1 hash, category, target model, guaranteed execution status, and registration timestamp.
+* **`roms add <file> <category> <model> [name] [title] [desc]`**: Registers a custom MSX ROM into the SQLite catalog.
+  * Categories: `bios`, `basic`, `subrom`, `disk`, `hardware`, `cartridge`.
+  * Target Models: `MSX1`, `MSX2`, `MSX2+`, `ALL`.
+* **`roms default <name>`**: Sets the specified ROM as the active boot default for its category and hardware model.
+* **`roms del <name> [--force]`**: Removes a custom ROM from the catalog. Official verified system ROMs are protected and require `--force`.
+* **`roms export <name> <output_path>`**: Extracts the raw ROM binary BLOB from SQLite and saves it back to disk.
+* **`roms verify`**: Verifies SHA-1 hashes and BLOB integrity for all registered catalog entries.
+
 ---
 
-## 4. Unified SQLite Storage (`fmsxgo.db`)
+## 4. Unified SQLite Storage & ROM Catalog (`fmsxgo.db`)
 
 To eliminate loose ROM folders and scattered configuration files, fMSXgo stores everything in a single, portable **SQLite database (`fmsxgo.db`)**:
 
-* **`roms` Table**: Stores binary images of all BIOS ROMs (`MSX.ROM`, `MSX2.ROM`, `MSX2EXT.ROM`, `DISK.ROM`, etc.) as `BLOB`s with SHA-1 hashes and machine tags.
-* **`config` Table**: Stores persistent configuration key-value pairs (e.g., active UI language, video standard, default RAM).
-* **`manuals` Table**: Stores embedded help topics and documentation.
+### The `rom_catalog` Table
+Stores registered ROMs, hardware expansions, and cartridges with rich metadata:
+* `id` (INTEGER PRIMARY KEY)
+* `name` (TEXT UNIQUE NOT NULL): Internal filename identifier (e.g. `MSX2.ROM`).
+* `title` (TEXT NOT NULL): Friendly display title.
+* `category` (TEXT NOT NULL): `bios`, `basic`, `subrom`, `disk`, `hardware`, `cartridge`.
+* `machine_model` (TEXT NOT NULL): Target architecture (`MSX1`, `MSX2`, `MSX2+`, `ALL`).
+* `size` (INTEGER NOT NULL): File size in bytes.
+* `sha1` (TEXT NOT NULL): Cryptographic checksum for integrity checks.
+* `description` (TEXT): Extended documentation.
+* `is_default` (BOOLEAN): Whether this ROM is the active default for its category/model slot.
+* `is_verified` (BOOLEAN): Flag for **Guaranteed Execution (Garantida de Execução)**.
+* `data` (BLOB NOT NULL): Raw binary payload.
 
-When running `build.ps1`, the database is automatically built and populated inside `dist/`, providing a clean, self-contained single-folder distribution.
+### Official fMSX Default & Verified ROMs
+The following official bundled ROMs are automatically seeded and permanently flagged with **`is_default = 1`** and **`is_verified = 1`** (Guaranteed Execution):
+1. **`MSX.ROM`**: MSX 1 Standard BIOS & BASIC (`bios`, `MSX1`)
+2. **`MSX2.ROM`**: MSX 2 Main BIOS & BASIC (`bios`, `MSX2`)
+3. **`MSX2EXT.ROM`**: MSX 2 SubROM / ExtBIOS (`subrom`, `MSX2`)
+4. **`MSX2P.ROM`**: MSX 2+ Main BIOS & BASIC (`bios`, `MSX2+`)
+5. **`MSX2PEXT.ROM`**: MSX 2+ SubROM / ExtBIOS (`subrom`, `MSX2+`)
+6. **`DISK.ROM`**: Standard MSX-DOS Disk ROM (`disk`, `ALL`)
+7. **`FMPAC.ROM`**: FM-PAC (MSX-MUSIC / YM2413) Sound Hardware (`hardware`, `ALL`)
+8. **`PAINTER.ROM`**: MSX Painter Graphic Tool Cartridge (`cartridge`, `MSX2`)
+
+### Graphical Catalog Selector
+Inside the graphical window, users can click **`Setup -> ROMs & HW Catalog...`** to view all registered ROMs, check the verified status count (8/8), and click on any ROM to toggle it as the active default for the machine.
 
 ---
 
@@ -191,5 +274,6 @@ The script automatically performs:
 2. Runs `go mod tidy` and downloads all Go dependencies.
 3. Executes the full test suite (`go test ./...`).
 4. Compiles the optimized 64-bit binary into `dist/`.
-5. Initializes and seeds `fmsxgo.db` with BIOS ROMs.
+5. Initializes and seeds `fmsxgo.db` with the official verified BIOS ROM catalog.
 6. Copies documentation and creates convenient batch launchers (`run-gui.bat` and `run-cli.bat`).
+

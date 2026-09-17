@@ -34,6 +34,7 @@ var translations = map[string]map[string]string{
 		"menu_exit":          "Exit",
 		"menu_setup":         "Setup",
 		"menu_config":        "Configuration...",
+		"menu_catalog":       "ROMs & HW Catalog...",
 		"menu_language":      "Language",
 		"menu_help":          "Help",
 		"menu_about":         "About fMSXgo",
@@ -96,6 +97,10 @@ var translations = map[string]map[string]string{
 		"cli_lang_changed":   "Language set to:",
 		"cli_theme_desc":     "View or set UI theme (system, github-dark, dracula, etc.)",
 		"cli_theme_changed":  "Theme set to:",
+		"cli_roms_desc":      "Manage ROMs & hardware catalog in SQLite (list, info, add, default, del, export)",
+		"dlg_catalog_title":  "ROMS & HARDWARE CATALOG (SQLite)",
+		"cat_official_verified": "Official fMSX Verified (Guaranteed Execution)",
+		"cat_sec_actions":    "Click ROM row to set as Default | [DEF] Default | [VER] Guaranteed",
 	},
 	"pt": {
 		// Menus
@@ -104,6 +109,7 @@ var translations = map[string]map[string]string{
 		"menu_exit":          "Sair",
 		"menu_setup":         "Configuração",
 		"menu_config":        "Configurações...",
+		"menu_catalog":       "Catálogo de ROMs & HW...",
 		"menu_language":      "Idioma",
 		"menu_help":          "Ajuda",
 		"menu_about":         "Sobre o fMSXgo",
@@ -166,6 +172,10 @@ var translations = map[string]map[string]string{
 		"cli_lang_changed":   "Idioma alterado para:",
 		"cli_theme_desc":     "Ver ou alterar tema (system, github-dark, dracula, etc.)",
 		"cli_theme_changed":  "Tema alterado para:",
+		"cli_roms_desc":      "Gerenciar catálogo de ROMs e hardware no SQLite (list, info, add, default, del, export)",
+		"dlg_catalog_title":  "CATÁLOGO DE ROMS & HARDWARE (SQLite)",
+		"cat_official_verified": "Oficial fMSX Verificado (Garantia de Execução)",
+		"cat_sec_actions":    "Clique para definir como Padrão | [DEF] Padrão | [VER] Garantida",
 	},
 	"es": {
 		// Menus
@@ -174,6 +184,7 @@ var translations = map[string]map[string]string{
 		"menu_exit":          "Salir",
 		"menu_setup":         "Configuración",
 		"menu_config":        "Configuración...",
+		"menu_catalog":       "Catálogo de ROMs y HW...",
 		"menu_language":      "Idioma",
 		"menu_help":          "Ayuda",
 		"menu_about":         "Acerca de fMSXgo",
@@ -236,6 +247,10 @@ var translations = map[string]map[string]string{
 		"cli_lang_changed":   "Idioma cambiado a:",
 		"cli_theme_desc":     "Ver o cambiar tema (system, github-dark, dracula, etc.)",
 		"cli_theme_changed":  "Tema cambiado a:",
+		"cli_roms_desc":      "Administrar catálogo de ROMs y hardware en SQLite (list, info, add, default, del, export)",
+		"dlg_catalog_title":  "CATÁLOGO DE ROMS Y HARDWARE (SQLite)",
+		"cat_official_verified": "Oficial fMSX Verificado (Garantía de Ejecución)",
+		"cat_sec_actions":    "Clic para definir como Predeterminado | [DEF] Activo | [VER] Garantizada",
 	},
 	"nl": {
 		// Menus (Dutch - deeply tied to MSX history!)
@@ -244,6 +259,7 @@ var translations = map[string]map[string]string{
 		"menu_exit":          "Afsluiten",
 		"menu_setup":         "Instellingen",
 		"menu_config":        "Instellingen...",
+		"menu_catalog":       "ROMs & Hardware Catalogus...",
 		"menu_language":      "Taal",
 		"menu_help":          "Help",
 		"menu_about":         "Over fMSXgo",
@@ -306,6 +322,10 @@ var translations = map[string]map[string]string{
 		"cli_lang_changed":   "Taal gewijzigd in:",
 		"cli_theme_desc":     "Bekijk of wijzig thema (system, github-dark, etc.)",
 		"cli_theme_changed":  "Thema gewijzigd naar:",
+		"cli_roms_desc":      "Beheer ROM- en hardwarecatalogus in SQLite (list, info, add, default, del, export)",
+		"dlg_catalog_title":  "ROMS & HARDWARE CATALOGUS (SQLite)",
+		"cat_official_verified": "Officieel fMSX Geverifieerd (Gegarandeerde Werking)",
+		"cat_sec_actions":    "Klik om als Standaard in te stellen | [DEF] Standaard | [VER] Gegarandeerd",
 	},
 	"fr": {
 		// Menus (French)
@@ -314,6 +334,7 @@ var translations = map[string]map[string]string{
 		"menu_exit":          "Quitter",
 		"menu_setup":         "Configuration",
 		"menu_config":        "Paramètres...",
+		"menu_catalog":       "Catalogue ROMs & Matériel...",
 		"menu_language":      "Langue",
 		"menu_help":          "Aide",
 		"menu_about":         "À propos de fMSXgo",
@@ -376,6 +397,10 @@ var translations = map[string]map[string]string{
 		"cli_lang_changed":   "Langue modifiée en:",
 		"cli_theme_desc":     "Voir ou changer le thème (system, github-dark, etc.)",
 		"cli_theme_changed":  "Thème modifié en:",
+		"cli_roms_desc":      "Gérer le catalogue de ROMs et matériel en SQLite (list, info, add, default, del, export)",
+		"dlg_catalog_title":  "CATALOGUE DE ROMS & MATÉRIEL (SQLite)",
+		"cat_official_verified": "Officiel fMSX Vérifié (Exécution Garantie)",
+		"cat_sec_actions":    "Cliquez pour définir par défaut | [DEF] Défaut | [VER] Garantie",
 	},
 }
 

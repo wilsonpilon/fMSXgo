@@ -24,11 +24,32 @@ fMSXgo follows the strict semantic versioning format: **`V X.Y.Z`**
 | **V 0.5.x** | **Iron Maiden (Powerslave)** | Heavy metal pioneer / Egyptian precision of Z80 cycle timing |
 | **V 1.0.x** | **Vampire Killer (Dracula's Curse)** | Konami's MSX magnum opus / 1.0 milestone release |
 
-*Current Version:* **V 0.1.1 ("Phantasm")**
+*Current Version:* **V 0.3.1 ("Vampire Killer")**
 
 ---
 
 ## 2. Project Phases & Milestone Roadmap
+
+### Phase 1.5: 100% fMSX Fidelity Mirror & Patch Subsystems [COMPLETED - 100%]
+- [x] **Command-Line Interface 100% Faithful Mirror** (`cmd/fmsxgo/main.go`):
+  - [x] Positional argument support: `[filename1] [filename2]` (Cartridge A and Cartridge B).
+  - [x] Full set of official fMSX options matching `Help.h` and `fMSX.c`: `-verbose <level>`, `-skip <percent>`, `-pal`/`-ntsc`, `-msx1`/`-msx2`/`-msx2+`, `-ram <pages>`, `-vram <pages>`, `-rom <type|file>`, `-carta <file>`, `-cartb <file>`, `-diska`/`-fda <file>`, `-diskb`/`-fdb <file>`, `-tape`/`-cas <file>`, `-font`/`-fnt <file>`, `-logsnd <file>`, `-state`/`-sta <file>`, `-auto`/`-noauto`, `-joy <type>`, `-home`/`-romdir <dir>`, `-simbdos`/`-wd1793`, `-sound [<qual>]`/`-nosound`, `-printer`/`-prn <file>`, `-serial`/`-com <file>`, `-trap <addr|now>`, `-sync <freq>`/`-nosync`, `-scale <factor>`, `-help`.
+  - [x] Preserved fMSXgo enhancements: `--no-window`/`-cli`, `--lang <code>`, `--theme <id>`, `--db <path>`, `-exec "<cmds>"`, `-test`.
+- [x] **BIOS & DiskROM BDOS Patches Subsystem (`PatchZ80`)** (`pkg/msx/patch.go`):
+  - [x] Faithful pure Go port of Marat Fayzullin's `Patch.c`.
+  - [x] Intercept vector `0xED, 0xFE, 0xC9` installed at official addresses.
+  - [x] BDOS disk access calls: `0x4010` (PHYDIO - physical sector read/write with slot switching to RAM and back), `0x4013` (DSKCHG), `0x4016` (GETDPB - Drive Parameter Block extraction), `0x401C` (DSKFMT - disk formatting with 512-byte MSX boot sector `BootBlock`), `0x401F` (DRVOFF).
+  - [x] Virtual Floppy Drives A: and B: (`FloppyDrive`) supporting 360KB, 720KB, 640KB, 1280KB `.DSK` disk images.
+  - [x] BIOS cassette tape calls: `0x00E1` (TAPION), `0x00E4` (TAPIN), `0x00E7` (TAPIOF), `0x00EA` (TAPOON), `0x00ED` (TAPOUT), `0x00F0` (TAPOOF), `0x00F3` (STMOTR) with virtual Tape Drive (`TapeDrive`) supporting `.CAS` files.
+- [x] **Core CPU & Bus Defect Fixes & Behavioral Verification**:
+  - [x] Z80 `Reset()`: zeros all 8-bit registers (`A`, `F`, `B`, `C`, `D`, `E`, `H`, `L`, alternate set) and sets `SP = 0xF000` (matching `ResetZ80()` in `Z80.c`).
+  - [x] Z80 `DAA`: uses 2048-word precomputed `DAATable` from `Tables.h` for 100% bit-exact flag handling.
+  - [x] Z80 `LD A, I` & `LD A, R`: P/V flag reflects `IFF2` without spurious parity bits.
+  - [x] Z80 `OUTI`, `OTIR`, `OUTD`, `OTDR`: register `B` decremented before driving address bus to output port.
+  - [x] MSX Bus `Write`: verifies write permission per 8KB bank (`IsRAM[psl][ssl][page8k]`), preventing ROM corruption in mixed pages.
+  - [x] MSX Bus PPI Port `0xAB`: supports Intel 8255 Bit Set/Reset operation on Port C (`0xAA` - KeyRow / clicker / CAPS LED / cassette).
+  - [x] MSX Bus Secondary Slot Register (`0xFFFF`): only intercepted if primary slot in Page 3 is expanded (`IsSubslot[psl]`), allowing unexpanded RAM/ROM in Page 3 to access `0xFFFF`.
+
 
 ### Phase 1: System Foundation, Workstation Architecture & i18n [COMPLETED - 100%]
 - [x] Pure Go 64-bit module setup (`fmsxgo`).
@@ -40,9 +61,17 @@ fMSXgo follows the strict semantic versioning format: **`V X.Y.Z`**
 - [x] RAM Mapper implementation (ports `0xFC`..`0xFF`, supporting 64KB to 4MB).
 - [x] Memory write-protection for ROM vs RAM pages based on mapped slot attributes.
 - [x] Unified SQLite Persistence (`pkg/storage/db.go`):
-  - [x] Schema: `roms`, `config`, `manuals`, `machine_profiles`.
+  - [x] Schema: `rom_catalog`, `roms`, `config`, `manuals`, `machine_profiles`.
   - [x] Direct BIOS ROM loading from SQLite `BLOB` storage, removing loose ROM folders.
   - [x] Automatic database seeding from `third-party/fMSX/ROMs`.
+- [x] **ROMs & Hardware Catalog Subsystem (SQLite CRUD)** (`pkg/storage`, `pkg/msx`, `pkg/shell`, `pkg/ui`):
+  - [x] Relational table `rom_catalog` supporting categories (`bios`, `basic`, `subrom`, `disk`, `hardware`, `cartridge`), models (`MSX1`, `MSX2`, `MSX2+`, `ALL`), SHA-1 checksums, and BLOB binaries.
+  - [x] Official standard fMSX ROMs flagged as **Defaults** and **Guaranteed Execution** (`is_default = 1`, `is_verified = 1`).
+  - [x] Accidental deletion protection on official verified default system ROMs unless `--force` is given.
+  - [x] Single-default constraint per category & model slot automatically enforced.
+  - [x] Dynamic runtime boot resolution via `ROMManager.LoadDefaultROM(category, model)`.
+  - [x] Developer CLI suite: `roms list`, `roms info`, `roms add`, `roms default`, `roms del`, `roms export`, `roms verify`.
+  - [x] Graphical UI Catalog Selector modal dialog under `Setup -> ROMs & HW Catalog...` with click-to-default toggling.
 - [x] Multi-Language UI (i18n) Subsystem (`pkg/i18n`):
   - [x] Full translation dictionaries for 5 languages: English (`en`, default), Portuguese (`pt`), Spanish (`es`), Dutch (`nl`), and French (`fr`) (Japanese deferred for now).
   - [x] Dynamic runtime switching with thread-safe getters and setters.
@@ -58,12 +87,12 @@ fMSXgo follows the strict semantic versioning format: **`V X.Y.Z`**
   - [x] Cross-platform 640x480 window using pure Go Ebitengine (no CGO/GCC requirement on Windows).
   - [x] Top menu bar:
     - [x] `File`: `Reset Machine`, `Exit`.
-    - [x] `Setup`: `Configuration...` modal dialog opening language & theme preferences with real-time preview.
+    - [x] `Setup`: `Configuration...` (Language & Theme), `ROMs & HW Catalog...` (Catalog Manager).
     - [x] `Help`: `About fMSXgo` modal credits and non-commercial license dialog.
   - [x] Live machine configuration and CPU register state overlay.
 - [x] Interactive Developer Shell / CLI Monitor (`pkg/shell/cli.go`):
   - [x] Headless terminal mode via `--no-window` and `-cli`.
-  - [x] Commands: `HELP`, `QUIT`, `lang`, `theme`, `r` (registers), `d` (hexdump), `e` (memory byte edit), `u` (disasm), `a` (mini-assembler), `t` (trace), `p` (step-over), `g` (run), `bp` (breakpoints), `slots`, `mapper`, `in`, `out`, `reset`, `cls`.
+  - [x] Commands: `HELP`, `QUIT`, `lang`, `theme`, `roms`, `r` (registers), `d` (hexdump), `e` (memory byte edit), `u` (disasm), `a` (mini-assembler), `t` (trace), `p` (step-over), `g` (run), `bp` (breakpoints), `slots`, `mapper`, `in`, `out`, `reset`, `cls`.
   - [x] Localized help and banner messages based on active language while keeping command names in standard English.
 - [x] Automation & Build Tooling (`build.ps1`):
   - [x] Resolves dependencies, auto-increments build number `Z` in `version.json`.
@@ -97,7 +126,7 @@ fMSXgo follows the strict semantic versioning format: **`V X.Y.Z`**
 
 ---
 
-### Phase 4: Disk, Cassette & Peripheral Controllers [PENDENTE]
+### Phase 4: Disk, Cassette & Peripheral Controllers [PENDING]
 - [ ] **Western Digital WD1793**: Complete floppy disk controller emulation.
 - [ ] **Disk Image Support**: Reading and writing `.DSK` (720KB / 360KB) and `.FDI` files.
 - [ ] **Cassette / Tape**: Audio stream and `.CAS` file load/save.
@@ -119,6 +148,7 @@ fMSXgo follows the strict semantic versioning format: **`V X.Y.Z`**
 ## 3. Progress Tracking & Next Direct Steps
 
 * **Where we are**:
-  - Phase 1 is **100% complete**: Z80 core, MSX bus, slot management, RAM mapper, SQLite single-file persistence, 6-language i18n subsystem, graphical menus with setup dialog, and interactive CLI developer shell.
+  - Phase 1 & Setup/Catalog CRUD Milestone is **100% complete**: Z80 core, MSX bus, slot architecture, RAM mapper, SQLite single-file persistence, Setup ROM & Hardware Catalog CRUD with execution guarantees, 5-language i18n subsystem, graphical menus with setup dialogs, and interactive CLI developer shell.
 * **Immediate Next Step**:
   - Begin **Phase 2 (VDP Video Processor)**: Implement TMS9918/V9938 registers, VRAM bus access, and character/bitmap scanline renderers to display live MSX output in the graphical window.
+

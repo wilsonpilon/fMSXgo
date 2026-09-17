@@ -2,15 +2,18 @@ package shell
 
 import (
 	"bufio"
+	"crypto/sha1"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
 	"fmsxgo/pkg/cpu/z80"
 	"fmsxgo/pkg/i18n"
 	"fmsxgo/pkg/msx"
+	"fmsxgo/pkg/storage"
 	"fmsxgo/pkg/ui/theme"
 )
 
@@ -84,6 +87,9 @@ func (sh *Shell) ExecuteCommand(line string) bool {
 
 	case "theme":
 		sh.cmdTheme(args)
+
+	case "roms", "catalog":
+		sh.cmdRoms(args)
 
 	case "r", "reg", "regs":
 		if len(args) == 0 {
@@ -235,6 +241,7 @@ func (sh *Shell) cmdHelp() {
 	fmt.Fprintf(sh.Out, "  QUIT / EXIT               %s\n", i18n.T("cli_quit_desc"))
 	fmt.Fprintf(sh.Out, "  lang [code]               %s\n", i18n.T("cli_lang_desc"))
 	fmt.Fprintf(sh.Out, "  theme [id]                %s\n", i18n.T("cli_theme_desc"))
+	fmt.Fprintf(sh.Out, "  roms [cmd]                %s\n", i18n.T("cli_roms_desc"))
 	fmt.Fprintln(sh.Out)
 	fmt.Fprintln(sh.Out, "Registers & CPU:")
 	fmt.Fprintf(sh.Out, "  r                         %s\n", i18n.T("cli_regs_desc"))
@@ -720,4 +727,303 @@ func isDigits(s string) bool {
 		}
 	}
 	return len(s) > 0
+}
+
+// ---------------------------------------------------------------------
+// ROM & Hardware Catalog CLI Subsystem (SQLite CRUD)
+// ---------------------------------------------------------------------
+
+func (sh *Shell) cmdRoms(args []string) {
+	if sh.Machine == nil || sh.Machine.DB == nil {
+		fmt.Fprintln(sh.Out, "Error: SQLite database is not connected.")
+		return
+	}
+
+	if len(args) == 0 || strings.ToLower(args[0]) == "list" {
+		catFilter := ""
+		modelFilter := ""
+		if len(args) > 1 && strings.ToLower(args[0]) == "list" {
+			catFilter = args[1]
+			if len(args) > 2 {
+				modelFilter = args[2]
+			}
+		} else if len(args) == 1 && strings.ToLower(args[0]) != "list" {
+			catFilter = args[0]
+		}
+		sh.cmdRomsList(catFilter, modelFilter)
+		return
+	}
+
+	sub := strings.ToLower(args[0])
+	subArgs := args[1:]
+
+	switch sub {
+	case "info":
+		sh.cmdRomsInfo(subArgs)
+	case "add":
+		sh.cmdRomsAdd(subArgs)
+	case "default", "def", "select":
+		sh.cmdRomsDefault(subArgs)
+	case "del", "delete", "rm":
+		sh.cmdRomsDelete(subArgs)
+	case "export":
+		sh.cmdRomsExport(subArgs)
+	case "verify":
+		sh.cmdRomsVerify()
+	default:
+		fmt.Fprintf(sh.Out, "Unknown roms subcommand: %q.\n", sub)
+		fmt.Fprintln(sh.Out, "Usage:")
+		fmt.Fprintln(sh.Out, "  roms [list] [category] [model]       - List catalog ROMs")
+		fmt.Fprintln(sh.Out, "  roms info <name>                     - Show detailed ROM metadata")
+		fmt.Fprintln(sh.Out, "  roms add <file> <cat> <model> [name] - Register new ROM into SQLite catalog")
+		fmt.Fprintln(sh.Out, "  roms default <name>                  - Set active default for category/model")
+		fmt.Fprintln(sh.Out, "  roms del <name> [--force]            - Remove ROM from catalog")
+		fmt.Fprintln(sh.Out, "  roms export <name> <destpath>        - Export ROM binary to file")
+		fmt.Fprintln(sh.Out, "  roms verify                          - Verify SHA-1 & BLOB integrity")
+	}
+}
+
+func (sh *Shell) cmdRomsList(catFilter, modelFilter string) {
+	list, err := sh.Machine.DB.ListCatalog(catFilter, modelFilter)
+	if err != nil {
+		fmt.Fprintf(sh.Out, "Error querying catalog: %v\n", err)
+		return
+	}
+	if len(list) == 0 {
+		fmt.Fprintln(sh.Out, "No ROMs found in catalog matching filters.")
+		return
+	}
+
+	fmt.Fprintln(sh.Out, "=========================================================================================")
+	fmt.Fprintln(sh.Out, "  NAME            CAT        MODEL   SIZE (KB)   FLAGS       TITLE")
+	fmt.Fprintln(sh.Out, "=========================================================================================")
+	verifiedCount := 0
+	for _, item := range list {
+		defStr := "   "
+		if item.IsDefault {
+			defStr = "DEF"
+		}
+		verStr := "   "
+		if item.IsVerified {
+			verStr = "VER"
+			verifiedCount++
+		}
+		flags := fmt.Sprintf("[%s][%s]", defStr, verStr)
+
+		marker := "  "
+		if item.IsDefault {
+			marker = "* "
+		}
+		sizeKB := fmt.Sprintf("%d KB", item.Size/1024)
+		if item.Size < 1024 {
+			sizeKB = fmt.Sprintf("%d B", item.Size)
+		}
+		fmt.Fprintf(sh.Out, "%s%-15s %-10s %-7s %-11s %-11s %s\n",
+			marker, item.Name, item.Category, item.MachineModel, sizeKB, flags, item.Title)
+	}
+	fmt.Fprintln(sh.Out, "-----------------------------------------------------------------------------------------")
+	fmt.Fprintln(sh.Out, "Flags: [DEF] Active Default | [VER] Guaranteed Execution (Garantida de Execucao)")
+	fmt.Fprintf(sh.Out, "Total: %d ROM(s) | Official fMSX Verified: %d\n", len(list), verifiedCount)
+}
+
+func (sh *Shell) cmdRomsInfo(args []string) {
+	if len(args) == 0 {
+		fmt.Fprintln(sh.Out, "Usage: roms info <name>")
+		return
+	}
+	name := args[0]
+	item, err := sh.Machine.DB.GetCatalogItem(name)
+	if err != nil {
+		fmt.Fprintf(sh.Out, "ROM %q not found in catalog: %v\n", name, err)
+		return
+	}
+
+	fmt.Fprintln(sh.Out)
+	fmt.Fprintf(sh.Out, "ROM Catalog Record: %s\n", item.Name)
+	fmt.Fprintln(sh.Out, "-----------------------------------------------------------------")
+	fmt.Fprintf(sh.Out, "Title        : %s\n", item.Title)
+	fmt.Fprintf(sh.Out, "Category     : %s\n", item.Category)
+	fmt.Fprintf(sh.Out, "Model Target : %s\n", item.MachineModel)
+	fmt.Fprintf(sh.Out, "File Size    : %d bytes (%d KB)\n", item.Size, item.Size/1024)
+	fmt.Fprintf(sh.Out, "SHA-1 Hash   : %s\n", item.SHA1)
+	status := ""
+	if item.IsDefault {
+		status += "[DEF] Active Default  "
+	}
+	if item.IsVerified {
+		status += "[VER] Guaranteed Execution (fMSX Official)"
+	}
+	if status == "" {
+		status = "User Custom ROM"
+	}
+	fmt.Fprintf(sh.Out, "Status       : %s\n", status)
+	if item.Description != "" {
+		fmt.Fprintf(sh.Out, "Description  : %s\n", item.Description)
+	}
+	if item.CreatedAt != "" {
+		fmt.Fprintf(sh.Out, "Registered   : %s\n", item.CreatedAt)
+	}
+	fmt.Fprintln(sh.Out)
+}
+
+func (sh *Shell) cmdRomsAdd(args []string) {
+	if len(args) < 3 {
+		fmt.Fprintln(sh.Out, "Usage: roms add <file_path> <category> <model> [name] [title] [description]")
+		fmt.Fprintln(sh.Out, "Categories: bios, basic, subrom, disk, hardware, cartridge")
+		fmt.Fprintln(sh.Out, "Models    : MSX1, MSX2, MSX2+, ALL")
+		return
+	}
+
+	filePath := args[0]
+	cat := strings.ToLower(args[1])
+	model := strings.ToUpper(args[2])
+
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		fmt.Fprintf(sh.Out, "Failed to read file %q: %v\n", filePath, err)
+		return
+	}
+
+	name := filepath.Base(filePath)
+	if len(args) >= 4 && strings.TrimSpace(args[3]) != "" {
+		name = args[3]
+	}
+
+	title := name
+	if len(args) >= 5 && strings.TrimSpace(args[4]) != "" {
+		title = args[4]
+	}
+
+	desc := ""
+	if len(args) >= 6 {
+		desc = strings.Join(args[5:], " ")
+	}
+
+	h := sha1.Sum(data)
+	sha1Str := fmt.Sprintf("%x", h)
+
+	item := storage.ROMCatalogItem{
+		Name:         name,
+		Title:        title,
+		Category:     cat,
+		MachineModel: model,
+		Size:         len(data),
+		SHA1:         sha1Str,
+		Description:  desc,
+		IsDefault:    false,
+		IsVerified:   false,
+	}
+
+	if err := sh.Machine.DB.StoreCatalogROM(item, data); err != nil {
+		fmt.Fprintf(sh.Out, "Failed to store ROM in catalog: %v\n", err)
+		return
+	}
+
+	fmt.Fprintf(sh.Out, "Successfully registered ROM %q into SQLite catalog!\n", name)
+	fmt.Fprintf(sh.Out, "  Category: %s | Model: %s | Size: %d bytes | SHA1: %s\n", cat, model, len(data), sha1Str)
+	fmt.Fprintf(sh.Out, "  Use 'roms default %s' to activate as default for this category/model.\n", name)
+}
+
+func (sh *Shell) cmdRomsDefault(args []string) {
+	if len(args) == 0 {
+		fmt.Fprintln(sh.Out, "Usage: roms default <name>")
+		return
+	}
+	name := args[0]
+	item, err := sh.Machine.DB.GetCatalogItem(name)
+	if err != nil {
+		fmt.Fprintf(sh.Out, "ROM %q not found in catalog: %v\n", name, err)
+		return
+	}
+
+	if err := sh.Machine.DB.SetCatalogDefault(name); err != nil {
+		fmt.Fprintf(sh.Out, "Failed to set default: %v\n", err)
+		return
+	}
+
+	fmt.Fprintf(sh.Out, "ROM %q (%s) is now the active default for category %q (Model: %s).\n",
+		name, item.Title, item.Category, item.MachineModel)
+}
+
+func (sh *Shell) cmdRomsDelete(args []string) {
+	if len(args) == 0 {
+		fmt.Fprintln(sh.Out, "Usage: roms del <name> [--force]")
+		return
+	}
+	name := args[0]
+	force := false
+	if len(args) > 1 && (args[1] == "--force" || args[1] == "-f") {
+		force = true
+	}
+
+	if err := sh.Machine.DB.DeleteCatalogROM(name, force); err != nil {
+		fmt.Fprintf(sh.Out, "Cannot delete ROM: %v\n", err)
+		return
+	}
+
+	fmt.Fprintf(sh.Out, "ROM %q removed from catalog.\n", name)
+}
+
+func (sh *Shell) cmdRomsExport(args []string) {
+	if len(args) < 2 {
+		fmt.Fprintln(sh.Out, "Usage: roms export <name> <output_path>")
+		return
+	}
+	name := args[0]
+	destPath := args[1]
+
+	data, err := sh.Machine.DB.GetCatalogData(name)
+	if err != nil {
+		fmt.Fprintf(sh.Out, "ROM %q not found or has no binary data: %v\n", name, err)
+		return
+	}
+
+	if err := os.WriteFile(destPath, data, 0644); err != nil {
+		fmt.Fprintf(sh.Out, "Failed to write file %q: %v\n", destPath, err)
+		return
+	}
+
+	fmt.Fprintf(sh.Out, "Exported ROM %q (%d bytes) to %q successfully.\n", name, len(data), destPath)
+}
+
+func (sh *Shell) cmdRomsVerify() {
+	list, err := sh.Machine.DB.ListCatalog("", "")
+	if err != nil {
+		fmt.Fprintf(sh.Out, "Catalog query error: %v\n", err)
+		return
+	}
+
+	fmt.Fprintln(sh.Out, "Verifying SQLite ROM Catalog integrity...")
+	fmt.Fprintln(sh.Out, "-----------------------------------------------------------------")
+	allOK := true
+	for _, item := range list {
+		data, err := sh.Machine.DB.GetCatalogData(item.Name)
+		if err != nil || len(data) == 0 {
+			fmt.Fprintf(sh.Out, "[FAIL] %-14s: Missing or empty BLOB data!\n", item.Name)
+			allOK = false
+			continue
+		}
+		h := sha1.Sum(data)
+		calcSHA1 := fmt.Sprintf("%x", h)
+		if item.SHA1 != "" && calcSHA1 != item.SHA1 {
+			fmt.Fprintf(sh.Out, "[FAIL] %-14s: SHA-1 mismatch! (DB: %s, Data: %s)\n", item.Name, item.SHA1, calcSHA1)
+			allOK = false
+			continue
+		}
+		verLabel := "CUSTOM"
+		if item.IsVerified {
+			verLabel = "GUARANTEED (fMSX)"
+		}
+		defLabel := ""
+		if item.IsDefault {
+			defLabel = " [DEFAULT]"
+		}
+		fmt.Fprintf(sh.Out, "[ OK ] %-14s (%6d bytes) -> %s%s\n", item.Name, len(data), verLabel, defLabel)
+	}
+	fmt.Fprintln(sh.Out, "-----------------------------------------------------------------")
+	if allOK {
+		fmt.Fprintln(sh.Out, "All catalog ROMs passed SHA-1 and BLOB integrity checks.")
+	} else {
+		fmt.Fprintln(sh.Out, "Warning: Some catalog entries had integrity issues.")
+	}
 }

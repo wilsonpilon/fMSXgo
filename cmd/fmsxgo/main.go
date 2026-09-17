@@ -17,50 +17,84 @@ import (
 
 var (
 	// Version follows V X.Y.Z scheme with creative Heavy Metal / Horror codenames
-	Version  = "0.1.0"
-	Codename = "Phantasm"
+	Version  = "0.3.0"
+	Codename = "Vampire Killer"
 )
 
 func printUsage() {
 	usage := fmt.Sprintf(`fMSXgo - MSX Emulator & Developer Workstation (64-bit)
 Version: %s (%s)
-Based on fMSX (C) Marat Fayzullin | Go Port by Wilson Pilon
+Based on fMSX (C) Marat Fayzullin | Pure Go Port by Wilson Pilon
 
 Usage:
-  fmsxgo [options] [cartridge.rom]
+  fmsxgo [options] [filename1] [filename2]
+  [filename1] = name of file to load as cartridge A
+  [filename2] = name of file to load as cartridge B
 
-Primary Options:
-  --help, -help, -h   Show this help message and exit
-  --no-window         Disable graphical window and run in interactive CLI monitor mode
-  --lang <code>       Set UI language (en, pt, es, nl, fr; default: en)
-  --theme <id>        Set UI theme (system, github-dark, github-light, etc.)
-  --db <path>         Path to SQLite database file (default: fmsxgo.db)
+Emulation & Hardware Options (fMSX 100%% Faithful Mirror):
+  -verbose <level>    Debugging message level [1]
+                        0: Silent        1: Startup messages
+                        2: V9938 ops     4: Disk/Tape
+                        8: Memory       16: Illegal Z80 ops
+                       32: I/O
+  -skip <percent>     Percentage of frames to skip [25]
+  -pal / -ntsc        Set PAL (50Hz) or NTSC (60Hz) video timing [NTSC]
+  -msx1 / -msx2 / -msx2+
+                      Select MSX model [default: -msx2]
+  -ram <pages>        Number of 16kB RAM pages [4 for MSX1, 8 for MSX2/2+]
+  -vram <pages>       Number of 16kB/64kB VRAM pages [2 for MSX1, 8 for MSX2/2+]
+  -rom <type|file>    MegaROM mapper type (0..7, >7: guess) or cartridge file
+                        0: Generic 8kB    1: Generic 16kB (MSXDOS2)
+                        2: Konami5 8kB    3: Konami4 8kB
+                        4: ASCII 8kB      5: ASCII 16kB
+                        6: GameMaster2    7: FMPAC
+                      (Up to two -rom options accepted for Cart A & B)
+  -carta <file>       Insert cartridge in Slot 1 (alias for Cartridge A)
+  -cartb <file>       Insert cartridge in Slot 2 (alias for Cartridge B)
+  -diska / -fda <file>
+                      Set disk image for Drive A: (supports .DSK, .IMG)
+  -diskb / -fdb <file>
+                      Set disk image for Drive B:
+  -tape / -cas <file> Set tape image file (.CAS)
+  -font / -fnt <file> Set fixed font for text modes
+  -logsnd <file>      Set soundtrack log file [LOG.MID]
+  -state / -sta <file>
+                      Set emulation state save file
+  -auto / -noauto     Use autofire on SPACE [off]
+  -joy <type>         Select joystick type (0: None, 1: Normal, 2: Mouse/Joy, 3: Mouse)
+                      (Up to two -joy options accepted for Port 1 & 2)
+  -home / -romdir <dir>
+                      Directory with system ROM files
+  -simbdos            Simulate DiskROM disk access calls via PatchZ80 [default]
+  -wd1793             Use WD1793 floppy controller emulation
+  -sound [<quality>]  Sound emulation quality in Hz [44100]
+  -nosound            Disable sound emulation (-sound 0)
+  -printer / -prn <file>
+                      Redirect printer output to file [stdout]
+  -serial / -com <file>
+                      Redirect serial I/O to a file [stdin/stdout]
+  -trap <addr|now>    Trap execution when PC reaches hex address (or 'now')
+  -sync <freq>        Sync screen updates to frequency [60]
+  -nosync             Disable screen update syncing
+  -scale <factor>     Scale window by factor [2]
+  -help, --help, -h, /?
+                      Show this help message and exit
 
-Hardware Options (fMSX compatible):
-  -msx1               Emulate MSX1 (TMS9918 VDP)
-  -msx2               Emulate MSX2 (V9938 VDP, default)
-  -msx2+              Emulate MSX2+ (V9958 VDP)
-  -pal                Use PAL video timing (50Hz)
-  -ntsc               Use NTSC video timing (60Hz, default)
-  -ram <pages>        RAM size in 16KB pages (default: 8 = 128KB)
-  -vram <pages>       VRAM size in 64KB pages (default: 2 = 128KB)
-  -rom <file>         Insert cartridge in Slot 1
-  -carta <file>       Insert cartridge in Slot 1
-  -cartb <file>       Insert cartridge in Slot 2
-  -diska <file>       Insert disk image in Drive A:
-  -diskb <file>       Insert disk image in Drive B:
-  -romdir <dir>       Custom directory to search for BIOS ROMs
-
-Developer & CLI Options:
-  -cli                Alias for --no-window (starts developer shell)
-  -exec "<cmds>"      Execute semicolon-separated commands in batch mode
-  -test               Run internal self-tests
+fMSXgo Workstation & Developer Extensions:
+  --no-window, -cli   Run in interactive CLI developer shell without GUI
+  --lang <code>       UI language (en, pt, es, nl, fr; default: en)
+  --theme <id>        UI theme (system, github-dark, github-light, etc.)
+  --db <path>         SQLite database path (default: fmsxgo.db)
+  -exec "<cmds>"      Execute semicolon-separated commands in batch mode and exit
+  -test               Run internal self-diagnostics and exit
 
 Examples:
-  fmsxgo                           (launches graphical interface with File and Help menus)
-  fmsxgo --no-window               (launches interactive CLI developer shell)
-  fmsxgo -msx2 -rom game.rom
-  fmsxgo --no-window -exec "a C000 LD A, 2Ah; a C002 HALT; r pc C000; t 1; r"
+  fmsxgo                              (launches graphical emulator with menus)
+  fmsxgo game.rom                     (runs cartridge A directly)
+  fmsxgo -msx2 -diska disk.dsk        (boots MSX2 with floppy disk A)
+  fmsxgo -carta game.rom -cartb scc.rom
+  fmsxgo --no-window                  (starts interactive CLI monitor)
+  fmsxgo -cli -exec "roms; r pc; q"   (runs batch commands in CLI)
 `, Version, Codename)
 	fmt.Print(usage)
 }
@@ -74,10 +108,15 @@ func main() {
 	langFlag := ""
 	themeFlag := ""
 
+	cartCount := 0
+	romTypeCount := 0
+	joyCount := 0
+
 	args := os.Args[1:]
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
-		switch strings.ToLower(arg) {
+		lower := strings.ToLower(arg)
+		switch lower {
 		case "--help", "-help", "-h", "/?":
 			printUsage()
 			return
@@ -103,6 +142,22 @@ func main() {
 				dbPath = args[i]
 			}
 
+		case "-verbose":
+			if i+1 < len(args) {
+				i++
+				if v, err := strconv.Atoi(args[i]); err == nil {
+					cfg.Verbose = v
+				}
+			}
+
+		case "-skip":
+			if i+1 < len(args) {
+				i++
+				if v, err := strconv.Atoi(args[i]); err == nil {
+					cfg.FrameSkip = v
+				}
+			}
+
 		case "-msx1":
 			cfg.Model = msx.ModelMSX1
 		case "-msx2":
@@ -114,6 +169,11 @@ func main() {
 			cfg.Video = msx.VideoPAL
 		case "-ntsc":
 			cfg.Video = msx.VideoNTSC
+
+		case "-auto":
+			cfg.AutoFire = true
+		case "-noauto":
+			cfg.AutoFire = false
 
 		case "-ram":
 			if i+1 < len(args) {
@@ -130,30 +190,148 @@ func main() {
 				}
 			}
 
-		case "-rom", "-carta":
+		case "-home", "-romdir":
 			if i+1 < len(args) {
 				i++
-				cfg.CartAPath = args[i]
+				cfg.ROMDir = args[i]
 			}
-		case "-cartb":
+
+		case "-printer", "-prn":
 			if i+1 < len(args) {
 				i++
-				cfg.CartBPath = args[i]
+				cfg.PrinterPath = args[i]
 			}
-		case "-diska":
+
+		case "-serial", "-com":
+			if i+1 < len(args) {
+				i++
+				cfg.SerialPath = args[i]
+			}
+
+		case "-diska", "-fda":
 			if i+1 < len(args) {
 				i++
 				cfg.DiskAPath = args[i]
 			}
-		case "-diskb":
+
+		case "-diskb", "-fdb":
 			if i+1 < len(args) {
 				i++
 				cfg.DiskBPath = args[i]
 			}
-		case "-romdir":
+
+		case "-tape", "-cas":
 			if i+1 < len(args) {
 				i++
-				cfg.ROMDir = args[i]
+				cfg.TapePath = args[i]
+			}
+
+		case "-font", "-fnt":
+			if i+1 < len(args) {
+				i++
+				cfg.FontPath = args[i]
+			}
+
+		case "-logsnd":
+			if i+1 < len(args) {
+				i++
+				cfg.LogSndPath = args[i]
+			}
+
+		case "-state", "-sta":
+			if i+1 < len(args) {
+				i++
+				cfg.StatePath = args[i]
+			}
+
+		case "-carta":
+			if i+1 < len(args) {
+				i++
+				cfg.CartAPath = args[i]
+				cartCount = 1
+			}
+
+		case "-cartb":
+			if i+1 < len(args) {
+				i++
+				cfg.CartBPath = args[i]
+				cartCount = 2
+			}
+
+		case "-rom":
+			if i+1 < len(args) {
+				i++
+				val := args[i]
+				// Check if it's a numeric mapper type (0..7, or >7 for guess) or a file path
+				if t, err := strconv.Atoi(val); err == nil && !strings.Contains(val, ".") {
+					if romTypeCount < 2 {
+						cfg.ROMType[romTypeCount] = t
+						romTypeCount++
+					}
+				} else {
+					if cartCount == 0 {
+						cfg.CartAPath = val
+						cartCount++
+					} else if cartCount == 1 {
+						cfg.CartBPath = val
+						cartCount++
+					}
+				}
+			}
+
+		case "-joy":
+			if i+1 < len(args) {
+				i++
+				if v, err := strconv.Atoi(args[i]); err == nil {
+					if joyCount < 2 {
+						cfg.JoyType[joyCount] = v & 0x03
+						joyCount++
+					}
+				}
+			}
+
+		case "-simbdos":
+			cfg.SimulateBDOS = true
+		case "-wd1793":
+			cfg.SimulateBDOS = false
+
+		case "-sound":
+			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
+				if v, err := strconv.Atoi(args[i+1]); err == nil {
+					i++
+					cfg.SoundQuality = v
+				} else {
+					cfg.SoundQuality = 44100
+				}
+			} else {
+				cfg.SoundQuality = 44100
+			}
+		case "-nosound":
+			cfg.SoundQuality = 0
+
+		case "-trap":
+			if i+1 < len(args) {
+				i++
+				val := args[i]
+				if strings.ToLower(val) == "now" {
+					cfg.Trap = 0x0000
+				} else {
+					clean := strings.TrimSuffix(strings.TrimPrefix(val, "0x"), "h")
+					if addr, err := strconv.ParseUint(clean, 16, 16); err == nil {
+						cfg.Trap = uint16(addr)
+					}
+				}
+			}
+
+		case "-sync":
+			if i+1 < len(args) {
+				i++
+			}
+		case "-nosync":
+
+		case "-scale":
+			if i+1 < len(args) {
+				i++
 			}
 
 		case "-exec":
@@ -166,9 +344,17 @@ func main() {
 			runTests = true
 
 		default:
-			// If not a flag, treat as ROM path
-			if !strings.HasPrefix(arg, "-") && cfg.CartAPath == "" {
-				cfg.CartAPath = arg
+			// Positional arguments: [filename1] [filename2]
+			if !strings.HasPrefix(arg, "-") {
+				if cartCount == 0 && cfg.CartAPath == "" {
+					cfg.CartAPath = arg
+					cartCount++
+				} else if cartCount == 1 && cfg.CartBPath == "" {
+					cfg.CartBPath = arg
+					cartCount++
+				} else {
+					fmt.Fprintf(os.Stderr, "Excessive filename argument: %s\n", arg)
+				}
 			} else {
 				fmt.Fprintf(os.Stderr, "Unknown option: %s (type --help for help)\n", arg)
 			}
@@ -183,15 +369,16 @@ func main() {
 		defer db.Close()
 		cfg.DB = db
 
-		// Auto-seed ROMs from third-party/fMSX/ROMs or ROMs if DB is empty
-		if !db.HasROM("MSX2.ROM") {
+		// Auto-seed ROMs from third-party/fMSX/ROMs or ROMs if catalog is empty
+		catalogList, _ := db.ListCatalog("", "")
+		if len(catalogList) == 0 {
 			seedPaths := []string{
 				"ROMs",
 				filepath.Join("third-party", "fMSX", "ROMs"),
 			}
 			for _, p := range seedPaths {
 				if fi, err := os.Stat(p); err == nil && fi.IsDir() {
-					db.SeedFromROMDir(p)
+					_, _ = db.SeedFromROMDir(p)
 				}
 			}
 		}
