@@ -60,4 +60,26 @@ func TestShellCommands(t *testing.T) {
 	if !strings.Contains(inOutput, "IN(90h)") {
 		t.Fatalf("Expected in output, got:\n%s", inOutput)
 	}
+
+	// Test Language command
+	outBuf.Reset()
+	sh.ExecuteCommand("lang")
+	if !strings.Contains(outBuf.String(), "Current UI language") {
+		t.Fatalf("Expected language info, got:\n%s", outBuf.String())
+	}
+
+	outBuf.Reset()
+	sh.ExecuteCommand("lang pt")
+	if !strings.Contains(outBuf.String(), "Português") {
+		t.Fatalf("Expected Portuguese language change confirmation, got:\n%s", outBuf.String())
+	}
+
+	outBuf.Reset()
+	sh.ExecuteCommand("help")
+	if !strings.Contains(outBuf.String(), "Controles Principais") {
+		t.Fatalf("Expected Portuguese help output, got:\n%s", outBuf.String())
+	}
+
+	// Switch back to English
+	sh.ExecuteCommand("lang en")
 }

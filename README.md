@@ -5,73 +5,84 @@
 [![Status](https://img.shields.io/badge/Status-Active%20Development-orange.svg)]()
 [![License](https://img.shields.io/badge/License-Non--Commercial-red.svg)](LICENSE)
 
-**fMSXgo** é um porte fiel e moderno do consagrado emulador **fMSX** (originalmente desenvolvido em C por **Marat Fayzullin**) para a linguagem **Go (64-bit)**, focado em **Windows e Linux**. 
+**fMSXgo** is a faithful and modern port of the acclaimed **fMSX** emulator (originally authored in C by **Marat Fayzullin**) to pure **Go (64-bit)**, targeting **Windows and Linux**.
 
-Além de herdar a precisão histórica do fMSX, o **fMSXgo** foi desenhado desde o primeiro dia para ser uma **estação de trabalho de ponta para desenvolvedores de software MSX e entusiastas de hacking/engenharia reversa**, com:
+In addition to inheriting the time-tested accuracy of fMSX, **fMSXgo** is designed from the ground up to serve as a **high-end workstation for MSX software developers, hackers, and reverse engineers**, featuring:
 
-* **Núcleo Z80 100% puro em Go** com tabelas de flags pré-computadas fiéis ao original (`ZSTable`, `PZSTable`).
-* **Mini-Assembler Interativo Embutido** (permite montar instruções Z80 diretamente na memória em tempo de execução).
-* **Disassembler Dinâmico** integrado.
-* **Barramento de Slots Fiel**: 4 Slots Primários (`0xA8`), 4 Subslots Secundários (`0xFFFF`) e **RAM Mapper** (`0xFC`..`0xFF`) de 64KB até 4MB.
-* **Persistência Centralizada em SQLite (`fmsxgo.db`)**: todas as ROMs de BIOS, configurações, perfis de máquina e manuais de ajuda ficam armazenados em um único arquivo de banco de dados SQLite, eliminando pastas cheias de arquivos avulsos na distribuição.
-* **Interface Gráfica com Menus**: Janela gráfica com barra de menus (`File -> Exit`, `Help -> About`) e suporte a modo terminal puro via `--no-window`.
-* **Monitor / Shell Interativo ("SO de Desenvolvimento")**: REPL completo com comandos de inspeção de registradores, hexdump, edição direta de memória, stepping (`step-in`, `step-over`), breakpoints e teste de portas I/O.
-* **Script de Automação e Empacotamento (`build.ps1`)**: compilação, testes, incremento de versão e geração da pasta `dist/` pronta para o usuário final.
-
----
-
-## Esquema de Versões & Codinomes (Horror & Heavy Metal)
-
-O projeto adota o versionamento **`V X.Y.Z`** acompanhado de codinomes inspirados no universo do MSX, filmes de terror e clássicos do Heavy Metal:
-* **`Z`**: incrementado a cada compilação gerada pelo `build.ps1`.
-* **`Y`**: incrementado a cada novo subsistema ou feature funcional.
-* **`X`**: incrementado a cada grande bloco arquitetural concluído.
-
-Versão Atual: **V 0.1.0 ("Phantasm")**
-
-Para detalhes sobre todas as fases e planejamento futuro, consulte o documento vivo [SPEC.md](SPEC.md).
+* **Pure Go 64-bit Z80 CPU Core**: Cycle-accurate execution, precomputed flag tables (`ZSTable`, `PZSTable`), and BIOS patch hook (`ED FE`).
+* **Built-in Interactive Mini-Assembler**: Assemble Z80 instructions directly into memory at runtime without external toolchains.
+* **Dynamic Disassembler**: Disassemble arbitrary memory regions with parameter and length decoding.
+* **Accurate Slot Matrix & Memory Management**: 4 Primary Slots (`0xA8`), 4 Secondary Subslots (`0xFFFF`), and a **RAM Mapper** (`0xFC`..`0xFF`) supporting 64KB up to 4MB of RAM.
+* **Unified SQLite Persistence (`fmsxgo.db`)**: BIOS ROMs (`MSX.ROM`, `MSX2.ROM`, `MSX2EXT.ROM`, `DISK.ROM`), configuration settings, machine profiles, and documentation are bundled into a single SQLite database (`BLOB` storage), eliminating loose ROM file folders in distribution.
+* **Multi-Language UI (i18n)**: Native UI support for **English (default)**, **Portuguese**, **Spanish**, **Dutch**, **French**, and **Japanese**. Command names remain standard English (`HELP`, `QUIT`, `r`, `d`, `a`, `t`), while menus, status dialogs, hints, and command help dynamically reflect the chosen language. User preferences are automatically persisted in SQLite.
+* **Dual Operating Modes**:
+  * **Graphical Window (Ebitengine)**: Clean 640x480 interface with top menu bar (`File -> Reset / Exit`, `Setup -> Language`, `Help -> About`) and live CPU/machine status.
+  * **Headless Developer CLI Monitor (`--no-window`)**: Terminal REPL ("Developer OS") with register inspection, hexdump, raw byte editing, instruction stepping (`step-in`, `step-over`), breakpoints, slot visualizer, and I/O port testing.
+* **Automated Build & Packaging (`build.ps1`)**: Dependency resolution, unit tests, automatic build increment, and self-contained `dist/` creation.
 
 ---
 
-## Início Rápido
+## Versioning & Creative Horror / Heavy Metal Codenames
 
-### 1. Compilar e Gerar o Pacote de Distribuição
-Execute o script de automação no PowerShell:
+fMSXgo follows strict **`V X.Y.Z`** semantic versioning with creative codenames inspired by classic horror cinema, MSX lore, and heavy metal masterpieces:
+
+* **`Z` (Build)**: Auto-incremented on each compilation by `build.ps1`.
+* **`Y` (Feature)**: Incremented upon completing and integrating a functional subsystem.
+* **`X` (Major)**: Incremented upon closing a major architectural milestone (e.g. Z80 certification = V 1.0.0).
+
+Current Version: **V 0.1.1 ("Phantasm")**
+
+For complete phase tracking and immediate next steps, see [SPEC.md](SPEC.md).
+
+---
+
+## Quick Start
+
+### 1. Build and Package the Distribution
+Run the automated build script in PowerShell:
 ```powershell
 .\build.ps1
 ```
-O script baixará as dependências, rodará a suite de testes, compilará o binário de 64 bits e gerará a pasta `dist/` completa contendo o executável, o banco de dados `fmsxgo.db` populado com todas as ROMs de BIOS e atalhos de inicialização.
+This downloads dependencies, executes all unit tests, compiles the 64-bit binary, seeds `fmsxgo.db` with BIOS ROMs, and packages a ready-to-run `dist/` folder.
 
-### 2. Executar no Modo Gráfico
+### 2. Run in Graphical Mode (Default)
 ```powershell
 .\fmsxgo.exe
 ```
-Abre a janela gráfica do emulador contendo o menu superior (`File -> Exit`, `Help -> About`).
+Launches the graphical window with the top menu bar (`File`, `Setup`, `Help`).
 
-### 3. Executar no Modo Terminal / CLI de Desenvolvimento
+### 3. Run in Terminal / CLI Developer Mode
 ```powershell
 .\fmsxgo.exe --no-window
 ```
-Ou com opções de hardware:
+Or with custom hardware options:
 ```powershell
 .\fmsxgo.exe --no-window -msx2 -ram 8
 ```
 
+### 4. Language Selection
+On first launch, the interface defaults to English. You can switch languages at any time:
+* **Graphical Mode**: Click `Setup -> Language` and choose **English**, **Português**, **Español**, **Nederlands**, **Français**, or **Nihongo**.
+* **CLI Monitor Mode**: Type `lang` to view current and available languages, or `lang pt` (or `en`, `es`, `nl`, `fr`, `ja`) to switch instantly.
+* **Startup Flag**: Pass `--lang pt` to start with a specific language.
+
+Your language selection is saved automatically in `fmsxgo.db` and persists across sessions.
+
 ---
 
-## Documentação do Projeto
+## Project Documentation
 
-* 📖 **[MANUAL.md](MANUAL.md)**: Manual completo do usuário, comandos do Shell e sintaxe do Mini-Assembler.
-* 📋 **[SPEC.md](SPEC.md)**: Especificação técnica viva, fases do projeto e registro de "onde paramos".
-* 📝 **[CHANGELOG.md](CHANGELOG.md)**: Histórico cronológico detalhado de cada versão e novidade.
+* 📖 **[MANUAL.md](MANUAL.md)**: Complete user & developer manual, CLI monitor commands, and Mini-Assembler guide.
+* 📋 **[SPEC.md](SPEC.md)**: Living engineering specification, milestone checklists, and progress tracker.
+* 📝 **[CHANGELOG.md](CHANGELOG.md)**: Chronological history of releases, features, and fixes.
 
 ---
 
-## Créditos e Licença
+## Credits & Licensing
 
-Este projeto é uma tradução/porte em Go do emulador **fMSX**, criado por **Marat Fayzullin**.
+This project is a Go translation and workstation extension of **fMSX**, originally created by **Marat Fayzullin**.
 
-* **Lógica original do fMSX e arquitetura**: &copy; Marat Fayzullin (1994-2021). Projeto desenvolvido com conhecimento e aval do autor original.
-* **Porte em Go, ferramentas de desenvolvimento e interface**: &copy; Wilson "Barney" Pilon.
+* **Original fMSX Core & Architecture**: &copy; Marat Fayzullin (1994-2021). Developed with the author's knowledge and blessing.
+* **Go Port, Developer Tools & Workstation Interface**: &copy; Wilson "Barney" Pilon.
 
-**Aviso Importante**: Este projeto destina-se **estritamente a uso Não-Comercial**. Ele herda as restrições proprietárias de licenciamento do código-fonte original do fMSX. Consulte o arquivo [LICENSE](LICENSE) para maiores esclarecimentos.
+**Important Notice**: This project is provided **strictly for Non-Commercial use**, inheriting the non-commercial licensing terms of the original fMSX source code. Please review the [LICENSE](LICENSE) file for complete details.

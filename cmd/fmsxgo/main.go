@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"fmsxgo/pkg/i18n"
 	"fmsxgo/pkg/msx"
 	"fmsxgo/pkg/shell"
 	"fmsxgo/pkg/storage"
@@ -30,6 +31,7 @@ Usage:
 Primary Options:
   --help, -help, -h   Show this help message and exit
   --no-window         Disable graphical window and run in interactive CLI monitor mode
+  --lang <code>       Set UI language (en, pt, es, nl, fr, ja; default: en)
   --db <path>         Path to SQLite database file (default: fmsxgo.db)
 
 Hardware Options (fMSX compatible):
@@ -67,6 +69,7 @@ func main() {
 	execBatch := ""
 	runTests := false
 	dbPath := "fmsxgo.db"
+	langFlag := ""
 
 	args := os.Args[1:]
 	for i := 0; i < len(args); i++ {
@@ -78,6 +81,12 @@ func main() {
 
 		case "--no-window", "-no-window", "--cli", "-cli":
 			noWindow = true
+
+		case "--lang", "-lang":
+			if i+1 < len(args) {
+				i++
+				langFlag = args[i]
+			}
 
 		case "--db", "-db":
 			if i+1 < len(args) {
@@ -181,6 +190,23 @@ func main() {
 		// Store version into config
 		_ = db.SetConfig("version", Version)
 		_ = db.SetConfig("codename", Codename)
+
+		// Initialize UI language
+		if langFlag != "" {
+			if i18n.SetLanguage(langFlag) {
+				_ = db.SetConfig("language", i18n.GetLanguage())
+			} else {
+				fmt.Fprintf(os.Stderr, "Warning: Unsupported language code %q. Defaulting to %s.\n", langFlag, i18n.GetLanguage())
+			}
+		} else {
+			savedLang := db.GetConfig("language", "en")
+			i18n.SetLanguage(savedLang)
+		}
+	}
+
+	// Fallback if DB was not loaded but --lang was specified
+	if db == nil && langFlag != "" {
+		i18n.SetLanguage(langFlag)
 	}
 
 	if runTests {

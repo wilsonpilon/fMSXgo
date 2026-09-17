@@ -1,105 +1,121 @@
-# Manual do Usuário e Desenvolvedor - fMSXgo
+# User & Developer Manual - fMSXgo
 
-**fMSXgo** é um porte fiel e moderno do emulador **fMSX** (originalmente desenvolvido em C por **Marat Fayzullin**) para a linguagem **Go**, com suporte nativo a sistemas operacionais **Windows e Linux (64-bit)**. 
+**fMSXgo** is a faithful and modern port of the acclaimed **fMSX** emulator (originally authored in C by **Marat Fayzullin**) to pure **Go (64-bit)**, natively supporting **Windows and Linux**.
 
-Além de manter a precisão e fidelidade da máquina MSX original, o fMSXgo foi concebido como uma **estação de trabalho completa para desenvolvedores e hackers**, oferecendo um monitor interativo, mini-montador embutido, disassembler dinâmico, inspeção de memória/slots e armazenamento unificado em banco **SQLite**.
+Beyond preserving cycle-accurate MSX emulation, fMSXgo was conceived from day one as a **complete workstation for developers, reverse engineers, and retro-computing hackers**, offering an interactive monitor, built-in mini-assembler, dynamic disassembler, live memory and slot inspector, unified **SQLite** database storage, and multi-language interface support.
 
 ---
 
-## 1. Inicialização e Modos de Operação
+## 1. Getting Started & Operating Modes
 
-O fMSXgo oferece dois modos principais de execução:
+fMSXgo offers two primary execution modes:
 
-### Modo Gráfico (Padrão)
-Executando o programa sem argumentos:
+### Graphical Mode (Default)
+Running the program without arguments:
 ```powershell
 .\fmsxgo.exe
 ```
-O emulador abrirá uma janela gráfica contendo a barra de menus superior:
-* **Menu `File`**:
-  * `Reset Machine`: Reinicia a máquina e a CPU aos valores de fábrica.
-  * `Exit`: Encerra o emulador.
-* **Menu `Help`**:
-  * `About fMSXgo`: Exibe a caixa de diálogo com a versão ativa, créditos a Marat Fayzullin e Wilson Pilon, e termos de licença não-comercial.
+The emulator opens a 640x480 graphical window featuring a top menu bar:
+* **`File` Menu**:
+  * `Reset Machine`: Resets the CPU, slot bus, and VDP to initial power-on state.
+  * `Exit`: Gracefully shuts down the emulator (shortcut: `[ESC]`).
+* **`Setup` Menu**:
+  * `Language`: Opens a language selector allowing you to switch between:
+    * **English** (default)
+    * **Português** (Portuguese)
+    * **Español** (Spanish)
+    * **Nederlands** (Dutch)
+    * **Français** (French)
+    * **Nihongo** (Japanese)
+    * The active language is indicated with an asterisk `[*]`, and your selection is immediately saved to `fmsxgo.db` for future sessions.
+* **`Help` Menu**:
+  * `About fMSXgo`: Displays an interactive dialog with the version, codename, Marat Fayzullin & Wilson Pilon credits, and non-commercial license notice.
 
-### Modo Terminal / CLI Monitor (`--no-window`)
-Para desenvolvimento de software, automação de testes ou operação rápida sem abrir janelas gráficas:
+### Developer CLI Monitor Mode (`--no-window`)
+For rapid debugging, automated regression testing, scripting, or headless CI servers:
 ```powershell
 .\fmsxgo.exe --no-window
 ```
-Ou usando o atalho `-cli`:
+Or using the `-cli` shorthand:
 ```powershell
 .\fmsxgo.exe -cli
 ```
-Você entrará no **fMSXgo Shell**, um ambiente de comandos no estilo de um sistema operacional de depuração e monitor hacker.
+This drops you directly into the **fMSXgo Shell**, an interactive REPL acting as a developer operating system and machine monitor.
 
 ---
 
-## 2. Parâmetros de Linha de Comando
+## 2. Command-Line Options
 
-O fMSXgo suporta tanto opções modernas de duas barras (`--`) quanto as clássicas do fMSX de uma barra (`-`):
+fMSXgo supports both modern double-dash (`--`) flags and classic single-dash (`-`) fMSX parameters:
 
-### Opções Principais
-| Parâmetro | Descrição |
+### Primary Options
+| Option | Description |
 | :--- | :--- |
-| `--help`, `-help`, `-h` | Exibe a lista completa de comandos e opções disponíveis. |
-| `--no-window` | Desativa a interface gráfica e entra diretamente no shell CLI. |
-| `--db <arquivo>` | Define o caminho do banco SQLite (padrão: `fmsxgo.db`). |
-| `-test` | Executa auto-diagnóstico interno de integridade de CPU e slots. |
-| `-exec "<comandos>"` | Executa uma sequência de comandos no shell separados por ponto-e-vírgula. |
+| `--help`, `-help`, `-h` | Display full command-line help and usage instructions. |
+| `--no-window`, `-cli` | Disable the graphical window and run in interactive CLI monitor mode. |
+| `--lang <code>` | Set initial UI language (`en`, `pt`, `es`, `nl`, `fr`, `ja`). Persists to SQLite. |
+| `--db <path>` | Path to SQLite database file (default: `fmsxgo.db`). |
+| `-test` | Run internal self-diagnostics on CPU, memory, and slot mapping. |
+| `-exec "<commands>"` | Execute semicolon-separated shell commands in batch mode then exit. |
 
-### Configuração de Hardware MSX (Compatibilidade fMSX)
-| Parâmetro | Descrição |
+### MSX Hardware Configuration (fMSX Compatible)
+| Option | Description |
 | :--- | :--- |
-| `-msx1` | Emula um computador padrão MSX 1 (TMS9918 VDP). |
-| `-msx2` | Emula um computador padrão MSX 2 (V9938 VDP, padrão). |
-| `-msx2+` | Emula um computador padrão MSX 2+ (V9958 VDP). |
-| `-pal` | Ajusta o sincronismo de vídeo para o padrão europeu PAL (50Hz). |
-| `-ntsc` | Ajusta o sincronismo de vídeo para o padrão NTSC (60Hz, padrão). |
-| `-ram <páginas>` | Define a quantidade de memória RAM em páginas de 16KB (padrão: 8 = 128KB). |
-| `-vram <páginas>` | Define a memória de vídeo em páginas de 64KB (padrão: 2 = 128KB). |
-| `-rom <arquivo>` | Carrega um cartucho ROM no Slot 1 (atalho: `-carta`). |
-| `-cartb <arquivo>` | Carrega um cartucho ROM no Slot 2. |
-| `-diska <arquivo>` | Insere uma imagem de disco `.DSK` no drive virtual A:. |
-| `-diskb <arquivo>` | Insere uma imagem de disco `.DSK` no drive virtual B:. |
+| `-msx1` | Emulate standard MSX 1 computer (TMS9918 VDP). |
+| `-msx2` | Emulate standard MSX 2 computer (V9938 VDP, default). |
+| `-msx2+` | Emulate standard MSX 2+ computer (V9958 VDP). |
+| `-pal` | Set video timing to European PAL standard (50Hz). |
+| `-ntsc` | Set video timing to NTSC standard (60Hz, default). |
+| `-ram <pages>` | Main RAM size in 16KB pages (default: `8` = 128KB). |
+| `-vram <pages>` | VRAM size in 64KB pages (default: `2` = 128KB). |
+| `-rom <file>`, `-carta` | Insert cartridge ROM into Slot 1. |
+| `-cartb <file>` | Insert cartridge ROM into Slot 2. |
+| `-diska <file>` | Insert `.DSK` disk image into virtual Drive A:. |
+| `-diskb <file>` | Insert `.DSK` disk image into virtual Drive B:. |
+| `-romdir <dir>` | Directory to search for external BIOS ROMs if seeding database. |
 
 ---
 
-## 3. O Shell de Depuração (Monitor Interativo)
+## 3. Interactive Developer Shell / CLI Monitor
 
-Ao iniciar com `--no-window`, o prompt exibirá o endereço atual do Program Counter (`PC`):
+When starting with `--no-window`, the shell prompt displays the current CPU Program Counter (`PC`):
 ```text
 fMSXgo [0000h]> 
 ```
 
-### Comandos de Controle Primário
-* **`HELP`** (ou `?`): Exibe o sumário com todos os comandos do shell.
-* **`QUIT`** (ou `exit`): Encerra o emulador.
+Command names are always standard English (`HELP`, `QUIT`, `lang`, `r`, `d`, `a`, `t`, etc.), while descriptions and prompts adapt to the active UI language.
 
-### Comandos de Registradores
-* **`r`** (ou `regs`): Exibe todos os registradores principais (`AF`, `BC`, `DE`, `HL`), sombras (`AF'`, `BC'`, `DE'`, `HL'`), registradores de índice (`IX`, `IY`), pilha (`SP`), `PC`, `I`, `R`, modo de interrupção (`IM`), flags individuais (`[SZ5H3PNC]`) e a instrução desmontada no endereço do PC.
-* **`r <reg> <val>`**: Altera o registrador especificado para o valor hexadecimal fornecido:
+### Main Control Commands
+* **`HELP`** (or `?`): Display the command summary and description in the active language.
+* **`QUIT`** (or `EXIT`, `q`): Exit fMSXgo.
+* **`lang`**: Display current language and list supported language codes.
+* **`lang <code>`**: Switch UI language to `en`, `pt`, `es`, `nl`, `fr`, or `ja`. Persists to `fmsxgo.db`.
+* **`cls`** (or `clear`): Clear terminal screen.
+
+### CPU & Register Commands
+* **`r`** (or `regs`): Display all main registers (`AF`, `BC`, `DE`, `HL`), alternate registers (`AF'`, `BC'`, `DE'`, `HL'`), index registers (`IX`, `IY`), stack pointer (`SP`), `PC`, `I`, `R`, interrupt mode (`IM`), individual condition flags (`[SZ5H3PNC]`), and disassembles the pending instruction at `PC`.
+* **`r <reg> <val>`**: Modify a register's value (hexadecimal):
   ```text
   fMSXgo [0000h]> r a 42h
   fMSXgo [0000h]> r pc C000h
   fMSXgo [C000h]> r sp F000h
   ```
 
-### Inspeção e Edição de Memória
-* **`d [addr] [len]`**: Exibe um *hexdump* com caracteres ASCII da memória. Se o endereço for omitido, continua de onde parou no último dump:
+### Memory Inspection & Editing
+* **`d [addr] [len]`**: Hexdump and ASCII display of memory. If address is omitted, continues from the last inspected location:
   ```text
   fMSXgo [0000h]> d 0000 20
   0000:  F3 C3 16 04 BF 1B 98 98 C3 83 26 00 C3 F5 01 00  |..........&.....|
   0010:  C3 86 26 00 C3 25 02 00 C3 45 1B 00 C3 17 02 00  |..&..%...E......|
   ```
-* **`e <addr> <b0> [b1 b2 ...]`**: Escreve bytes em hexadecimal diretamente na memória especificada:
+* **`e <addr> <b0> [b1 b2 ...]`**: Write raw hexadecimal bytes into memory:
   ```text
   fMSXgo [0000h]> e C000 3E 42 76
   Wrote 3 bytes starting at C000h
   ```
 
-### Desmontagem de Código (Disassembler)
-* **`u [addr] [count]`**: Desmonta `count` instruções a partir do endereço indicado (padrão: 10 instruções):
+### Disassembly
+* **`u [addr] [count]`**: Disassemble `count` instructions starting from `addr` (default: 10):
   ```text
   fMSXgo [C000h]> u C000 3
   => C000:  3E 42         LD A, 42h
@@ -107,9 +123,9 @@ fMSXgo [0000h]>
      C003:  00            NOP
   ```
 
-### Mini-Assembler Interativo Embutido
-O fMSXgo possui um montador Z80 integrado!
-* **Montagem Interativa**: Digite `a <addr>` para entrar no modo de edição linha a linha. Para sair, pressione `Enter` em uma linha vazia:
+### Built-in Interactive Mini-Assembler
+fMSXgo includes an integrated Z80 assembler!
+* **Interactive Mode**: Type `a <addr>` to enter line-by-line assembly mode. Press `Enter` on an empty line to exit:
   ```text
   fMSXgo [0000h]> a C000
   Entering Mini-Assembler at C000h (press Enter on empty line to exit):
@@ -120,56 +136,56 @@ O fMSXgo possui um montador Z80 integrado!
   C006: [Enter]
   Exited Mini-Assembler.
   ```
-* **Montagem em Linha Única**: Digite `a <addr> <instrução>`:
+* **Single-Line Mode**: Type `a <addr> <instruction>`:
   ```text
   fMSXgo [0000h]> a C000 LD A, 0xFF
   Assembled 2 bytes at C000h
   ```
 
-### Execução e Passo a Passo (Debugging)
-* **`t [n]`**: Executa passo a passo (*step-in*) `n` instruções (padrão: 1), exibindo o mnemônico executado e os registradores a cada passo.
-* **`p`**: Executa passo sobre (*step-over*), tratando chamadas a sub-rotinas (`CALL`, `RST`, `DJNZ`) como uma única instrução atômica sem entrar no corpo da função.
-* **`g [addr]`**: Inicia a execução contínua da máquina a partir de `addr` (ou do PC atual) até atingir um breakpoint ou comando `HALT`.
-* **`bp`**: Gerencia pontos de parada (*breakpoints*):
-  * `bp`: Lista breakpoints ativos.
-  * `bp add <addr>`: Adiciona um breakpoint no endereço.
-  * `bp del <addr>`: Remove o breakpoint do endereço.
-  * `bp clear`: Remove todos os breakpoints ativos.
+### Stepping & Debugging
+* **`t [n]`**: Trace / step-in `n` instructions (default: 1). Shows the executed mnemonic and register delta at each step.
+* **`p`**: Step-over (`CALL`, `RST`, `DJNZ`), treating subroutines as atomic blocks.
+* **`g [addr]`**: Continuous execution from `addr` (or current `PC`) until a breakpoint or `HALT`.
+* **`bp`**: Manage breakpoints:
+  * `bp`: List all active breakpoints.
+  * `bp add <addr>`: Add breakpoint at address.
+  * `bp del <addr>`: Delete breakpoint at address.
+  * `bp clear`: Clear all breakpoints.
 
-### Barramento MSX & Hardware
-* **`slots`**: Exibe um relatório detalhado do estado do Primary Slot Register (`A8h`), Secondary Slot Registers (`FFFFh`) e a quais slots/subslots cada uma das 4 páginas da Z80 está mapeada.
-* **`mapper`**: Inspeciona as páginas do RAM Mapper e as portas de chaveamento `0xFC`..`0xFF`.
-* **`in <porta>`**: Lê um byte de uma porta I/O (ex: `in 98` para VRAM, `in A8` para slots).
-* **`out <porta> <val>`**: Escreve um byte em uma porta I/O (ex: `out A8 F0`).
-* **`info`**: Exibe dados da configuração da máquina ativa.
-* **`reset`**: Reinicializa todo o hardware do MSX e zera a CPU.
-
----
-
-## 4. Persistência Centralizada em SQLite (`fmsxgo.db`)
-
-Para evitar a proliferação de arquivos avulsos e pastas de ROMs espalhadas na distribuição para o usuário final, o fMSXgo utiliza um banco de dados **SQLite centralizado (`fmsxgo.db`)**:
-
-* **Tabela `roms`**: Armazena as imagens binárias completas de todas as BIOS (`MSX.ROM`, `MSX2.ROM`, `MSX2EXT.ROM`, `DISK.ROM`, etc.) como campos `BLOB`, com hash SHA-1, nome e tipo de máquina.
-* **Tabela `config`**: Armazena preferências persistentes de hardware, vídeo e caminhos.
-* **Tabela `manuals`**: Armazena os tópicos de ajuda do sistema.
-
-Quando você compila o projeto com `build.ps1`, o banco de dados é automaticamente gerado e populado dentro do diretório `dist/`, tornando a distribuição 100% autônoma.
+### MSX Hardware, Slots & I/O
+* **`slots`**: Detailed report of the Primary Slot Register (`A8h`), Secondary Slot Registers (`FFFFh`), and current slot/subslot routing for all four 16KB Z80 pages.
+* **`mapper`**: Inspect RAM Mapper allocation registers (`0xFC`..`0xFF`) and active banks.
+* **`in <port>`**: Read a byte from an I/O port (hex).
+* **`out <port> <val>`**: Write a byte to an I/O port (hex).
+* **`info`**: Display active machine configuration (Model, Video standard, RAM size).
+* **`reset`**: Reset the MSX hardware bus and zero the CPU.
 
 ---
 
-## 5. Compilação e Distribuição com `build.ps1`
+## 4. Unified SQLite Storage (`fmsxgo.db`)
 
-Para compilar o projeto e gerar o pacote de distribuição:
+To eliminate loose ROM folders and scattered configuration files, fMSXgo stores everything in a single, portable **SQLite database (`fmsxgo.db`)**:
+
+* **`roms` Table**: Stores binary images of all BIOS ROMs (`MSX.ROM`, `MSX2.ROM`, `MSX2EXT.ROM`, `DISK.ROM`, etc.) as `BLOB`s with SHA-1 hashes and machine tags.
+* **`config` Table**: Stores persistent configuration key-value pairs (e.g., active UI language, video standard, default RAM).
+* **`manuals` Table**: Stores embedded help topics and documentation.
+
+When running `build.ps1`, the database is automatically built and populated inside `dist/`, providing a clean, self-contained single-folder distribution.
+
+---
+
+## 5. Automated Build System (`build.ps1`)
+
+To build the project and create the final distribution package:
 
 ```powershell
 .\build.ps1
 ```
 
-O script realizará automaticamente:
-1. Leitura e incremento do número de build no arquivo `version.json`.
-2. Verificação e download de dependências Go (`go mod tidy` / `download`).
-3. Execução da bateria completa de testes unitários (`go test ./...`).
-4. Compilação otimizada do executável em modo 64-bit para a pasta `dist/`.
-5. Inicialização e população do banco SQLite `fmsxgo.db` com todas as ROMs.
-6. Cópia de manuais, documentação e criação de lançadores rápidos (`run-gui.bat` e `run-cli.bat`).
+The script automatically performs:
+1. Reads `version.json` and increments the build number (`Z`).
+2. Runs `go mod tidy` and downloads all Go dependencies.
+3. Executes the full test suite (`go test ./...`).
+4. Compiles the optimized 64-bit binary into `dist/`.
+5. Initializes and seeds `fmsxgo.db` with BIOS ROMs.
+6. Copies documentation and creates convenient batch launchers (`run-gui.bat` and `run-cli.bat`).

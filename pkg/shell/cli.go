@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"fmsxgo/pkg/cpu/z80"
+	"fmsxgo/pkg/i18n"
 	"fmsxgo/pkg/msx"
 )
 
@@ -77,6 +78,9 @@ func (sh *Shell) ExecuteCommand(line string) bool {
 	case "help", "?":
 		sh.cmdHelp()
 
+	case "lang", "language":
+		sh.cmdLang(args)
+
 	case "r", "reg", "regs":
 		if len(args) == 0 {
 			sh.cmdRegs()
@@ -142,12 +146,12 @@ func (sh *Shell) ExecuteCommand(line string) bool {
 
 func (sh *Shell) printBanner() {
 	fmt.Fprintln(sh.Out, "================================================================")
-	fmt.Fprintln(sh.Out, "       fMSXgo - MSX Emulator & Developer / Hacker Console       ")
+	fmt.Fprintf(sh.Out, "       %s\n", i18n.T("cli_welcome"))
 	fmt.Fprintln(sh.Out, "       (C) Marat Fayzullin (fMSX core) | Go Port: Wilson Pilon  ")
 	fmt.Fprintln(sh.Out, "================================================================")
 	fmt.Fprintf(sh.Out, "Model: %s | Video: %s | RAM: %d KB | CPU PC: %04Xh\n",
 		sh.modelName(), sh.videoName(), sh.Machine.Config.RAMPages*16, sh.Machine.CPU.PC)
-	fmt.Fprintln(sh.Out, "Type 'help' for commands, 'a' for mini-assembler, 't' to step.")
+	fmt.Fprintf(sh.Out, "%s\n", i18n.T("cli_help_hint"))
 	fmt.Fprintln(sh.Out, "----------------------------------------------------------------")
 }
 
@@ -171,47 +175,61 @@ func (sh *Shell) videoName() string {
 	return "NTSC (60Hz)"
 }
 
+func (sh *Shell) cmdLang(args []string) {
+	if len(args) == 0 {
+		fmt.Fprintf(sh.Out, "Current UI language: %s (%s)\n", i18n.GetLanguage(), i18n.GetLanguageName())
+		fmt.Fprintln(sh.Out, "Available: en (English), pt (Português), es (Español), nl (Nederlands), fr (Français), ja (Nihongo)")
+		fmt.Fprintln(sh.Out, "Usage: lang <code> (e.g. 'lang pt')")
+		return
+	}
+
+	target := args[0]
+	if i18n.SetLanguage(target) {
+		fmt.Fprintf(sh.Out, "%s %s (%s)\n", i18n.T("cli_lang_changed"), i18n.GetLanguage(), i18n.GetLanguageName())
+		if sh.Machine != nil && sh.Machine.DB != nil {
+			_ = sh.Machine.DB.SetConfig("language", i18n.GetLanguage())
+		}
+	} else {
+		fmt.Fprintf(sh.Out, "Unknown language code: %s. Supported: en, pt, es, nl, fr, ja\n", target)
+	}
+}
+
 func (sh *Shell) cmdHelp() {
-	helpText := `
-fMSXgo CLI Commands:
------------------------------------------------------------------
-Main Controls:
-  HELP                      Display this command summary and help
-  QUIT / EXIT               Exit fMSXgo
-
-Registers & CPU:
-  r                         View all registers, flags, and instruction at PC
-  r <reg> <val>             Set register value (e.g. 'r a 0xFF', 'r pc 0xC000')
-
-Memory Inspection & Editing:
-  d [addr] [len]            Hexdump and ASCII memory display (default 64 bytes)
-  e <addr> <b0> [b1...]     Enter raw hex bytes into memory (e.g. 'e C000 3E 42')
-
-Disassembly & Assembly:
-  u [addr] [count]          Disassemble instructions (default 10)
-  a <addr>                  Enter interactive line-by-line mini-assembler mode
-  a <addr> <instruction>    Assemble a single instruction into memory
-
-Execution & Debugging:
-  t [n]                     Trace / step n instructions (default 1)
-  p                         Step over (CALL/RST/DJNZ)
-  g [addr]                  Run execution until breakpoint or halt
-  bp                        List active breakpoints
-  bp add <addr>             Add breakpoint at address
-  bp del <addr>             Delete breakpoint at address
-  bp clear                  Remove all breakpoints
-
-MSX Hardware & Slots:
-  slots                     Inspect primary/secondary slot allocations & pages
-  mapper                    Inspect RAM mapper state & bank allocations
-  in <port>                 Read byte from I/O port (hex)
-  out <port> <val>          Write byte to I/O port (hex)
-  info                      Display machine hardware configuration
-  reset                     Reset CPU and MSX hardware
-  cls                       Clear console screen
-  quit / exit               Exit fMSXgo
-`
-	fmt.Fprint(sh.Out, helpText)
+	fmt.Fprintln(sh.Out)
+	fmt.Fprintf(sh.Out, "=== %s ===\n", i18n.T("cli_welcome"))
+	fmt.Fprintln(sh.Out, "-----------------------------------------------------------------")
+	fmt.Fprintf(sh.Out, "%s\n", i18n.T("cli_main_ctrls"))
+	fmt.Fprintf(sh.Out, "  HELP                      %s\n", i18n.T("cli_help_desc"))
+	fmt.Fprintf(sh.Out, "  QUIT / EXIT               %s\n", i18n.T("cli_quit_desc"))
+	fmt.Fprintf(sh.Out, "  lang [code]               %s\n", i18n.T("cli_lang_desc"))
+	fmt.Fprintln(sh.Out)
+	fmt.Fprintln(sh.Out, "Registers & CPU:")
+	fmt.Fprintf(sh.Out, "  r                         %s\n", i18n.T("cli_regs_desc"))
+	fmt.Fprintf(sh.Out, "  r <reg> <val>             %s\n", i18n.T("cli_setreg_desc"))
+	fmt.Fprintln(sh.Out)
+	fmt.Fprintln(sh.Out, "Memory Inspection & Editing:")
+	fmt.Fprintf(sh.Out, "  d [addr] [len]            %s\n", i18n.T("cli_dump_desc"))
+	fmt.Fprintf(sh.Out, "  e <addr> <b0> [b1...]     %s\n", i18n.T("cli_enter_desc"))
+	fmt.Fprintln(sh.Out)
+	fmt.Fprintln(sh.Out, "Disassembly & Assembly:")
+	fmt.Fprintf(sh.Out, "  u [addr] [count]          %s\n", i18n.T("cli_dasm_desc"))
+	fmt.Fprintf(sh.Out, "  a <addr>                  %s\n", i18n.T("cli_asm_desc"))
+	fmt.Fprintln(sh.Out)
+	fmt.Fprintln(sh.Out, "Execution & Debugging:")
+	fmt.Fprintf(sh.Out, "  t [n]                     %s\n", i18n.T("cli_step_desc"))
+	fmt.Fprintf(sh.Out, "  p                         %s\n", i18n.T("cli_next_desc"))
+	fmt.Fprintf(sh.Out, "  g [addr]                  %s\n", i18n.T("cli_run_desc"))
+	fmt.Fprintf(sh.Out, "  bp                        %s\n", i18n.T("cli_bp_desc"))
+	fmt.Fprintln(sh.Out)
+	fmt.Fprintln(sh.Out, "MSX Hardware & Slots:")
+	fmt.Fprintf(sh.Out, "  slots                     %s\n", i18n.T("cli_slots_desc"))
+	fmt.Fprintf(sh.Out, "  mapper                    %s\n", i18n.T("cli_mapper_desc"))
+	fmt.Fprintf(sh.Out, "  in <port>                 %s\n", i18n.T("cli_in_desc"))
+	fmt.Fprintf(sh.Out, "  out <port> <val>          %s\n", i18n.T("cli_out_desc"))
+	fmt.Fprintf(sh.Out, "  info                      %s\n", i18n.T("cli_info_desc"))
+	fmt.Fprintf(sh.Out, "  reset                     %s\n", i18n.T("cli_reset_desc"))
+	fmt.Fprintf(sh.Out, "  cls                       %s\n", i18n.T("cli_cls_desc"))
+	fmt.Fprintln(sh.Out)
 }
 
 func (sh *Shell) cmdRegs() {
