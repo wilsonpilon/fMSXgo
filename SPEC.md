@@ -109,25 +109,44 @@ fMSXgo follows the strict semantic versioning format: **`V X.Y.Z`**
 
 ---
 
-### Phase 2: VDP Video Processor (TMS9918 / V9938 / V9958) [NEXT UP]
-- [ ] VDP control registers (0..63) and status registers (0..15).
-- [ ] VRAM allocation: 128KB video memory and page buffers.
-- [ ] Scanline-by-scanline rendering engine (`RefreshLine0` to `RefreshLine12`):
-  - [ ] SCREEN 0: Text 40 and 80 columns, color attributes, and blink.
-  - [ ] SCREEN 1 and 2: Graphic modes for MSX1.
-  - [ ] SCREEN 3: Multicolor mode.
-  - [ ] SCREEN 4, 5, 6, 7, 8: MSX2 bitmap graphic modes with RGB palette.
-  - [ ] SCREEN 10, 11, 12: MSX2+ YJK/YAE graphic modes.
-- [ ] Sprite Generation Engine:
-  - [ ] Mode 1 Sprites (TMS9918: 32 sprites, 4 per scanline, collision detection).
-  - [ ] Mode 2 Sprites (V9938/V9958: 32 sprites, 8 per scanline, multi-color per line, CC attribute, priority).
-- [ ] Hardware Accelerated VDP Commands:
-  - [ ] `HMMC`, `LMMC`, `LINE`, `HMMM`, `YMMM`, `LMMM`, `LMMV`, `HMMV`, `PSET`, `POINT`, `SRCH`.
-- [ ] Vertical and horizontal sync: IE0 (VBlank) and IE1 (Line coincidence) interrupts.
+### Phase 2: VDP Video Processor (TMS9918 / V9938 / V9958) [COMPLETED - 100%]
+- [x] **VDP Architecture & Register Bank** (`pkg/vdp/vdp.go`):
+  - [x] Full 64 control registers (R#0..R#63) and 16 status registers (S#0..S#15).
+  - [x] 128KB VRAM allocation with page selection (`VRAMPages`, `VPAGE`) and rollover support.
+  - [x] Dynamic mode switching and table mask computation (`ChrTab`, `ChrGen`, `ColTab`, `SprTab`, `SprGen`).
+  - [x] I/O Ports: 0x98 (VRAM Data with prefetch), 0x99 (Control/Address Latch & Status), 0x9A (Palette Latch), 0x9B (Indirect Register Access).
+- [x] **Palette Subsystem** (`pkg/vdp/palette.go`):
+  - [x] TMS9918 fixed 16-color reference palette.
+  - [x] V9938 programmable 16-color palette (3:3:3 RGB converted to 32-bit RGBA).
+  - [x] Screen 8 fast lookup table (256-color RGB 3:3:2).
+- [x] **Scanline-by-Scanline Rendering Engine** (`pkg/vdp/render.go`):
+  - [x] Overscan border rendering with `HAdjust` and `VAdjust`.
+  - [x] SCREEN 0: Text 40x24 (6 pixels/char) and Text 80x24.
+  - [x] SCREEN 1: Text 32x24 with color table attributes.
+  - [x] SCREEN 2: Graphics 1 (256x192 3-bank tile mode with 8-pixel row color attributes).
+  - [x] SCREEN 3: Multicolor mode (64x48 blocks).
+  - [x] SCREEN 4: MSX2 Graphics 2 mode.
+  - [x] SCREEN 5: 256x192 16-color bitmap (4bpp).
+  - [x] SCREEN 6: 512x192 4-color bitmap (2bpp).
+  - [x] SCREEN 7: 512x192 16-color bitmap (4bpp).
+  - [x] SCREEN 8: 256x192 256-color bitmap (8bpp RGB 3:3:2).
+- [x] **Sprite Generation & Collision Engine** (`pkg/vdp/sprites.go`):
+  - [x] Mode 1 Sprites: 32 sprites, 4 per line max, 8x8 and 16x16, zoom 2x, 5th sprite flag, collision detection.
+  - [x] Mode 2 Sprites: 32 sprites, 8 per line max, per-line color table, CC (Color Compare) OR-combination, 9th sprite flag.
+- [x] **Hardware Accelerated VDP Commands** (`pkg/vdp/commands.go`):
+  - [x] `HMMC`, `LMMC`, `LINE`, `HMMM`, `YMMM`, `LMMM`, `LMMV`, `HMMV`, `PSET`, `POINT`, `SRCH` with all 8 logical operators.
+- [x] **Vertical and Horizontal Sync Timing & Interrupts** (`pkg/msx/machine.go`):
+  - [x] ~228 CPU cycles per scanline (262 lines NTSC, 313 lines PAL).
+  - [x] VBlank interrupt IE0 (sets bit 7 in Status 0, triggers Z80 maskable IRQ if enabled).
+  - [x] Line coincidence interrupt IE1 (R#19, bit 0 in Status 1).
+- [x] **Live Graphical Workstation Display & Keyboard Matrix** (`pkg/ui/gui.go`):
+  - [x] Real-time 2x integer scaled rendering in Ebitengine window (544x456 centered).
+  - [x] Full PC-to-MSX keyboard matrix mapping (typing directly into MSX-BASIC).
+  - [x] Hotkey `F11` and top-right menu badge to toggle between Live MSX Screen and Developer Debug Overlay.
 
 ---
 
-### Phase 3: Audio Subsystem [PENDING]
+### Phase 3: Audio Subsystem [NEXT UP]
 - [ ] **AY-3-8910 / YM2149 (PSG)**: 3 square-wave channels, pseudo-random noise generator, envelope generator, and joystick ports.
 - [ ] **Yamaha YM2413 (OPLL / MSX-MUSIC)**: 9-channel FM synthesizer (or 6 melody + 5 rhythm channels).
 - [ ] **Konami SCC / SCC+**: 5-channel custom wavetable synthesizer.
@@ -176,7 +195,12 @@ Every official fMSX parameter (`-verbose`, `-msx1/-msx2`, `-diska/-diskb`, `-rom
 ## 4. Progress Tracking & Next Direct Steps
 
 * **Where we are**:
-  - Phase 1, Phase 1.5, Setup/Catalog CRUD, and Typography subsystems are **100% complete**: Z80 core, MSX bus, slot architecture, RAM mapper, SQLite single-file persistence, Setup ROM & Hardware Catalog CRUD with execution guarantees, 5-language i18n subsystem, 11 modern themes, TrueType vector typography with zero OS installation, graphical menus with setup dialogs, 100% faithful fMSX command line mirror, and interactive CLI developer shell.
+  - Phase 1, Phase 1.5, Phase 2 (VDP), Setup/Catalog CRUD, and Typography subsystems are **100% complete**:
+    - Z80 core, MSX bus, slot architecture, RAM mapper, SQLite single-file persistence.
+    - TMS9918A / V9938 VDP with 128KB VRAM, 64 control regs, 16 status regs, ports 0x98..0x9B.
+    - Scanline renderers for SCREEN 0..8, 10, 12, border overscan, Mode 1 and Mode 2 sprites with collision.
+    - V9938 hardware blitter commands (HMMM, LMMM, LINE, PSET, etc.).
+    - Live 2x scaled MSX video display in graphical window with F11 debug overlay toggle and full keyboard matrix input.
 * **Immediate Next Step**:
-  - Begin **Phase 2 (VDP Video Processor)**: Implement TMS9918/V9938 registers, VRAM bus access, and character/bitmap scanline renderers to display live MSX output in the graphical window.
+  - Begin **Phase 3 (Audio Subsystem)**: Implement PSG (AY-3-8910 / YM2149), Konami SCC, Yamaha YM2413 OPLL FM sound, and audio mixer streamed to Ebitengine audio driver.
 

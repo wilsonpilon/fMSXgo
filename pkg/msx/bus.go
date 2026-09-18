@@ -2,6 +2,7 @@ package msx
 
 import (
 	"fmsxgo/pkg/cpu/z80"
+	"fmsxgo/pkg/vdp"
 )
 
 // MSXBus implements the z80.Bus interface for the MSX architecture.
@@ -10,6 +11,7 @@ type MSXBus struct {
 	Mapper    *RAMMapper
 	CartA     *Cartridge
 	CartB     *Cartridge
+	VDP       *vdp.VDP
 
 	// PPI 8255 state
 	KeyMatrix  [16]uint8 // Keyboard matrix rows 0..15
@@ -19,13 +21,6 @@ type MSXBus struct {
 	// PSG state stub
 	PSGLatch uint8
 	PSGRegs  [16]uint8
-
-	// VDP state stub
-	VDPData   uint8
-	VDPStatus [16]uint8
-	VDPRegs   [64]uint8
-	VDPAddr   uint16
-	VDPKey    bool
 
 	// RTC state stub
 	RTCReg uint8
@@ -38,11 +33,12 @@ type MSXBus struct {
 // Ensure MSXBus implements z80.Bus
 var _ z80.Bus = (*MSXBus)(nil)
 
-// NewMSXBus creates an MSXBus wired with SlotBus and RAMMapper.
-func NewMSXBus(slots *SlotBus, mapper *RAMMapper) *MSXBus {
+// NewMSXBus creates an MSXBus wired with SlotBus, RAMMapper, and VDP.
+func NewMSXBus(slots *SlotBus, mapper *RAMMapper, vdpInst *vdp.VDP) *MSXBus {
 	bus := &MSXBus{
 		Slots:  slots,
 		Mapper: mapper,
+		VDP:    vdpInst,
 	}
 	// Default all keyboard matrix rows to 0xFF (no key pressed)
 	for i := range bus.KeyMatrix {
@@ -136,15 +132,15 @@ func (b *MSXBus) In(port uint16) uint8 {
 
 	// VDP ports
 	case 0x98: // VRAM read
-		return b.VDPData
-	case 0x99: // VDP status register
-		statusReg := b.VDPRegs[15] & 0x0F
-		val := b.VDPStatus[statusReg]
-		// Reading status 0 clears VBlank interrupt
-		if statusReg == 0 {
-			b.VDPStatus[0] &^= 0x80
+		if b.VDP != nil {
+			return b.VDP.ReadData()
 		}
-		return val
+		return 0xFF
+	case 0x99: // VDP status register
+		if b.VDP != nil {
+			return b.VDP.ReadStatus()
+		}
+		return 0xFF
 
 	// PSG
 	case 0xA2: // PSG data read
@@ -213,19 +209,20 @@ func (b *MSXBus) Out(port uint16, val uint8) {
 
 	// VDP ports
 	case 0x98: // VRAM data write
-		b.VDPData = val
+		if b.VDP != nil {
+			b.VDP.WriteData(val)
+		}
 	case 0x99: // VDP control register
-		if !b.VDPKey {
-			b.VDPAddr = (b.VDPAddr & 0xFF00) | uint16(val)
-			b.VDPKey = true
-		} else {
-			b.VDPKey = false
-			if (val & 0x80) != 0 {
-				reg := val & 0x3F
-				b.VDPRegs[reg] = uint8(b.VDPAddr)
-			} else {
-				b.VDPAddr = ((uint16(val) & 0x3F) << 8) | (b.VDPAddr & 0x00FF)
-			}
+		if b.VDP != nil {
+			b.VDP.WriteControl(val)
+		}
+	case 0x9A: // VDP palette latch
+		if b.VDP != nil {
+			b.VDP.WritePalette(val)
+		}
+	case 0x9B: // VDP indirect register access
+		if b.VDP != nil {
+			b.VDP.WriteRegisterDirect(val)
 		}
 
 	// RTC

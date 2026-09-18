@@ -6,6 +6,7 @@ import (
 
 	"fmsxgo/pkg/cpu/z80"
 	"fmsxgo/pkg/storage"
+	"fmsxgo/pkg/vdp"
 )
 
 // Hardware models
@@ -78,6 +79,7 @@ type Machine struct {
 	Slots  *SlotBus
 	Mapper *RAMMapper
 	Bus    *MSXBus
+	VDP    *vdp.VDP
 	ROMs   *ROMManager
 	DB     *storage.DB
 
@@ -97,7 +99,8 @@ func NewMachine(cfg Config) (*Machine, error) {
 
 	slots := NewSlotBus()
 	mapper := NewRAMMapper(cfg.RAMPages)
-	bus := NewMSXBus(slots, mapper)
+	vdpInst := vdp.New(cfg.Model, cfg.VRAMPages)
+	bus := NewMSXBus(slots, mapper, vdpInst)
 	cpu := z80.New()
 
 	extraPaths := []string{}
@@ -112,6 +115,7 @@ func NewMachine(cfg Config) (*Machine, error) {
 		Slots:  slots,
 		Mapper: mapper,
 		Bus:    bus,
+		VDP:    vdpInst,
 		ROMs:   romMgr,
 		DB:     cfg.DB,
 		FDD: [2]*FloppyDrive{
@@ -263,6 +267,9 @@ func (m *Machine) LoadCartridge(slot int, path string) error {
 // Reset resets the MSX CPU and hardware registers to power-on state.
 func (m *Machine) Reset() {
 	m.CPU.Reset()
+	if m.VDP != nil {
+		m.VDP.Reset()
+	}
 	// Default MSX slot setup:
 	// Page 0 (0000h..3FFFh): Slot 0 (Main BIOS)
 	// Page 1 (4000h..7FFFh): Slot 0 (Main BASIC)
@@ -288,4 +295,91 @@ func (m *Machine) Run(targetCycles int) int {
 		elapsed += c
 	}
 	return elapsed
+}
+
+// StepScanline executes ~228 CPU cycles corresponding to one scanline,
+// renders the line in VDP, and dispatches VDP interrupts (IE0/IE1).
+func (m *Machine) StepScanline() int {
+	const cyclesPerLine = 228
+	elapsed := 0
+
+	for elapsed < cyclesPerLine {
+		if m.CPU.Halted {
+			// When halted, CPU waits for interrupt, consume 4 cycles per tick
+			elapsed += 4
+		} else {
+			c := m.CPU.Step(m.Bus)
+			elapsed += c
+		}
+	}
+
+	if m.VDP == nil {
+		return elapsed
+	}
+
+	// 1. Advance scanline
+	line := m.VDP.ScanLine
+	m.VDP.RenderScanline(line)
+
+	// 2. Line coincidence check (IE1)
+	if line == int(m.VDP.Regs[19]) {
+		m.VDP.Status[1] |= 0x01
+		if (m.VDP.Regs[0] & 0x10) != 0 {
+			m.VDP.IRQPending |= 0x02
+		}
+	}
+
+	// 3. VBlank check (IE0) at end of visible screen
+	visLines := 192
+	firstLine := 18 + m.VDP.VAdjust()
+	if m.VDP.ScanLines212() {
+		visLines = 212
+		firstLine = 8 + m.VDP.VAdjust()
+	}
+	vblankLine := firstLine + visLines
+
+	if line == vblankLine {
+		m.VDP.Status[0] |= 0x80
+		if (m.VDP.Regs[1] & 0x20) != 0 {
+			m.VDP.IRQPending |= 0x01
+		}
+		if m.VDP.CheckSprites() {
+			m.VDP.Status[0] |= 0x20
+		}
+	}
+
+	// 4. Dispatch interrupt if pending
+	if m.VDP.InterruptPending() {
+		m.CPU.Interrupt(m.Bus, 0x0038)
+	}
+
+	// Advance to next line
+	m.VDP.ScanLine++
+	if m.VDP.ScanLine >= m.VDP.TotalLines {
+		m.VDP.ScanLine = 0
+	}
+
+	return elapsed
+}
+
+// StepFrame executes all scanlines of a video frame (262 lines NTSC / 313 lines PAL).
+func (m *Machine) StepFrame() int {
+	totalLines := 262
+	if m.VDP != nil && m.VDP.TotalLines > 0 {
+		totalLines = m.VDP.TotalLines
+	}
+
+	cycles := 0
+	for i := 0; i < totalLines; i++ {
+		cycles += m.StepScanline()
+	}
+	return cycles
+}
+
+// GetFrameBuffer returns the 32-bit RGBA pixel slice of the rendered MSX screen.
+func (m *Machine) GetFrameBuffer() []byte {
+	if m.VDP == nil {
+		return nil
+	}
+	return m.VDP.FrameBuffer[:]
 }

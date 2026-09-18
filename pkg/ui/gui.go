@@ -14,6 +14,7 @@ import (
 	"fmsxgo/pkg/shell"
 	"fmsxgo/pkg/ui/font"
 	"fmsxgo/pkg/ui/theme"
+	"fmsxgo/pkg/vdp"
 )
 
 const (
@@ -25,6 +26,11 @@ const (
 // UI represents the graphical interface for fMSXgo.
 type UI struct {
 	Machine *msx.Machine
+
+	// Live MSX Video & Display Mode
+	msxScreenImg    *ebiten.Image
+	DisplayMode     int  // 0 = MSX Video Display (default), 1 = Debug Status Overlay
+	EmulationPaused bool // Pause CPU/frame execution
 
 	// Modal and menu state
 	ActiveMenu  string // "File", "Setup", "Help", or ""
@@ -52,7 +58,9 @@ type UI struct {
 // New creates a new UI instance.
 func New(machine *msx.Machine) *UI {
 	ui := &UI{
-		Machine: machine,
+		Machine:      machine,
+		msxScreenImg: ebiten.NewImage(vdp.DisplayWidth, vdp.DisplayHeight),
+		DisplayMode:  0,
 	}
 
 	ui.ApplyTheme()
@@ -133,6 +141,12 @@ func (u *UI) Update() error {
 		return ebiten.Termination
 	}
 
+	// F11 toggles Display Mode between MSX Screen (0) and Debug Status Overlay (1)
+	if inpututil.IsKeyJustPressed(ebiten.KeyF11) {
+		u.DisplayMode = 1 - u.DisplayMode
+		return nil
+	}
+
 	// Escape key handling
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
 		if u.ShowCatalog {
@@ -158,6 +172,16 @@ func (u *UI) Update() error {
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		mx, my := ebiten.CursorPosition()
 		u.handleClick(mx, my)
+	}
+
+	// Advance MSX emulation frame if not paused
+	if u.Machine != nil && !u.EmulationPaused {
+		u.updateKeyboard()
+		u.Machine.StepFrame()
+		fb := u.Machine.GetFrameBuffer()
+		if fb != nil && u.msxScreenImg != nil {
+			u.msxScreenImg.WritePixels(fb)
+		}
 	}
 
 	return nil
@@ -204,6 +228,10 @@ func (u *UI) handleClick(x, y int) {
 			} else {
 				u.ActiveMenu = "Help"
 			}
+			return
+		} else if x >= WindowWidth-170 && x <= WindowWidth-10 {
+			u.DisplayMode = 1 - u.DisplayMode
+			u.ActiveMenu = ""
 			return
 		} else {
 			u.ActiveMenu = ""
@@ -343,8 +371,16 @@ func (u *UI) Draw(screen *ebiten.Image) {
 	screenOp.GeoM.Translate(0, MenuBarH)
 	screen.DrawImage(u.screenBg, screenOp)
 
-	// Draw Machine Status Overlay in screen area
-	u.drawStatus(screen)
+	if u.DisplayMode == 0 && u.msxScreenImg != nil {
+		// Draw Live MSX Screen at 2x integer scale centered
+		msxOp := &ebiten.DrawImageOptions{}
+		msxOp.GeoM.Scale(2, 2)
+		msxOp.GeoM.Translate(48, MenuBarH)
+		screen.DrawImage(u.msxScreenImg, msxOp)
+	} else {
+		// Draw Machine Status / Developer Debug Overlay
+		u.drawStatus(screen)
+	}
 
 	// 2. Draw Top Menu Bar
 	barOp := &ebiten.DrawImageOptions{}
@@ -354,6 +390,13 @@ func (u *UI) Draw(screen *ebiten.Image) {
 	font.DrawBold(screen, i18n.T("menu_file"), 16, 5, 13, eff.MenuBarText)
 	font.DrawBold(screen, i18n.T("menu_setup"), 76, 5, 13, eff.MenuBarText)
 	font.DrawBold(screen, i18n.T("menu_help"), 156, 5, 13, eff.MenuBarText)
+
+	// Display mode badge on the right
+	badgeText := "[ F11: Screen ]"
+	if u.DisplayMode == 1 {
+		badgeText = "[ F11: Debug ]"
+	}
+	font.DrawCode(screen, badgeText, WindowWidth-145, 5, 12, eff.AccentColor)
 
 	// 3. Draw Active Dropdown Menu
 	if u.ActiveMenu == "File" {
@@ -443,6 +486,115 @@ func (u *UI) drawStatus(screen *ebiten.Image) {
 	font.Draw(screen, i18n.T("lbl_tip_about"), 80, 346, 12, eff.StatusLabel)
 	font.Draw(screen, " - Open 'Setup -> Configuration...' to choose Language, Theme & Font.", 80, 366, 12, eff.StatusLabel)
 	font.Draw(screen, i18n.T("lbl_tip_cli"), 80, 386, 12, eff.StatusLabel)
+	font.DrawBold(screen, " - Press F11 or click top-right badge to toggle Live MSX Screen / Debugger.", 80, 410, 12, eff.AccentColor)
+}
+
+func (u *UI) updateKeyboard() {
+	if u.Machine == nil || u.Machine.Bus == nil {
+		return
+	}
+	// Default all rows to 0xFF (no key pressed, active low)
+	for r := 0; r < 16; r++ {
+		u.Machine.Bus.KeyMatrix[r] = 0xFF
+	}
+
+	// Don't capture keys if modal dialogs are open
+	if u.ShowConfig || u.ShowCatalog || u.ShowAbout {
+		return
+	}
+
+	press := func(row int, bit int) {
+		u.Machine.Bus.KeyMatrix[row] &^= (1 << bit)
+	}
+
+	// Row 0: 7, 6, 5, 4, 3, 2, 1, 0
+	if ebiten.IsKeyPressed(ebiten.Key0) { press(0, 0) }
+	if ebiten.IsKeyPressed(ebiten.Key1) { press(0, 1) }
+	if ebiten.IsKeyPressed(ebiten.Key2) { press(0, 2) }
+	if ebiten.IsKeyPressed(ebiten.Key3) { press(0, 3) }
+	if ebiten.IsKeyPressed(ebiten.Key4) { press(0, 4) }
+	if ebiten.IsKeyPressed(ebiten.Key5) { press(0, 5) }
+	if ebiten.IsKeyPressed(ebiten.Key6) { press(0, 6) }
+	if ebiten.IsKeyPressed(ebiten.Key7) { press(0, 7) }
+
+	// Row 1: ;, ], [, \, =, -, 9, 8
+	if ebiten.IsKeyPressed(ebiten.Key8) { press(1, 0) }
+	if ebiten.IsKeyPressed(ebiten.Key9) { press(1, 1) }
+	if ebiten.IsKeyPressed(ebiten.KeyMinus) { press(1, 2) }
+	if ebiten.IsKeyPressed(ebiten.KeyEqual) { press(1, 3) }
+	if ebiten.IsKeyPressed(ebiten.KeyBackslash) { press(1, 4) }
+	if ebiten.IsKeyPressed(ebiten.KeyBracketLeft) { press(1, 5) }
+	if ebiten.IsKeyPressed(ebiten.KeyBracketRight) { press(1, 6) }
+	if ebiten.IsKeyPressed(ebiten.KeySemicolon) { press(1, 7) }
+
+	// Row 2: B, A, accent, /, ., ,, `, '
+	if ebiten.IsKeyPressed(ebiten.KeyQuote) { press(2, 0) }
+	if ebiten.IsKeyPressed(ebiten.KeyBackquote) { press(2, 1) }
+	if ebiten.IsKeyPressed(ebiten.KeyComma) { press(2, 2) }
+	if ebiten.IsKeyPressed(ebiten.KeyPeriod) { press(2, 3) }
+	if ebiten.IsKeyPressed(ebiten.KeySlash) { press(2, 4) }
+	if ebiten.IsKeyPressed(ebiten.KeyA) { press(2, 6) }
+	if ebiten.IsKeyPressed(ebiten.KeyB) { press(2, 7) }
+
+	// Row 3: J, I, H, G, F, E, D, C
+	if ebiten.IsKeyPressed(ebiten.KeyC) { press(3, 0) }
+	if ebiten.IsKeyPressed(ebiten.KeyD) { press(3, 1) }
+	if ebiten.IsKeyPressed(ebiten.KeyE) { press(3, 2) }
+	if ebiten.IsKeyPressed(ebiten.KeyF) { press(3, 3) }
+	if ebiten.IsKeyPressed(ebiten.KeyG) { press(3, 4) }
+	if ebiten.IsKeyPressed(ebiten.KeyH) { press(3, 5) }
+	if ebiten.IsKeyPressed(ebiten.KeyI) { press(3, 6) }
+	if ebiten.IsKeyPressed(ebiten.KeyJ) { press(3, 7) }
+
+	// Row 4: R, Q, P, O, N, M, L, K
+	if ebiten.IsKeyPressed(ebiten.KeyK) { press(4, 0) }
+	if ebiten.IsKeyPressed(ebiten.KeyL) { press(4, 1) }
+	if ebiten.IsKeyPressed(ebiten.KeyM) { press(4, 2) }
+	if ebiten.IsKeyPressed(ebiten.KeyN) { press(4, 3) }
+	if ebiten.IsKeyPressed(ebiten.KeyO) { press(4, 4) }
+	if ebiten.IsKeyPressed(ebiten.KeyP) { press(4, 5) }
+	if ebiten.IsKeyPressed(ebiten.KeyQ) { press(4, 6) }
+	if ebiten.IsKeyPressed(ebiten.KeyR) { press(4, 7) }
+
+	// Row 5: Z, Y, X, W, V, U, T, S
+	if ebiten.IsKeyPressed(ebiten.KeyS) { press(5, 0) }
+	if ebiten.IsKeyPressed(ebiten.KeyT) { press(5, 1) }
+	if ebiten.IsKeyPressed(ebiten.KeyU) { press(5, 2) }
+	if ebiten.IsKeyPressed(ebiten.KeyV) { press(5, 3) }
+	if ebiten.IsKeyPressed(ebiten.KeyW) { press(5, 4) }
+	if ebiten.IsKeyPressed(ebiten.KeyX) { press(5, 5) }
+	if ebiten.IsKeyPressed(ebiten.KeyY) { press(5, 6) }
+	if ebiten.IsKeyPressed(ebiten.KeyZ) { press(5, 7) }
+
+	// Row 6: F3, F2, F1, CODE, CAPS, GRAPH, CTRL, SHIFT
+	if ebiten.IsKeyPressed(ebiten.KeyShiftLeft) || ebiten.IsKeyPressed(ebiten.KeyShiftRight) { press(6, 0) }
+	if ebiten.IsKeyPressed(ebiten.KeyControlLeft) || ebiten.IsKeyPressed(ebiten.KeyControlRight) { press(6, 1) }
+	if ebiten.IsKeyPressed(ebiten.KeyAltLeft) { press(6, 2) } // GRAPH
+	if ebiten.IsKeyPressed(ebiten.KeyCapsLock) { press(6, 3) }
+	if ebiten.IsKeyPressed(ebiten.KeyAltRight) { press(6, 4) } // CODE
+	if ebiten.IsKeyPressed(ebiten.KeyF1) { press(6, 5) }
+	if ebiten.IsKeyPressed(ebiten.KeyF2) { press(6, 6) }
+	if ebiten.IsKeyPressed(ebiten.KeyF3) { press(6, 7) }
+
+	// Row 7: RET, SELECT, BS, STOP, TAB, ESC, F5, F4
+	if ebiten.IsKeyPressed(ebiten.KeyF4) { press(7, 0) }
+	if ebiten.IsKeyPressed(ebiten.KeyF5) { press(7, 1) }
+	if ebiten.IsKeyPressed(ebiten.KeyEscape) { press(7, 2) }
+	if ebiten.IsKeyPressed(ebiten.KeyTab) { press(7, 3) }
+	if ebiten.IsKeyPressed(ebiten.KeyPause) { press(7, 4) } // STOP
+	if ebiten.IsKeyPressed(ebiten.KeyBackspace) { press(7, 5) }
+	if ebiten.IsKeyPressed(ebiten.KeyPageDown) { press(7, 6) } // SELECT
+	if ebiten.IsKeyPressed(ebiten.KeyEnter) || ebiten.IsKeyPressed(ebiten.KeyNumpadEnter) { press(7, 7) }
+
+	// Row 8: RIGHT, DOWN, UP, LEFT, DEL, INS, HOME, SPACE
+	if ebiten.IsKeyPressed(ebiten.KeySpace) { press(8, 0) }
+	if ebiten.IsKeyPressed(ebiten.KeyHome) { press(8, 1) }
+	if ebiten.IsKeyPressed(ebiten.KeyInsert) { press(8, 2) }
+	if ebiten.IsKeyPressed(ebiten.KeyDelete) { press(8, 3) }
+	if ebiten.IsKeyPressed(ebiten.KeyArrowLeft) { press(8, 4) }
+	if ebiten.IsKeyPressed(ebiten.KeyArrowUp) { press(8, 5) }
+	if ebiten.IsKeyPressed(ebiten.KeyArrowDown) { press(8, 6) }
+	if ebiten.IsKeyPressed(ebiten.KeyArrowRight) { press(8, 7) }
 }
 
 func (u *UI) drawAboutModal(screen *ebiten.Image) {

@@ -4,6 +4,44 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and version numbers follow the **`V X.Y.Z`** scheme with creative release codenames inspired by **Horror Cinema, MSX Classics, and Heavy Metal**.
 
+## [V 0.3.33] - "Vampire Killer" - 2026-09-17
+
+### Added
+- **Complete VDP Video Processor Subsystem (`pkg/vdp`)**:
+  - Full TMS9918A (MSX1) and V9938 (MSX2) video processor emulation in pure Go.
+  - 128KB Video RAM (VRAM) with 16KB page flipping, address latch sequencing, and automatic address auto-increment.
+  - Complete register set: 64 control registers (`VDP[0..63]`) and 16 status registers (`Status[0..15]`).
+  - MSX I/O Ports:
+    - Port `0x98`: VRAM data access with read-prefetch buffer and auto-increment.
+    - Port `0x99`: Two-stage address latching, register programming, and status reading with interrupt acknowledge.
+    - Port `0x9A`: Two-stage RGB 3:3:3 palette programming.
+    - Port `0x9B`: Indirect register access with auto-increment.
+  - **Scanline-by-Scanline Rendering Engine**:
+    - `SCREEN 0`: Text 40x24 (6 pixels/char) and Text 80x24.
+    - `SCREEN 1`: Text 32x24 with color table attributes.
+    - `SCREEN 2`: Graphics 1 (256x192 tile mode with 8-pixel row color attributes).
+    - `SCREEN 3`: Multicolor mode (64x48 4x4 blocks).
+    - `SCREEN 4`: MSX2 Graphics 2 mode.
+    - `SCREEN 5`: 256x192 16-color bitmap (4bpp, 128 bytes/line).
+    - `SCREEN 6`: 512x192 4-color bitmap (2bpp).
+    - `SCREEN 7`: 512x192 16-color bitmap (4bpp).
+    - `SCREEN 8`: 256x192 256-color bitmap (8bpp RGB 3:3:2).
+    - Overscan borders with `HAdjust` and `VAdjust` (R#18).
+  - **Sprite Generation & Collision Detection**:
+    - Mode 1: 32 sprites, 4 per line max, 8x8 and 16x16, zoom magnification, 5th-sprite flag, collision flag in S#0.
+    - Mode 2: 32 sprites, 8 per line max, per-line color table, CC (Color Compare) attribute, 9th-sprite flag.
+  - **V9938 Hardware Blitter & Commands Engine (`pkg/vdp/commands.go`)**:
+    - Implements `HMMC`, `LMMC`, `LINE`, `HMMM`, `YMMM`, `LMMM`, `LMMV`, `HMMV`, `PSET`, `POINT`, and `SRCH` with all 8 logical operators.
+  - **Frame Stepping & Synchronized Interrupts**:
+    - Scanline cycle execution (~228 cycles/scanline across 262 lines NTSC / 313 lines PAL).
+    - VBlank interrupt (INT_IE0) and Line coincidence interrupt (INT_IE1).
+  - **Graphical Workstation Live Display & Keyboard Integration (`pkg/ui/gui.go`)**:
+    - Direct 2x integer scaled MSX video display in the main workstation window (544x456 centered).
+    - Full PC keyboard to MSX matrix mapping (rows 0..8) allowing immediate interactive typing in MSX-BASIC.
+    - Hotkey `F11` and top-right menu bar badge (`[ F11: Screen / Debug ]`) to toggle between the live MSX screen and the developer register/status overlay.
+
+---
+
 ## [V 0.3.3] - "Vampire Killer" - 2026-09-17
 
 ### Added

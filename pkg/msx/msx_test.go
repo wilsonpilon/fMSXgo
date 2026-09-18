@@ -180,3 +180,34 @@ func TestSecondarySlotRegister0xFFFF(t *testing.T) {
 	}
 }
 
+func TestMachineFrameSteppingAndBoot(t *testing.T) {
+	cfg := DefaultConfig()
+	m, err := NewMachine(cfg)
+	if err != nil {
+		t.Fatalf("Failed to create machine: %v", err)
+	}
+
+	// Step 5 frames
+	totalCycles := 0
+	for f := 0; f < 5; f++ {
+		cycles := m.StepFrame()
+		totalCycles += cycles
+	}
+
+	if totalCycles < 200000 {
+		t.Errorf("Expected at least 200,000 cycles for 5 frames, got %d", totalCycles)
+	}
+
+	if m.CPU.PC == 0x0000 {
+		t.Errorf("Expected CPU PC to have moved from 0000h after boot frames, got %04Xh", m.CPU.PC)
+	}
+
+	fb := m.GetFrameBuffer()
+	if len(fb) == 0 {
+		t.Fatal("Expected non-empty frame buffer from VDP")
+	}
+
+	t.Logf("Executed 5 frames: %d cycles, PC: %04Xh, FrameBuffer bytes: %d", totalCycles, m.CPU.PC, len(fb))
+}
+
+
