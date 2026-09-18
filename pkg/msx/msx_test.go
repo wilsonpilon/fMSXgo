@@ -1,6 +1,7 @@
 package msx
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -208,6 +209,59 @@ func TestMachineFrameSteppingAndBoot(t *testing.T) {
 	}
 
 	t.Logf("Executed 5 frames: %d cycles, PC: %04Xh, FrameBuffer bytes: %d", totalCycles, m.CPU.PC, len(fb))
+}
+
+func TestBootToPrompt(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.Model = ModelMSX2
+	m, err := NewMachine(cfg)
+	if err != nil {
+		t.Fatalf("Failed to create machine: %v", err)
+	}
+
+	for f := 0; f < 180; f++ {
+		m.StepFrame()
+	}
+
+	// Press Enter key (Row 7, Bit 7) to submit date
+	m.Bus.KeyMatrix[7] &^= 0x80
+	for f := 0; f < 30; f++ {
+		m.StepFrame()
+	}
+	m.Bus.KeyMatrix[7] |= 0x80 // Release Enter
+	for f := 0; f < 60; f++ {
+		m.StepFrame()
+	}
+
+	t.Logf("After pressing Enter: PC=%04Xh, ScrMode=%d, ScreenON=%t",
+		m.CPU.PC, m.VDP.ScrMode, m.VDP.ScreenON())
+
+	// Check if any character table has text written
+	charCount := 0
+	for i := 0; i < 40*24; i++ {
+		ch := m.VDP.VRAM[(m.VDP.ChrTab+i)%len(m.VDP.VRAM)]
+		if ch != 0 && ch != 0x20 {
+			charCount++
+		}
+	}
+	t.Logf("Non-space characters in ChrTab: %d", charCount)
+
+	// Dump lines of 32 characters
+	for row := 0; row < 24; row++ {
+		lineBytes := make([]byte, 32)
+		for col := 0; col < 32; col++ {
+			ch := m.VDP.VRAM[(m.VDP.ChrTab+(row*32)+col)%len(m.VDP.VRAM)]
+			if ch >= 32 && ch < 127 {
+				lineBytes[col] = ch
+			} else {
+				lineBytes[col] = '.'
+			}
+		}
+		str := string(lineBytes)
+		if strings.Trim(str, ".") != "" {
+			t.Logf("Row %2d: %s", row, str)
+		}
+	}
 }
 
 
