@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"fmsxgo/pkg/msx"
 	"fmsxgo/pkg/shell"
 	"fmsxgo/pkg/storage"
+	"fmsxgo/pkg/tui"
 	"fmsxgo/pkg/ui"
 	"fmsxgo/pkg/ui/font"
 	"fmsxgo/pkg/ui/theme"
@@ -42,6 +44,8 @@ Emulation & Hardware Options (fMSX 100%% Faithful Mirror):
   -pal / -ntsc        Set PAL (50Hz) or NTSC (60Hz) video timing [NTSC]
   -msx1 / -msx2 / -msx2+
                       Select MSX model [default: -msx2]
+  -m / -model <model> Select MSX model (msx1, msx2, msx2+)
+  -select-model       Launch interactive TUI model selector before emulation
   -ram <pages>        Number of 16kB RAM pages [4 for MSX1, 8 for MSX2/2+]
   -vram <pages>       Number of 16kB/64kB VRAM pages [2 for MSX1, 8 for MSX2/2+]
   -rom <type|file>    MegaROM mapper type (0..7, >7: guess) or cartridge file
@@ -124,6 +128,11 @@ func main() {
 	langFlag := ""
 	themeFlag := ""
 	fontFlag := ""
+	modelFlagPassed := false
+	selectModelTUI := false
+	ramFlagPassed := false
+	vramFlagPassed := false
+	scaleFlag := 0
 
 	cartCount := 0
 	romTypeCount := 0
@@ -131,11 +140,15 @@ func main() {
 
 	args := os.Args[1:]
 
-	// Fast-path: MSX Floppy Disk Manager Subcommand
+	// Fast-path: Subcommands (disk, model)
 	if len(args) > 0 {
 		first := strings.ToLower(args[0])
 		if first == "disk" || first == "dsk" || first == "diskutil" {
 			runDiskCLI(args[1:])
+			return
+		}
+		if first == "model" || first == "machine" || first == "msx" {
+			runModelCLI(args[1:], dbPath)
 			return
 		}
 	}
@@ -207,12 +220,33 @@ func main() {
 				}
 			}
 
-		case "-msx1":
+		case "-msx1", "--msx1", "/msx1":
 			cfg.Model = msx.ModelMSX1
-		case "-msx2":
+			modelFlagPassed = true
+		case "-msx2", "--msx2", "/msx2":
 			cfg.Model = msx.ModelMSX2
-		case "-msx2+":
+			modelFlagPassed = true
+		case "-msx2+", "--msx2+", "/msx2+", "-msx2p", "--msx2p", "/msx2p":
 			cfg.Model = msx.ModelMSX2P
+			modelFlagPassed = true
+		case "-m", "-model", "--model", "/model", "-machine", "--machine", "/machine":
+			if i+1 < len(args) {
+				i++
+				modelFlagPassed = true
+				switch strings.ToLower(args[i]) {
+				case "msx1", "1":
+					cfg.Model = msx.ModelMSX1
+				case "msx2", "2":
+					cfg.Model = msx.ModelMSX2
+				case "msx2+", "msx2p", "2+", "2p", "3":
+					cfg.Model = msx.ModelMSX2P
+				case "select", "menu", "tui", "choose":
+					selectModelTUI = true
+				}
+			}
+		case "-select-model", "--select-model", "-model-menu", "--model-menu", "-tui-model", "--tui-model":
+			selectModelTUI = true
+			modelFlagPassed = true
 
 		case "-pal":
 			cfg.Video = msx.VideoPAL
@@ -229,6 +263,7 @@ func main() {
 				i++
 				if v, err := strconv.Atoi(args[i]); err == nil {
 					cfg.RAMPages = v
+					ramFlagPassed = true
 				}
 			}
 		case "-vram":
@@ -236,6 +271,7 @@ func main() {
 				i++
 				if v, err := strconv.Atoi(args[i]); err == nil {
 					cfg.VRAMPages = v
+					vramFlagPassed = true
 				}
 			}
 
@@ -382,6 +418,9 @@ func main() {
 		case "-scale":
 			if i+1 < len(args) {
 				i++
+				if v, err := strconv.Atoi(args[i]); err == nil && v >= 1 && v <= 4 {
+					scaleFlag = v
+				}
 			}
 
 		case "-exec":
@@ -472,6 +511,58 @@ func main() {
 			savedFont := db.GetConfig("font", "ubuntu")
 			font.SetCurrent(savedFont)
 		}
+
+		// Initialize hardware model from saved config if not overridden by CLI flags
+		if !modelFlagPassed {
+			savedModel := db.GetConfig("model", "")
+			switch strings.ToUpper(savedModel) {
+			case "MSX1":
+				cfg.Model = msx.ModelMSX1
+			case "MSX2":
+				cfg.Model = msx.ModelMSX2
+			case "MSX2+", "MSX2P":
+				cfg.Model = msx.ModelMSX2P
+			}
+		}
+	}
+
+	// Interactive TUI model picker if requested via -select-model / --model select
+	if selectModelTUI {
+		chosen, err := tui.SelectMachineModel(tui.ModelPickerOptions{
+			CurrentModel: cfg.Model,
+		})
+		if err == nil {
+			cfg.Model = chosen
+			if db != nil {
+				var modelStr string
+				switch chosen {
+				case msx.ModelMSX1:
+					modelStr = "MSX1"
+				case msx.ModelMSX2:
+					modelStr = "MSX2"
+				case msx.ModelMSX2P:
+					modelStr = "MSX2+"
+				}
+				_ = db.SetConfig("model", modelStr)
+			}
+		}
+	}
+
+	// Adjust default RAM and VRAM pages matching selected model
+	if cfg.Model == msx.ModelMSX1 {
+		if !ramFlagPassed {
+			cfg.RAMPages = 4 // 64 KB
+		}
+		if !vramFlagPassed {
+			cfg.VRAMPages = 2 // 16 KB (TMS9918 standard)
+		}
+	} else {
+		if !ramFlagPassed {
+			cfg.RAMPages = 8 // 128 KB
+		}
+		if !vramFlagPassed {
+			cfg.VRAMPages = 8 // 128 KB (V9938/V9958 standard)
+		}
 	}
 
 	// Fallback if DB was not loaded but flags were specified
@@ -529,6 +620,9 @@ func main() {
 		sh.Run()
 		if sh.SwitchToGUI {
 			gui := ui.New(machine)
+			if scaleFlag > 0 {
+				gui.SetScale(scaleFlag)
+			}
 			if err := gui.Run(); err != nil {
 				fmt.Fprintf(os.Stderr, "GUI Window closed or failed: %v.\n", err)
 			}
@@ -536,8 +630,11 @@ func main() {
 		return
 	}
 
-	// 5. Default mode: Launch Graphical Window with File->Exit and Help->About menus
+	// 5. Default mode: Launch Graphical Window with File->Exit, Hardware, Video, Setup, Help
 	gui := ui.New(machine)
+	if scaleFlag > 0 {
+		gui.SetScale(scaleFlag)
+	}
 	if err := gui.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "GUI Window closed or failed: %v. Falling back to CLI mode.\n", err)
 		sh := shell.New(machine, os.Stdin, os.Stdout)
@@ -557,3 +654,81 @@ func cfgModelName(model int) string {
 		return "Unknown"
 	}
 }
+
+func runModelCLI(args []string, dbPath string) {
+	db, _ := storage.Open(dbPath)
+	if db != nil {
+		defer db.Close()
+	}
+
+	currModelStr := "MSX2"
+	if db != nil {
+		currModelStr = db.GetConfig("model", "MSX2")
+	}
+	currModel := msx.ModelMSX2
+	switch strings.ToUpper(currModelStr) {
+	case "MSX1":
+		currModel = msx.ModelMSX1
+	case "MSX2":
+		currModel = msx.ModelMSX2
+	case "MSX2+", "MSX2P":
+		currModel = msx.ModelMSX2P
+	}
+
+	if len(args) == 0 || args[0] == "select" || args[0] == "menu" || args[0] == "tui" {
+		chosen, err := tui.SelectMachineModel(tui.ModelPickerOptions{
+			CurrentModel: currModel,
+		})
+		if err != nil {
+			if errors.Is(err, tui.ErrCancelled) {
+				fmt.Println("Model selection cancelled.")
+				return
+			}
+			fmt.Fprintf(os.Stderr, "Error in model selection: %v\n", err)
+			return
+		}
+		var modelName string
+		switch chosen {
+		case msx.ModelMSX1:
+			modelName = "MSX1"
+		case msx.ModelMSX2:
+			modelName = "MSX2"
+		case msx.ModelMSX2P:
+			modelName = "MSX2+"
+		}
+		if db != nil {
+			_ = db.SetConfig("model", modelName)
+		}
+		fmt.Printf("Default MSX hardware model set to %s (%s).\n", cfgModelName(chosen), modelName)
+		return
+	}
+
+	argJoined := strings.ToLower(strings.Join(args, " "))
+	target := strings.ToLower(args[0])
+
+	var targetModel int
+	var modelName string
+	switch {
+	case target == "msx1" || target == "1" || argJoined == "msx 1":
+		targetModel = msx.ModelMSX1
+		modelName = "MSX1"
+	case target == "msx2" || target == "2" || argJoined == "msx 2":
+		targetModel = msx.ModelMSX2
+		modelName = "MSX2"
+	case target == "msx2+" || target == "msx2p" || target == "2+" || target == "2p" || target == "3" || argJoined == "msx 2+":
+		targetModel = msx.ModelMSX2P
+		modelName = "MSX2+"
+	case target == "status" || target == "current" || target == "get":
+		fmt.Printf("Currently configured MSX model: %s (%s)\n", cfgModelName(currModel), currModelStr)
+		return
+	default:
+		fmt.Fprintf(os.Stderr, "Unknown MSX model %q. Valid options: msx1, msx2, msx2+, or 'fmsxgo model select'\n", strings.Join(args, " "))
+		return
+	}
+
+	if db != nil {
+		_ = db.SetConfig("model", modelName)
+	}
+	fmt.Printf("Default MSX hardware model set to %s (%s).\n", cfgModelName(targetModel), modelName)
+}
+

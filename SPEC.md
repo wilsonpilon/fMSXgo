@@ -26,7 +26,7 @@ fMSXgo follows the strict semantic versioning format: **`V X.Y.Z`**
 | **V 0.5.x** | **Iron Maiden (Powerslave)** | Heavy metal pioneer / Egyptian precision of Z80 cycle timing |
 | **V 1.0.x** | **Vampire Killer (Dracula's Curse)** | Konami's MSX magnum opus / 1.0 milestone release |
 
-*Current Version:* **V 0.3.3 ("Vampire Killer")**
+*Current Version:* **V 0.3.42 ("Nemesis 2")**
 
 ---
 
@@ -146,23 +146,53 @@ fMSXgo follows the strict semantic versioning format: **`V X.Y.Z`**
 
 ---
 
-### Phase 3: Audio Subsystem [NEXT UP]
-- [ ] **AY-3-8910 / YM2149 (PSG)**: 3 square-wave channels, pseudo-random noise generator, envelope generator, and joystick ports.
-- [ ] **Yamaha YM2413 (OPLL / MSX-MUSIC)**: 9-channel FM synthesizer (or 6 melody + 5 rhythm channels).
-- [ ] **Konami SCC / SCC+**: 5-channel custom wavetable synthesizer.
-- [ ] **Audio Mixer**: Low-latency 44.1kHz/48kHz PCM stereo stream piped into Ebitengine's audio driver.
+### Phase 3: Audio Subsystem [COMPLETED - 100%]
+- [x] **AY-3-8910 / YM2149 (PSG)** (`pkg/sound/ay8910.go`):
+  - [x] 3 square-wave melodic channels (12-bit period divisor, master clock `3579545 / 16 = 223721.5 Hz`).
+  - [x] 17-bit polynomial pseudo-random noise generator (LFSR) with 5-bit period divisor.
+  - [x] 16-bit hardware envelope generator with all 8 cyclic/non-cyclic shapes (`\___`, `____`, `\/\`, `\```, `/__`, `/```, `/\/\`, `/_`).
+  - [x] All 16 PSG control/data registers fully implemented.
+  - [x] Joystick & mouse multiplexing on Registers 14 & 15.
+- [x] **Konami SCC / SCC+ Synthesizer** (`pkg/sound/scc.go`):
+  - [x] 5-channel custom wavetable synthesis with 32-byte 8-bit signed sample buffers.
+  - [x] 12-bit frequency period timers and independent 4-bit channel volumes.
+  - [x] Memory-mapped I/O port interception at `0x9800..0x98FF` for MegaROM cartridges (`MapperKonami5`).
+- [x] **Audio Mixer & Output Streaming** (`pkg/sound/mixer.go`):
+  - [x] Real-time stereo mixer blending PSG and SCC voices with master volume control.
+  - [x] Low-latency 44.1kHz PCM stereo audio stream piped directly into Ebitengine's audio driver.
 
 ---
 
-### Phase 4: Disk, Cassette & Peripheral Controllers [PENDING]
-- [ ] **Western Digital WD1793**: Complete floppy disk controller emulation.
-- [ ] **Disk Image Support**: Reading and writing `.DSK` (720KB / 360KB) and `.FDI` files.
-- [ ] **Cassette / Tape**: Audio stream and `.CAS` file load/save.
-- [ ] **Keyboard & Joysticks**: Matrix mapping for PPI 8255 (US, Japanese, and Brazilian ABNT2 layouts).
+### Phase 4: Disk, Media, Controllers & Save States [COMPLETED - 100%]
+- [x] **Western Digital WD1793 / WD2793 Floppy Disk Controller** (`pkg/msx/wd1793.go`):
+  - [x] Faithful 1:1 port of Marat Fayzullin's `EMULib/WD1793.c` & `WD1793.h`.
+  - [x] Full register set emulation: `R[0]` (Status/Command), `R[1]` (Track), `R[2]` (Sector), `R[3]` (Data), `R[4]` (System: Drive/Side/Density).
+  - [x] All command sets: Type I (RESTORE, SEEK, STEP, STEP-IN, STEP-OUT), Type II (READ/WRITE SECTORS), Type III (READ ADDRESS), Type IV (FORCE INTERRUPT).
+  - [x] Memory-mapped I/O ports at `0x7FF8..0x7FFF`, `0xBFF8..0xBFFF`, `0x7F80..0x7F87`, `0x7FB8..0x7FBF` in DiskROM slot (`3-1`).
+  - [x] Dual mode: High-speed BDOS patches by default; low-level hardware registers for copy-protected loaders.
+- [x] **fMSX-Compatible Save States (.sta Snapshots)** (`pkg/msx/state.go`):
+  - [x] Exact 16-byte header: `"STE\x1A\x03"`, `RAMPages`, `VRAMPages`, `StateID` (ROM checksum).
+  - [x] Full state serialization: Z80 CPU (52 B), I8255 PPI (10 B), VDP registers/status/palette (144 B), PSG (88 B), OPLL (156 B), SCC (304 B), State[256] slots/mappers (1024 B), RAM memory dump, VRAM memory dump.
+  - [x] Methods `SaveState()`, `LoadState()`, `SaveSTA()`, `LoadSTA()`.
+  - [x] Hotkeys `F7` (quick save) and `F8` (quick load), dedicated `.sta` File Picker modal, CLI `savesta` / `loadsta`.
+- [x] **Runtime Media Management in GUI & Menus** (`pkg/ui/gui.go`, `pkg/msx/patch.go`):
+  - [x] Menu Bar `Media` dropdown: Drives A: & B: (`.dsk`), Cartridge Slots 1 & 2 (`.rom`), Cassette Tape (`.cas`).
+  - [x] Interactive File Picker Modal Dialog with folder navigation, parent `[..]` traversal, extension filtering, scrolling.
+  - [x] Runtime insert, eject, and tape rewind with zero emulator restart.
+- [x] **Joystick, Gamepad USB & MSX Mouse Emulation** (`pkg/msx/joystick.go`):
+  - [x] Port selection via PSG Register 15 (bit 6 = Port 1/2).
+  - [x] Joystick protocol via PSG Register 14 (Port 0xA2).
+  - [x] Automatic physical USB Gamepad detection and mapping via Ebitengine Gamepad API.
+  - [x] Keyboard joystick fallback (arrows/numpad, Space/Z, X/C).
+  - [x] Authentic MSX Mouse 4-nibble displacement protocol with PSG R15 strobe toggling.
+- [x] **Disk Boot & BDOS Directory Reading Integrity** (`pkg/msx/patch.go`, `pkg/msx/machine.go`):
+  - [x] Fixed `FIRDIR` root directory sector calculation in `GETDPB` (`0x4016`).
+  - [x] Fixed `DSKCHG` (`0x4013`) fallthrough into `GETDPB` (`0x4016`).
+  - [x] Preserved Slot 3, Subslot 2 RAM Mapper write access for BDOS and MSX-DOS bootloaders.
 
 ---
 
-### Phase 5: Advanced Developer / Hacker Workstation Tools [PENDING]
+### Phase 5: Advanced Developer / Hacker Workstation Tools [IN PROGRESS]
 - [ ] **Interactive Visual Debugger**:
   - [ ] Conditional breakpoints (PC address, memory read/write, I/O ports, scanline).
   - [ ] Circular execution history (Time-Travel / Trace Buffer for the last 10,000 instructions).
@@ -195,12 +225,16 @@ Every official fMSX parameter (`-verbose`, `-msx1/-msx2`, `-diska/-diskb`, `-rom
 ## 4. Progress Tracking & Next Direct Steps
 
 * **Where we are**:
-  - Phase 1, Phase 1.5, Phase 2 (VDP), Setup/Catalog CRUD, and Typography subsystems are **100% complete**:
+  - Phase 1, Phase 1.5, Phase 2 (VDP), Phase 3 (Audio: PSG & SCC), and Phase 4 (FDC, Media, Joysticks, Save States) are **100% complete**:
     - Z80 core, MSX bus, slot architecture, RAM mapper, SQLite single-file persistence.
-    - TMS9918A / V9938 VDP with 128KB VRAM, 64 control regs, 16 status regs, ports 0x98..0x9B.
+    - TMS9918A / V9938 / V9958 VDP with 128KB VRAM, 64 control regs, 16 status regs, ports 0x98..0x9B.
     - Scanline renderers for SCREEN 0..8, 10, 12, border overscan, Mode 1 and Mode 2 sprites with collision.
-    - V9938 hardware blitter commands (HMMM, LMMM, LINE, PSET, etc.).
-    - Live 2x scaled MSX video display in graphical window with F11 debug overlay toggle and full keyboard matrix input.
+    - AY-3-8910 PSG and Konami SCC sound synthesis with stereo mixer and low-latency audio stream.
+    - Western Digital WD1793/WD2793 low-level floppy disk controller emulation.
+    - fMSX-compatible `.sta` snapshots (Save States) with quick-save (F7) and quick-load (F8).
+    - Runtime Media Management menu with interactive File Picker dialog.
+    - USB Gamepads, keyboard fallback, and MSX mouse emulation.
+    - Fixed MSX-DOS disk booting and Disk BASIC `FILES` directory listing.
 * **Immediate Next Step**:
-  - Begin **Phase 3 (Audio Subsystem)**: Implement PSG (AY-3-8910 / YM2149), Konami SCC, Yamaha YM2413 OPLL FM sound, and audio mixer streamed to Ebitengine audio driver.
+  - Begin **Phase 5 (Advanced Hacker / Debugger Tools)**: Graphical tile/sprite viewer, interactive visual memory map, and time-travel execution history.
 

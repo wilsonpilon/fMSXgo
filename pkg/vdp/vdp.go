@@ -1,11 +1,11 @@
 package vdp
 
-// Dimensions for the rendered display buffer (including standard overscan border).
+// Dimensions for the rendered display buffer (512x212 native high resolution).
 const (
-	DisplayWidth  = 272
-	DisplayHeight = 228
-	ScreenWidth   = 256
-	ScreenHeight  = 192
+	DisplayWidth    = 512
+	DisplayHeight   = 212
+	ScreenWidth     = 512
+	ScreenHeight    = 192
 	ScreenHeight212 = 212
 
 	MaxScreen = 12
@@ -62,9 +62,13 @@ type VDP struct {
 	VPageOffset int
 
 	// Current screen mode & colors
-	ScrMode uint8
-	FGColor uint8
-	BGColor uint8
+	ScrMode  uint8
+	FGColor  uint8
+	BGColor  uint8
+	XFGColor uint8 // Alternative foreground color for TEXT80 (VDP[12] / fMSX)
+	XBGColor uint8 // Alternative background color for TEXT80 (VDP[12] / fMSX)
+	BCount   uint8 // Blinking counter for TEXT80
+	BFlag    bool  // Blinking phase flag
 
 	// Table addresses and masks into VRAM
 	ChrTab  int
@@ -134,6 +138,10 @@ func (v *VDP) Reset() {
 
 	v.FGColor = 15 // White
 	v.BGColor = 4  // Dark Blue
+	v.XFGColor = v.FGColor
+	v.XBGColor = v.BGColor
+	v.BCount = 0
+	v.BFlag = false
 	v.Regs[7] = (v.FGColor << 4) | v.BGColor
 
 	v.ScanLine = 0
@@ -146,8 +154,28 @@ func (v *VDP) Reset() {
 		v.TotalLines = 262
 	}
 
+	// On MSX2+ (V9958), Status register 1 bit 2 is set (ID = 2)
+	// Identical to fMSX MSX.c: if(MODEL(MSX_MSX2P)) VDPStatus[1]|=0x04;
+	if v.Model == ModelMSX2P {
+		v.Status[1] |= 0x04
+	}
+
 	v.SetScreen()
 	v.ClearScreen()
+}
+
+// SetModel reconfigures the VDP hardware model and VRAM pages.
+func (v *VDP) SetModel(model int, vramPages int) {
+	if vramPages < 2 {
+		vramPages = 2
+	}
+	if vramPages > 8 {
+		vramPages = 8
+	}
+	v.Model = model
+	v.VRAMPages = vramPages
+	v.VRAM = make([]byte, vramPages*16384)
+	v.Reset()
 }
 
 // ClearScreen fills the frame buffer with border background color.
@@ -199,6 +227,10 @@ func (v *VDP) WriteData(val uint8) {
 // ReadStatus reads from Port 0x99 (VDP status registers).
 func (v *VDP) ReadStatus() uint8 {
 	reg := v.Regs[15] & 0x0F
+	// On TMS9918 (MSX1), only Status Register 0 exists.
+	if v.Model == ModelMSX1 {
+		reg = 0
+	}
 	val := v.Status[reg]
 
 	switch reg {
@@ -446,3 +478,45 @@ func (v *VDP) HScroll() int        { return int(v.Regs[27]&0x07) | (int(v.Regs[2
 func (v *VDP) VAdjust() int        { return int(int8(v.Regs[18]) >> 4) }
 func (v *VDP) HAdjust() int        { return int(int8(v.Regs[18]<<4) >> 4) }
 func (v *VDP) InterruptPending() bool { return v.IRQPending != 0 }
+
+// UpdateBlink updates the blinking state for TEXT80 mode once per frame.
+// Directly mirrors fMSX MSX.c lines 2061-2076:
+//
+//	if(BCount) BCount--;
+//	else {
+//	    BFlag = !BFlag;
+//	    if(!VDP[13]) { XFGColor = FGColor; XBGColor = BGColor; }
+//	    else {
+//	        BCount = (BFlag ? VDP[13]&0x0F : VDP[13]>>4) * 10;
+//	        if(BCount) {
+//	            if(BFlag) { XFGColor = FGColor; XBGColor = BGColor; }
+//	            else      { XFGColor = VDP[12]>>4; XBGColor = VDP[12]&0x0F; }
+//	        }
+//	    }
+//	}
+func (v *VDP) UpdateBlink() {
+	if v.BCount > 0 {
+		v.BCount--
+	} else {
+		v.BFlag = !v.BFlag
+		if v.Regs[13] == 0 {
+			v.XFGColor = v.FGColor
+			v.XBGColor = v.BGColor
+		} else {
+			if v.BFlag {
+				v.BCount = (v.Regs[13] & 0x0F) * 10
+			} else {
+				v.BCount = (v.Regs[13] >> 4) * 10
+			}
+			if v.BCount > 0 {
+				if v.BFlag {
+					v.XFGColor = v.FGColor
+					v.XBGColor = v.BGColor
+				} else {
+					v.XFGColor = v.Regs[12] >> 4
+					v.XBGColor = v.Regs[12] & 0x0F
+				}
+			}
+		}
+	}
+}

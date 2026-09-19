@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"fmsxgo/pkg/cpu/z80"
+	"fmsxgo/pkg/sound"
 	"fmsxgo/pkg/storage"
 	"fmsxgo/pkg/vdp"
 )
@@ -83,9 +84,16 @@ type Machine struct {
 	ROMs   *ROMManager
 	DB     *storage.DB
 
+	// Sound chips & synthesis
+	PSG   *sound.AY8910
+	SCC   *sound.SCC
+	Mixer *sound.Mixer
+	Joy   *JoystickManager
+
 	// Hardware Peripherals matching fMSX
 	FDD  [2]*FloppyDrive
 	Tape *TapeDrive
+	FDC  *WD1793
 
 	// State
 	Running bool
@@ -103,11 +111,34 @@ func NewMachine(cfg Config) (*Machine, error) {
 	bus := NewMSXBus(slots, mapper, vdpInst)
 	cpu := z80.New()
 
+	psg := sound.NewAY8910(3579545)
+	scc := sound.NewSCC(3579545)
+	sampleRate := cfg.SoundQuality
+	if sampleRate <= 0 {
+		sampleRate = 44100
+	}
+	mixer := sound.NewMixer(sampleRate, psg, scc)
+	bus.PSG = psg
+	bus.SCC = scc
+
+	// Wire PSG port A reading (Reg 14) to Joystick/Mouse manager
+	psg.ReadPortA = func() uint8 {
+		if bus.Joy != nil {
+			return bus.Joy.ReadPort(psg.Regs[15])
+		}
+		return 0x7F
+	}
+
 	extraPaths := []string{}
 	if cfg.ROMDir != "" {
 		extraPaths = append(extraPaths, cfg.ROMDir)
 	}
 	romMgr := NewROMManager(cfg.DB, extraPaths...)
+
+	fdd0 := &FloppyDrive{ID: 0, SecSize: 512}
+	fdd1 := &FloppyDrive{ID: 1, SecSize: 512}
+	fdc := NewWD1793(fdd0, fdd1)
+	bus.FDC = fdc
 
 	m := &Machine{
 		Config: cfg,
@@ -116,13 +147,15 @@ func NewMachine(cfg Config) (*Machine, error) {
 		Mapper: mapper,
 		Bus:    bus,
 		VDP:    vdpInst,
+		PSG:    psg,
+		SCC:    scc,
+		Mixer:  mixer,
+		Joy:    bus.Joy,
 		ROMs:   romMgr,
 		DB:     cfg.DB,
-		FDD: [2]*FloppyDrive{
-			{ID: 0, SecSize: 512},
-			{ID: 1, SecSize: 512},
-		},
-		Tape: &TapeDrive{},
+		FDD:    [2]*FloppyDrive{fdd0, fdd1},
+		Tape:   &TapeDrive{},
+		FDC:    fdc,
 	}
 
 	// Connect CPU BIOS/BDOS patch hook to faithful PatchZ80 implementation
@@ -137,10 +170,11 @@ func NewMachine(cfg Config) (*Machine, error) {
 	return m, nil
 }
 
-// initHardware loads BIOS ROMs and maps RAM/ROM into appropriate slots.
+// initHardware loads BIOS ROMs and maps RAM/ROM into appropriate slots matching fMSX.
 func (m *Machine) initHardware() error {
-	// 1. Map RAM into Slot 3 (Subslot 0) for all 4 pages
+	// 1. Map RAM into Slot 3 (Subslot 2 authentic fMSX, and mirror in Subslot 0) for all 4 pages
 	for page := 0; page < 4; page++ {
+		m.Slots.Map16K(3, 2, page, m.Mapper.Get16KPage(page), true)
 		m.Slots.Map16K(3, 0, page, m.Mapper.Get16KPage(page), true)
 	}
 
@@ -183,18 +217,21 @@ func (m *Machine) initHardware() error {
 		return fmt.Errorf("could not load main MSX BIOS (%s): %w", mainName, err)
 	}
 
-	// Load SubROM (MSX2/MSX2+ Extended BIOS, 16KB: Page 1) into Slot 3, Subslot 1
+	// Load SubROM (MSX2/MSX2+ Extended BIOS, 16KB: Page 0) into Slot 3, Subslot 1
 	if defaultSub != "" {
 		subBios, _, err := m.ROMs.LoadDefaultROM("subrom", modelStr)
 		if err != nil {
 			subBios, err = m.ROMs.LoadROM(defaultSub)
 		}
 		if err == nil && len(subBios) >= PageSize16K {
-			m.Slots.Map16K(3, 1, 1, subBios[:PageSize16K], false)
+			m.Slots.Map16K(3, 1, 0, subBios[:PageSize16K], false)
 		}
+	} else {
+		// MSX1: SubROM area is empty
+		m.Slots.Map16K(3, 1, 0, m.Slots.EmptyPage, false)
 	}
 
-	// Load DiskROM if available (16KB: Page 1) into Slot 3, Subslot 2
+	// Load DiskROM if available (16KB: Page 1) into Slot 3, Subslot 1 (and fallback 3-2)
 	diskROM, _, err := m.ROMs.LoadDefaultROM("disk", "ALL")
 	if err != nil {
 		diskROM, err = m.ROMs.LoadROM("DISK.ROM")
@@ -204,7 +241,8 @@ func (m *Machine) initHardware() error {
 		if m.Config.SimulateBDOS {
 			diskROM = ApplyDiskPatches(diskROM)
 		}
-		m.Slots.Map16K(3, 2, 1, diskROM[:PageSize16K], false)
+		// Authentic fMSX mapping: Slot 3, Subslot 1, Page 1 (4000h..7FFFh)
+		m.Slots.Map16K(3, 1, 1, diskROM[:PageSize16K], false)
 	}
 
 	// 3. Load Cartridge A if specified
@@ -255,13 +293,32 @@ func (m *Machine) LoadCartridge(slot int, path string) error {
 	cart := NewCartridge(path, data, mapperType)
 	if slot == 1 {
 		m.Bus.CartA = cart
+		m.Config.CartAPath = path
 		m.Bus.RefreshCartridge(1, cart)
 	} else if slot == 2 {
 		m.Bus.CartB = cart
+		m.Config.CartBPath = path
 		m.Bus.RefreshCartridge(2, cart)
 	}
 
 	return nil
+}
+
+// EjectCartridge removes any cartridge inserted into slot 1 or 2.
+func (m *Machine) EjectCartridge(slot int) {
+	if slot == 1 {
+		m.Bus.CartA = nil
+		m.Config.CartAPath = ""
+		for p := 2; p < 6; p++ {
+			m.Slots.Map8K(1, 0, p, nil, false)
+		}
+	} else if slot == 2 {
+		m.Bus.CartB = nil
+		m.Config.CartBPath = ""
+		for p := 2; p < 6; p++ {
+			m.Slots.Map8K(2, 0, p, nil, false)
+		}
+	}
 }
 
 // Reset resets the MSX CPU and hardware registers to power-on state.
@@ -269,6 +326,18 @@ func (m *Machine) Reset() {
 	m.CPU.Reset()
 	if m.VDP != nil {
 		m.VDP.Reset()
+	}
+	if m.PSG != nil {
+		m.PSG.Reset()
+	}
+	if m.SCC != nil {
+		m.SCC.Reset()
+	}
+	if m.Joy != nil {
+		m.Joy.Reset()
+	}
+	if m.FDC != nil {
+		m.FDC.Reset(false)
 	}
 	// Default MSX slot setup:
 	// Page 0 (0000h..3FFFh): Slot 0 (Main BIOS)
@@ -279,6 +348,10 @@ func (m *Machine) Reset() {
 	// Binary: 11 11 00 00 = 0xF0
 	m.Slots.SetPSL(0xF0)
 	m.Slots.SetSSL(0x00)
+	if m.Bus != nil {
+		m.Bus.RTCReg = 0
+		m.Bus.RTCMode = 0
+	}
 	m.CPU.PC = 0x0000
 }
 
@@ -321,12 +394,33 @@ func (m *Machine) StepScanline() int {
 	line := m.VDP.ScanLine
 	m.VDP.RenderScanline(line)
 
+	// Sound synthesis step every 8 scanlines (~509 microseconds)
+	// Directly mirrors fMSX MSX.c lines 2158-2174
+	if (line & 0x07) == 0 {
+		if m.PSG != nil {
+			m.PSG.Step(509)
+		}
+		if m.Mixer != nil {
+			samples := (m.Mixer.SampleRate * 509) / 1000000
+			if samples < 1 {
+				samples = 1
+			}
+			m.Mixer.GenerateSamples(samples)
+		}
+	}
+
 	// 2. Line coincidence check (IE1)
 	if line == int(m.VDP.Regs[19]) {
 		m.VDP.Status[1] |= 0x01
 		if (m.VDP.Regs[0] & 0x10) != 0 {
 			m.VDP.IRQPending |= 0x02
 		}
+	}
+
+	// Frame start (scanline 0): clear VR bit and update TEXT80 blink state (fMSX MSX.c:2055-2076)
+	if line == 0 {
+		m.VDP.Status[2] &^= 0x40
+		m.VDP.UpdateBlink()
 	}
 
 	// 3. VBlank check (IE0) at end of visible screen
@@ -340,6 +434,7 @@ func (m *Machine) StepScanline() int {
 
 	if line == vblankLine {
 		m.VDP.Status[0] |= 0x80
+		m.VDP.Status[2] |= 0x40 // Set VR (Vertical Retrace) in Status Register 2 (V9938)
 		if (m.VDP.Regs[1] & 0x20) != 0 {
 			m.VDP.IRQPending |= 0x01
 		}
@@ -383,3 +478,96 @@ func (m *Machine) GetFrameBuffer() []byte {
 	}
 	return m.VDP.FrameBuffer[:]
 }
+
+// SwitchModel dynamically changes the MSX hardware model (MSX1, MSX2, MSX2+),
+// adjusts RAM/VRAM pages, reloads appropriate system ROMs, and resets the machine.
+func (m *Machine) SwitchModel(model int) error {
+	if model != ModelMSX1 && model != ModelMSX2 && model != ModelMSX2P {
+		return fmt.Errorf("invalid MSX model: %d", model)
+	}
+
+	m.Config.Model = model
+
+	// Align RAM and VRAM pages matching fMSX line 864-867
+	if model == ModelMSX1 {
+		m.Config.RAMPages = 4
+		m.Config.VRAMPages = 2
+	} else {
+		m.Config.RAMPages = 8
+		m.Config.VRAMPages = 8
+	}
+
+	// Update RAM mapper and VDP
+	m.Mapper = NewRAMMapper(m.Config.RAMPages)
+	m.Bus.Mapper = m.Mapper
+	if m.VDP != nil {
+		m.VDP.SetModel(model, m.Config.VRAMPages)
+	}
+
+	// Re-initialize hardware slots and ROMs
+	if err := m.initHardware(); err != nil {
+		return err
+	}
+
+	// Reset CPU, slots and peripherals
+	m.Reset()
+
+	// Persist model in database if connected
+	if m.DB != nil {
+		var modelName string
+		switch model {
+		case ModelMSX1:
+			modelName = "MSX1"
+		case ModelMSX2:
+			modelName = "MSX2"
+		case ModelMSX2P:
+			modelName = "MSX2+"
+		}
+		_ = m.DB.SetConfig("model", modelName)
+	}
+
+	return nil
+}
+
+// ModelName returns the display name of the current machine model.
+func (m *Machine) ModelName() string {
+	switch m.Config.Model {
+	case ModelMSX1:
+		return "MSX 1"
+	case ModelMSX2:
+		return "MSX 2"
+	case ModelMSX2P:
+		return "MSX 2+"
+	default:
+		return "Unknown"
+	}
+}
+
+// VDPChipName returns the exact VDP chip name used in the machine.
+func (m *Machine) VDPChipName() string {
+	switch m.Config.Model {
+	case ModelMSX1:
+		return "TMS9918"
+	case ModelMSX2:
+		return "V9938"
+	case ModelMSX2P:
+		return "V9958"
+	default:
+		return "TMS9918"
+	}
+}
+
+// CurrentROMs returns the list of system ROMs currently mapped for this machine.
+func (m *Machine) CurrentROMs() []string {
+	switch m.Config.Model {
+	case ModelMSX1:
+		return []string{"MSX.ROM"}
+	case ModelMSX2:
+		return []string{"MSX2.ROM", "MSX2EXT.ROM", "DISK.ROM"}
+	case ModelMSX2P:
+		return []string{"MSX2P.ROM", "MSX2PEXT.ROM", "DISK.ROM"}
+	default:
+		return []string{"MSX.ROM"}
+	}
+}
+

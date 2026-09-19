@@ -4,6 +4,165 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and version numbers follow the **`V X.Y.Z`** scheme with creative release codenames inspired by **Horror Cinema, MSX Classics, and Heavy Metal**.
 
+## [V 0.3.42] - "Nemesis 2" - 2026-09-19
+
+### Added
+- **fMSX-Compatible Save States / Snapshots (`.sta`) (`pkg/msx/state.go`)**:
+  - Direct 1:1 port of Marat Fayzullin's snapshot serialization (`MSX.c:2200-2450`, `State.h`):
+    - Exact 16-byte header: `"STE\x1A\x03"`, `RAMPages`, `VRAMPages`, and `StateID` (CRC/checksum across active system ROMs).
+    - CPU Z80 state payload (52 bytes: AF, BC, DE, HL, AF', BC', DE', HL', IX, IY, PC, SP, I, R, IFF1/2, IM).
+    - Peripheral state payloads: I8255 PPI (10 bytes), VDP registers (64 bytes), VDP status (16 bytes), 16-color palette (64 bytes), AY-3-8910 PSG state (88 bytes), OPLL/YM2413 audio (156 bytes), Konami SCC audio (304 bytes).
+    - Hardware & slot configuration array `State[256]` (1024 bytes: Primary/Secondary slots, RAM mapper pages, Cartridge mapper banks).
+    - Memory dumps: RAM pages (`RAMPages * 16KB`) and VRAM (`VRAMPages * 16KB`).
+  - Functions `m.SaveState()`, `m.LoadState()`, `m.SaveSTA(path)`, and `m.LoadSTA(path)`.
+  - **GUI Integration (`pkg/ui/gui.go`)**:
+    - Menu bar entries: `File -> Save State... (F7)` and `File -> Load State... (F8)`.
+    - Hotkeys `F7` (quick save to `fmsxgo_quick.sta`) and `F8` (quick load from `fmsxgo_quick.sta`).
+    - Dedicated `.sta` file picker modal for saving and loading named states.
+  - **CLI / TUI Integration (`pkg/shell/cli.go`)**:
+    - Commands `savesta [file.sta]` and `loadsta [file.sta]`.
+- **Low-Level Western Digital WD1793 / WD2793 Floppy Disk Controller (FDC) (`pkg/msx/wd1793.go`)**:
+  - Direct 1:1 port of Marat Fayzullin's `EMULib/WD1793.c` & `WD1793.h`:
+    - Full register set emulation: `R[0]` (Command/Status), `R[1]` (Track), `R[2]` (Sector), `R[3]` (Data), and `R[4]` (System: Drive/Side/Density).
+    - Complete Type I commands: `RESTORE` (`0x00`), `SEEK` (`0x10`), `STEP` (`0x20`), `STEP-IN` (`0x40`), `STEP-OUT` (`0x60`).
+    - Complete Type II commands: `READ SECTOR(S)` (`0x80`), `WRITE SECTOR(S)` (`0xA0`).
+    - Complete Type III commands: `READ ADDRESS` (`0xC0`).
+    - Complete Type IV commands: `FORCE INTERRUPT` (`0xD0`).
+    - Exact watchdog timing counter (`Wait`), status flags (`FBusy`, `FDRQ`, `FIndex`, `FTrack0`, `FLostData`, `FNotFound`), and linear floppy sector addressing.
+  - Memory-mapped I/O port interception at `0x7FF8..0x7FFF`, `0xBFF8..0xBFFF`, `0x7F80..0x7F87`, `0x7FB8..0x7FBF` in DiskROM slot (`3-1`).
+  - Seamless fallback support: works alongside high-speed BDOS patches while enabling loaders and copy-protected software that bypass the BIOS to execute correctly.
+  - CLI `fdc` command for viewing controller state and toggling BDOS trap vs low-level hardware emulation.
+
+### Fixed
+- **Root Directory Sector in BDOS GETDPB (`pkg/msx/patch.go`)**:
+  - Corrected `FIRDIR` (offset 0x10 of DPB) from `firstData` to `reservedSectors + numFATs * sectorsPerFAT`.
+  - Fixes Disk BASIC `FILES` command printing corrupted characters / garbage over the screen when reading directory entries.
+- **DSKCHG (0x4013) Fallthrough to GETDPB (`pkg/msx/patch.go`)**:
+  - Implemented exact fMSX `Patch.c:208-211` behavior: when checking disk change (`B = 0`), falls through to `GETDPB` (`0x4016`) to populate the 18-byte DPB at `[HL+1]..[HL+18]`.
+- **RAM Mapper Protection & Slot 3-2 Integrity (`pkg/msx/machine.go`)**:
+  - Removed erroneous DiskROM mapping to Slot 3, Subslot 2, Page 1 (`4000h..7FFFh`). DiskROM resides exclusively in Slot 3, Subslot 1.
+  - Eliminates write-protection collision that previously prevented MSX-DOS bootloader and BDOS `PHYDIO` from writing sectors into RAM in Page 1.
+
+## [V 0.3.41] - "Penguin Adventure" - 2026-09-18
+
+### Added
+- **Runtime Media Management in GUI & Menus (`pkg/ui/gui.go`)**:
+  - **Top Menu Bar `Media` Dropdown**:
+    - **Floppy Drive A: & B:**: Displays mounted `.dsk` / `.img` filename or `[Empty]`; actions to Insert Disk or Eject Disk.
+    - **Cartridge Slot 1 & 2**: Displays loaded `.rom` / `.mx1` / `.mx2` filename or `[Empty]`; actions to Insert Cartridge or Eject Cartridge.
+    - **Cassette Tape**: Displays loaded `.cas` filename or `[Empty]`; actions to Insert Tape, Eject Tape, or Rewind Tape back to 0.
+  - **Interactive File Picker Modal Dialog**:
+    - Centered modal dialog with folder navigation, parent directory `[..]` traversal, and directory listing.
+    - Contextual extension filtering: `.dsk`, `.di1`, `.di2`, `.dmk`, `.img` for Floppy Drives; `.rom`, `.mx1`, `.mx2`, `.bin` for Cartridges; `.cas` for Cassette Tape.
+    - Double-click or single-click selection with `[ Carregar / Montar ]` and `[ Cancelar ]` buttons.
+    - Mouse wheel scrolling and tactile scroll indicators `[ ▲ ]` / `[ ▼ ]`.
+- **Core Media Loading & Ejection Operations (`pkg/msx/patch.go` & `pkg/msx/machine.go`)**:
+  - `m.EjectDisk(drive int)`: clears floppy drive data and resets path.
+  - `m.EjectCartridge(slot int)`: unmaps slot pages (2..5) and removes cartridge.
+  - `m.EjectTape()` and `m.RewindTape()`: manages cassette tape positioning and memory.
+- **Multilingual Media Translations (`pkg/i18n/i18n.go`)**:
+  - Comprehensive media strings translated into English, Portuguese, Spanish, Dutch, and French.
+
+## [V 0.3.38] - "Knightmare" - 2026-09-18
+
+### Added
+- **Complete MSX Joystick, USB Gamepad & Mouse Emulation (`pkg/msx/joystick.go`)**:
+  - Direct 1:1 implementation of Marat Fayzullin's `MSX.c:1154-1210` and `MSX.c:1337-1360`:
+    - **Port Selection via PSG Register 15**: Bit 6 selects Port 1 (bit 6 = 0) or Port 2 (bit 6 = 1).
+    - **Joystick Protocol via PSG Register 14 (Port 0xA2)**: Bits 0..3 for Up, Down, Left, Right; bit 4 for Trigger A (Fire 1); bit 5 for Trigger B (Fire 2); bit 6 always 1.
+    - **Physical USB Gamepad Support**: Automatic detection and mapping via Ebitengine Gamepad API:
+      - Standard D-Pad and Left Analog Stick (-1.0..+1.0 threshold).
+      - Action buttons: South/Cross (A) -> Trigger 1, East/Circle (B) -> Trigger 2.
+    - **Keyboard Joystick Fallback**: Arrow keys / Numpad 8, 2, 4, 6 for directions; Space / Z for Trigger 1; X / C for Trigger 2.
+    - **Authentic MSX Mouse Emulation**:
+      - 4-nibble displacement protocol (DX high, DX low, DY high, DY low).
+      - Nibble phase cycle (1 -> 2 -> 3 -> 4 -> 1) controlled by PSG Register 15 strobe line toggling.
+      - Relative displacement calculation from mouse cursor deltas with high-resolution 512-dot scaling.
+      - Idle reset on strobe pulse bits.
+
+## [V 0.3.37] - "Salamander" - 2026-09-18
+
+### Added
+- **Full PSG & Konami SCC Audio Emulation Subsystem (`pkg/sound`)**:
+  - Direct, faithful port from Marat Fayzullin's `third-party/fMSX/EMULib/` (`AY8910.c`, `AY8910.h`, `SCC.c`, `SCC.h`, `Sound.c`, `Sound.h`):
+    - **AY-3-8910 (PSG)**:
+      - 3 Melodic square wave channels (12-bit period, clock `3579545 / 16 = 223721.5 Hz`).
+      - 3 White noise channels with 17-bit Linear Feedback Shift Register (`NoiseGen`, bit 16 output, bit 14 XOR feedback).
+      - Hardware envelopes with authentic 16 envelope shapes (32 steps each).
+      - Authentic logarithmic 16-level volume attenuation table (`Volumes[16]`).
+      - Complete I/O ports `0xA0` (register latch), `0xA1` (data write), and `0xA2` (data read).
+    - **Konami SCC / SCC+**:
+      - 5 Channels of 32-sample 8-bit wavetable synthesis.
+      - Cartridge memory-mapped I/O at `0x9800..0x98FF` for Konami MegaROM 5.
+    - **Audio Mixer & PCM Synthesis**:
+      - 44,100 Hz 16-bit stereo signed PCM synthesis engine.
+      - Thread-safe ring buffer (`io.Reader`) for zero-stutter continuous streaming.
+      - Master volume and mute controls.
+    - **Ebitengine Audio Device**:
+      - Integrated with `github.com/hajimehoshi/ebiten/v2/audio` for live system playback.
+  - Sound synthesis stepped every 8 scanlines (~509 µs) matching fMSX `MSX.c:2158-2174`.
+
+## [V 0.3.36] - "Nemesis" - 2026-09-18
+
+### Added
+- **Complete, Faithful MSX1, MSX2, and MSX2+ Hardware Emulation (`pkg/msx`)**:
+  - Full model selection across all three standard MSX generations matching fMSX:
+    - **MSX 1**: TMS9918 VDP, 16KB VRAM, 64KB RAM, `MSX.ROM` (Pages 0 & 1, Slot 0-0).
+    - **MSX 2**: V9938 VDP, 128KB VRAM, 128KB RAM, `MSX2.ROM` (Pages 0 & 1, Slot 0-0) + `MSX2EXT.ROM` (16KB SubROM at Slot 3-1 Page 0) + `DISK.ROM` (16KB at Slot 3-1 Page 1).
+    - **MSX 2+**: V9958 VDP, 128KB VRAM, 128KB RAM, `MSX2P.ROM` (Pages 0 & 1, Slot 0-0) + `MSX2PEXT.ROM` (16KB SubROM at Slot 3-1 Page 0) + `DISK.ROM` (16KB at Slot 3-1 Page 1).
+  - Authentic memory slot alignment matching fMSX `MemMap[3][1]` (SubROM & DiskROM) and `MemMap[3][2]` (RAM Mapper on ports 0xFC-0xFF, with Subslot 0 mirror for universal compatibility).
+  - Dynamic `SwitchModel(model int)` method that reconfigures VDP, slots, RAM/VRAM pages, reloads appropriate BIOS ROMs, and performs power-on reset smoothly.
+  - Model persistence: selected model is stored in SQLite DB config and restored on boot.
+- **VDP Enhancements for MSX1 and MSX2+ (`pkg/vdp`)**:
+  - TMS9918 (MSX1) register access: Status register reading restricted to Status 0.
+  - V9958 (MSX2+) hardware identification: Status Register 1 bit 2 is set (`Status[1] |= 0x04`) matching fMSX line 987.
+  - Full MSX2+ YJK and YAE color decoding (SCREEN 10, 11, and 12) implementing `YJKColor(Y, J, K)` faithful to fMSX `Common.h`.
+- **Ricoh RP5C01 Real-Time Clock (RTC) Emulation (`pkg/msx/bus.go`)**:
+  - Implemented full emulation of the RP5C01 RTC chip on I/O ports `0xB4` and `0xB5`:
+    - Port `0xB4`: RTC Register Selector (`RTCReg = val & 0x0F`).
+    - Port `0xB5` (Out): Writes register data and bank selection (`RTCMode` on register 13).
+    - Port `0xB5` (In): Dynamic real-time clock reading in BCD digits matching host time (Bank 0) and battery-backed CMOS parameters (Banks 1..3).
+    - Authentic default CMOS initialization table matching fMSX `RTCInit` (screen mode 40, width 80, colors 15/4, beep 4).
+  - **VDP Status Register 2 VR (Vertical Retrace) Flag Fix (`pkg/msx/machine.go`)**:
+    - Implemented Bit 6 (VR: Vertical Retrace) toggling in VDP Status Register 2: set during VBlank (`line == vblankLine`), cleared during active raster (`line == 0`).
+    - **Fix MSX2 Boot Freeze at Logo**: Resolved the hard freeze at SubROM `103Dh..1044h` (`CALL 298Bh / AND 40h / JR Z, 103Dh`) where the SubROM VBlank wait loop waited endlessly for the VR flag.
+  - **Direct 1:1 Parity with Marat Fayzullin's fMSX C Architecture (`third-party/fMSX/fMSX`)**:
+    - Mirrored `Wide.h` (`RefreshLineTx80`), `Common.h` (`RefreshLine0`), `MSX.c`, and `V9938.c`:
+      - **SCREEN 0 (80 columns)**: Exactly 18 dots left margin, 480 active dots (80 characters x 6 dots), and 14 dots right margin (= 512 dots) matching `Wide.h:154-175`.
+      - **SCREEN 0 (40 columns)**: Exactly 18 dots left margin, 480 active dots (40 characters x 12 dots), and 14 dots right margin (= 512 dots) matching `Common.h:455-483` doubled to 512.
+      - **TEXT80 Blinking & Alternate Colors**: Full hardware support for `ColTab` attribute bytes, VDP register 12 (`XFGColor` / `XBGColor`), and VDP register 13 blink periods (`BCount` / `BFlag`) directly matching `MSX.c:2061-2076`.
+      - **Status Register 2**: Synchronized VR (bit 6 Vertical Retrace) and HR (bit 5 Horizontal Retrace) flags.
+  - **Authentic High-Resolution Video Rendering (`pkg/vdp/render.go`)**:
+    - Replaced 256-width downsampling with native 512x212 framebuffer architecture:
+      - **SCREEN 0 (80 columns)**: All 80 characters render at full 6-dot character cell width (`480` active dots + `18` left / `14` right borders), preserving 100% of character glyph bits with zero missing columns or font corruption.
+      - **SCREEN 0 (40 columns)**: Each character pixel is doubled across 12 dots (`480` active dots + `18` left / `14` right borders) matching 80-column alignment.
+      - **SCREEN 6 & 7**: Full 512x212 native rendering (2bpp and 4bpp) without pixel dropping.
+      - **SCREEN 1..5, 8, YJK/YAE**: Clean horizontal doubling (2 dots per pixel) for consistent, razor-sharp output.
+      - **Sprites**: Mode 1 and Mode 2 sprites accurately doubled horizontally in the 512 coordinate space.
+  - **Video Display Menu & Scaling System (`pkg/ui/gui.go`)**:
+    - Dedicated **Video** menu in top menu bar (`File | Hardware | Video | Setup | Help`):
+      - **Scale Presets**: `1:1 (256x212)`, `2:1 (512x424)`, `3:1 (768x636)`, `4:1 (1024x848)`.
+      - **Aspect Ratio**: Toggle between `1:1 (Pixel Perfect)` and `4:3 (CRT TV Standard)`.
+      - **Texture Filtering**: Toggle `Bilinear Filter (Smooth)` for anti-aliased CRT television appearance or sharp retro nearest-neighbor pixels.
+    - Dynamic window layout that automatically resizes the window, centers the MSX display, and maintains aspect ratio.
+    - Configuration persistence in SQLite DB (`video_scale`, `aspect_ratio_43`, `bilinear_filter`) and CLI `-scale <1..4>` argument support.
+- **Graphical Interface Hardware Menu (`pkg/ui/gui.go`)**:
+  - Dedicated **Hardware** dropdown menu in the top menu bar (`File | Hardware | Setup | Help`):
+    - `MSX 1 (TMS9918)`
+    - `MSX 2 (V9938)`
+    - `MSX 2+ (V9958)`
+    - `NTSC (60Hz)` / `PAL (50Hz)`
+    - Reset Machine (`F12`)
+  - Live checkmarks (`✓`) show active hardware model and video standard.
+  - Status Overlay (`F11`) displays exact VDP chip (TMS9918, V9938, V9958) and corrected VRAM / RAM page sizes.
+- **Developer CLI Model Command (`pkg/shell/cli.go`)**:
+  - `model`: displays active model, VDP chip, RAM/VRAM sizes, and mapped ROMs.
+  - `model <msx1|msx2|msx2+>`: switches hardware model dynamically from the terminal.
+- **Command-line Flags (`cmd/fmsxgo/main.go`)**:
+  - Supports `-msx1`, `-msx2`, `-msx2+`, `-msx2p`, and `-model <MSX1|MSX2|MSX2+>`.
+
+---
+
 ## [V 0.3.33] - "Vampire Killer" - 2026-09-17
 
 ### Added

@@ -101,10 +101,8 @@ func (v *VDP) RenderSpritesMode1(y int, lineBuf *[ScreenWidth]uint8) {
 		}
 
 		for px := 0; px < sprWidth; px++ {
-			screenX := x + px
-			if screenX < 0 || screenX >= ScreenWidth {
-				continue
-			}
+			sprX := x + px
+			dotX := sprX * 2
 
 			// Check bit in pattern
 			srcBit := px
@@ -114,7 +112,12 @@ func (v *VDP) RenderSpritesMode1(y int, lineBuf *[ScreenWidth]uint8) {
 			mask := uint16(0x8000) >> srcBit
 
 			if (pattern16 & mask) != 0 {
-				lineBuf[screenX] = col
+				if dotX >= 0 && dotX < ScreenWidth {
+					lineBuf[dotX] = col
+				}
+				if dotX+1 >= 0 && dotX+1 < ScreenWidth {
+					lineBuf[dotX+1] = col
+				}
 			}
 		}
 	}
@@ -218,10 +221,8 @@ func (v *VDP) RenderSpritesMode2(y int, lineBuf *[ScreenWidth]uint8) {
 		}
 
 		for px := 0; px < sprWidth; px++ {
-			screenX := x + px
-			if screenX < 0 || screenX >= ScreenWidth {
-				continue
-			}
+			sprX := x + px
+			dotX := sprX * 2
 
 			srcBit := px
 			if oh > ih {
@@ -232,9 +233,19 @@ func (v *VDP) RenderSpritesMode2(y int, lineBuf *[ScreenWidth]uint8) {
 			if (pattern16 & mask) != 0 {
 				if (colByte & 0x40) != 0 {
 					// CC bit set: OR color with existing pixel
-					lineBuf[screenX] |= col
+					if dotX >= 0 && dotX < ScreenWidth {
+						lineBuf[dotX] |= col
+					}
+					if dotX+1 >= 0 && dotX+1 < ScreenWidth {
+						lineBuf[dotX+1] |= col
+					}
 				} else {
-					lineBuf[screenX] = col
+					if dotX >= 0 && dotX < ScreenWidth {
+						lineBuf[dotX] = col
+					}
+					if dotX+1 >= 0 && dotX+1 < ScreenWidth {
+						lineBuf[dotX+1] = col
+					}
 				}
 			}
 		}

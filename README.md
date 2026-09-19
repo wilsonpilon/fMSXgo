@@ -11,7 +11,12 @@
 
 In addition to inheriting the time-tested accuracy of fMSX, **fMSXgo** is designed from the ground up to serve as a **high-end workstation for MSX software developers, hackers, and reverse engineers**, featuring:
 
-* **Pure Go 64-bit Z80 CPU Core**: Cycle-accurate execution, precomputed flag tables (`ZSTable`, `PZSTable`), and BIOS patch hook (`ED FE`).
+* **Pure Go 64-bit Z80 CPU Core**: Cycle-accurate execution, precomputed flag tables (`ZSTable`, `PZSTable`), hardware-verified DAA table, and BIOS patch hook (`ED FE`).
+* **Audio Subsystem (PSG & Konami SCC)**: Cycle-accurate 3-channel AY-3-8910 (PSG) with noise and envelopes, plus 5-channel Konami SCC / SCC+ wavetable synthesis for MegaROM soundtracks, mixed to 44.1kHz stereo PCM.
+* **Dual FDC Architecture**: Both high-speed BDOS BIOS trap simulation and low-level Western Digital WD2793/WD1793 floppy disk controller emulation for protected disk loaders and custom boot sectors.
+* **Save States (.sta)**: 100% binary-compatible snapshots with Marat Fayzullin's fMSX, with GUI hotkeys (F7/F8) and CLI commands (`savesta`/`loadsta`).
+* **Joysticks, USB Gamepads & Mouse**: Plug-and-play USB/Bluetooth controller support with keyboard fallback and authentic 4-nibble MSX mouse protocol.
+* **Interactive Media Insertion**: Dynamic runtime insertion/ejection of Floppy Disks (`.dsk`), MegaROM Cartridges (`.rom`), and Cassette Tapes (`.cas`) via GUI menus and CLI commands.
 * **Built-in Interactive Mini-Assembler**: Assemble Z80 instructions directly into memory at runtime without external toolchains.
 * **Dynamic Disassembler**: Disassemble arbitrary memory regions with parameter and length decoding.
 * **Accurate Slot Matrix & Memory Management**: 4 Primary Slots (`0xA8`), 4 Secondary Subslots (`0xFFFF`), and a **RAM Mapper** (`0xFC`..`0xFF`) supporting 64KB up to 4MB of RAM.
@@ -30,7 +35,7 @@ In addition to inheriting the time-tested accuracy of fMSX, **fMSXgo** is design
 * **Dual Operating Modes**:
   * **ROM & Hardware Catalog Subsystem (SQLite CRUD)**: Embedded SQLite database (`rom_catalog`) managing BIOS, BASIC, SubROMs, Disk ROMs, and hardware expansions with SHA-1 verification and execution guarantees.
   * **Guaranteed Execution (Garantia de Execução)**: Official standard fMSX ROMs are pre-seeded, verified, and flagged as active defaults with protection against accidental deletion.
-  * **Graphical Window (Ebitengine)**: Clean 640x480 interface with top menu bar (`File`, `Setup -> Configuration...`, `Setup -> ROMs & HW Catalog...`, `Help -> About`) and live CPU/machine status.
+  * **Graphical Window (Ebitengine)**: Clean 640x480 interface with top menu bar (`File`, `Media`, `Setup`, `Help`) and live CPU/machine status.
   * **Headless Developer CLI Monitor (`--no-window`)**: Terminal REPL ("Developer OS") with register inspection, hexdump, raw byte editing, instruction stepping (`step-in`, `step-over`), breakpoints, slot visualizer, I/O port testing, and the `roms` suite.
 * **Automated Build & Packaging (`build.ps1`)**: Dependency resolution, unit tests, automatic build increment, and self-contained `dist/` creation.
 
@@ -44,7 +49,7 @@ fMSXgo follows strict **`V X.Y.Z`** semantic versioning with creative codenames 
 * **`Y` (Feature)**: Incremented upon completing and integrating a functional subsystem.
 * **`X` (Major)**: Incremented upon closing a major architectural milestone (e.g. Z80 certification = V 1.0.0).
 
-Current Version: **V 0.3.3 ("Vampire Killer")**
+Current Version: **V 0.3.42 ("Nemesis 2")**
 
 For complete phase tracking and immediate next steps, see [SPEC.md](SPEC.md).
 
@@ -111,6 +116,8 @@ fMSXgo provides full command-line parity with the original fMSX, plus modern dev
   * Pass `--font ubuntu` or `--font sourcecodepro` to choose typography.
 
 All preferences are automatically persisted in `fmsxgo.db` across sessions.
+
+![fMSXgo MSX-DOS Boot and Interactive Developer Environment](images/fmsxgo-03.png)
 
 ---
 

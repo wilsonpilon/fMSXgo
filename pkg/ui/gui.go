@@ -4,6 +4,10 @@ import (
 	"fmt"
 	"image/color"
 	"os"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -12,6 +16,7 @@ import (
 	"fmsxgo/pkg/i18n"
 	"fmsxgo/pkg/msx"
 	"fmsxgo/pkg/shell"
+	"fmsxgo/pkg/sound"
 	"fmsxgo/pkg/ui/font"
 	"fmsxgo/pkg/ui/theme"
 	"fmsxgo/pkg/vdp"
@@ -21,34 +26,71 @@ const (
 	WindowWidth  = 640
 	WindowHeight = 480
 	MenuBarH     = 24
+
+	PickerDriveA     = 0
+	PickerDriveB     = 1
+	PickerCart1      = 2
+	PickerCart2      = 3
+	PickerTape       = 4
+	PickerSaveState  = 5
+	PickerLoadState  = 6
 )
+
+// PickerItem represents a file or directory inside the File Picker modal.
+type PickerItem struct {
+	Name  string
+	IsDir bool
+	Size  int64
+}
 
 // UI represents the graphical interface for fMSXgo.
 type UI struct {
-	Machine *msx.Machine
+	Machine     *msx.Machine
+	AudioDevice *sound.AudioDevice
 
 	// Live MSX Video & Display Mode
 	msxScreenImg    *ebiten.Image
 	DisplayMode     int  // 0 = MSX Video Display (default), 1 = Debug Status Overlay
 	EmulationPaused bool // Pause CPU/frame execution
 
+	// Video scaling and aspect ratio settings
+	VideoScale     int  // 1 = 1:1 (256x212), 2 = 2:1 (512x424), 3 = 3:1 (768x636), 4 = 4:1 (1024x848)
+	AspectRatio43  bool // true = force 4:3 CRT TV aspect ratio, false = 1:1 pixel aspect
+	BilinearFilter bool // true = smooth linear interpolation, false = sharp nearest neighbor
+
 	// Modal and menu state
-	ActiveMenu  string // "File", "Setup", "Help", or ""
+	ActiveMenu  string // "File", "Hardware", "Video", "Media", "Setup", "Help", or ""
 	ShowAbout   bool
 	ShowConfig  bool
 	ShowCatalog bool
 	ShouldExit  bool
 
+	// Media File Picker Modal state
+	ShowPicker     bool
+	PickerTarget   int
+	PickerDir      string
+	PickerFiles    []PickerItem
+	PickerSelected int
+	PickerScroll   int
+
 	// Drawing buffers (re-skinned dynamically when theme changes)
-	barImg        *ebiten.Image
-	menuBg        *ebiten.Image
-	fileMenuBg    *ebiten.Image
-	dialogBg      *ebiten.Image
-	configDlgBg   *ebiten.Image
-	catalogDlgBg  *ebiten.Image
-	buttonBg      *ebiten.Image
-	screenBg      *ebiten.Image
-	selectedRowBg *ebiten.Image
+	barImg         *ebiten.Image
+	menuBg         *ebiten.Image
+	fileMenuBg     *ebiten.Image
+	hardwareMenuBg *ebiten.Image
+	videoMenuBg    *ebiten.Image
+	mediaMenuBg    *ebiten.Image
+	dialogBg       *ebiten.Image
+	configDlgBg    *ebiten.Image
+	catalogDlgBg   *ebiten.Image
+	pickerDlgBg    *ebiten.Image
+	buttonBg       *ebiten.Image
+	screenBg       *ebiten.Image
+	selectedRowBg  *ebiten.Image
+
+	// Current window geometry
+	currWinW int
+	currWinH int
 
 	// Interactive CLI goroutine management
 	cliRunning bool
@@ -57,10 +99,37 @@ type UI struct {
 
 // New creates a new UI instance.
 func New(machine *msx.Machine) *UI {
+	scale := 2
+	aspect43 := false
+	smooth := false
+
+	if machine != nil && machine.DB != nil {
+		if s := machine.DB.GetConfig("video_scale", ""); s != "" {
+			if v, err := strconv.Atoi(s); err == nil && v >= 1 && v <= 4 {
+				scale = v
+			}
+		}
+		if a := machine.DB.GetConfig("aspect_ratio_43", ""); a != "" {
+			aspect43 = (a == "true" || a == "1")
+		}
+		if b := machine.DB.GetConfig("bilinear_filter", ""); b != "" {
+			smooth = (b == "true" || b == "1")
+		}
+	}
+
+	var audioDev *sound.AudioDevice
+	if machine != nil && machine.Mixer != nil {
+		audioDev, _ = sound.InitAudioDevice(machine.Mixer)
+	}
+
 	ui := &UI{
-		Machine:      machine,
-		msxScreenImg: ebiten.NewImage(vdp.DisplayWidth, vdp.DisplayHeight),
-		DisplayMode:  0,
+		Machine:        machine,
+		AudioDevice:    audioDev,
+		msxScreenImg:   ebiten.NewImage(vdp.DisplayWidth, vdp.DisplayHeight),
+		DisplayMode:    0,
+		VideoScale:     scale,
+		AspectRatio43:  aspect43,
+		BilinearFilter: smooth,
 	}
 
 	ui.ApplyTheme()
@@ -71,9 +140,9 @@ func New(machine *msx.Machine) *UI {
 func (u *UI) ApplyTheme() {
 	eff := theme.GetEffective()
 
-	// 1. Top menu bar
+	// 1. Top menu bar (wide buffer to cover high-res windows)
 	if u.barImg == nil {
-		u.barImg = ebiten.NewImage(WindowWidth, MenuBarH)
+		u.barImg = ebiten.NewImage(2048, MenuBarH)
 	}
 	u.barImg.Fill(eff.MenuBarBg)
 
@@ -83,15 +152,33 @@ func (u *UI) ApplyTheme() {
 	}
 	u.menuBg.Fill(eff.MenuDropdownBg)
 
-	// 2b. File dropdown menu background (3 items: Reset, CLI, Exit)
+	// 2b. File dropdown menu background (Save, Load, Reset, CLI, Exit)
 	if u.fileMenuBg == nil {
-		u.fileMenuBg = ebiten.NewImage(230, 95)
+		u.fileMenuBg = ebiten.NewImage(230, 155)
 	}
 	u.fileMenuBg.Fill(eff.MenuDropdownBg)
 
+	// 2c. Hardware dropdown menu background (MSX1, MSX2, MSX2+, sep, NTSC, PAL, reset)
+	if u.hardwareMenuBg == nil {
+		u.hardwareMenuBg = ebiten.NewImage(230, 160)
+	}
+	u.hardwareMenuBg.Fill(eff.MenuDropdownBg)
+
+	// 2d. Video dropdown menu background (Scales 1..4, Aspect 1:1 / 4:3, Bilinear filter)
+	if u.videoMenuBg == nil {
+		u.videoMenuBg = ebiten.NewImage(260, 205)
+	}
+	u.videoMenuBg.Fill(eff.MenuDropdownBg)
+
+	// 2e. Media dropdown menu background (Drives A/B, Carts 1/2, Tape)
+	if u.mediaMenuBg == nil {
+		u.mediaMenuBg = ebiten.NewImage(290, 315)
+	}
+	u.mediaMenuBg.Fill(eff.MenuDropdownBg)
+
 	// 3. Screen background
 	if u.screenBg == nil {
-		u.screenBg = ebiten.NewImage(WindowWidth, WindowHeight-MenuBarH)
+		u.screenBg = ebiten.NewImage(2048, 2048)
 	}
 	u.screenBg.Fill(eff.ScreenBg)
 
@@ -113,6 +200,12 @@ func (u *UI) ApplyTheme() {
 	}
 	u.catalogDlgBg.Fill(eff.DialogBg)
 
+	// 5c. File Picker Dialog background (620 x 440)
+	if u.pickerDlgBg == nil {
+		u.pickerDlgBg = ebiten.NewImage(620, 440)
+	}
+	u.pickerDlgBg.Fill(eff.DialogBg)
+
 	// 6. Action button
 	if u.buttonBg == nil {
 		u.buttonBg = ebiten.NewImage(180, 28)
@@ -126,9 +219,60 @@ func (u *UI) ApplyTheme() {
 	u.selectedRowBg.Fill(eff.SelectedBg)
 }
 
+// SetScale changes the display scale (1=1:1, 2=2:1, 3=3:1, 4=4:1) and adjusts the window.
+func (u *UI) SetScale(scale int) {
+	if scale < 1 {
+		scale = 1
+	}
+	if scale > 4 {
+		scale = 4
+	}
+	u.VideoScale = scale
+	u.applyWindowResize()
+	if u.Machine != nil && u.Machine.DB != nil {
+		_ = u.Machine.DB.SetConfig("video_scale", strconv.Itoa(scale))
+	}
+}
+
+// SetAspectRatio43 enables or disables the forced 4:3 CRT TV aspect ratio.
+func (u *UI) SetAspectRatio43(force43 bool) {
+	u.AspectRatio43 = force43
+	u.applyWindowResize()
+	if u.Machine != nil && u.Machine.DB != nil {
+		_ = u.Machine.DB.SetConfig("aspect_ratio_43", strconv.FormatBool(force43))
+	}
+}
+
+// SetBilinearFilter toggles smooth linear interpolation.
+func (u *UI) SetBilinearFilter(smooth bool) {
+	u.BilinearFilter = smooth
+	if u.Machine != nil && u.Machine.DB != nil {
+		_ = u.Machine.DB.SetConfig("bilinear_filter", strconv.FormatBool(smooth))
+	}
+}
+
+func (u *UI) applyWindowResize() {
+	targetH := u.VideoScale * 212
+	var targetW int
+	if u.AspectRatio43 {
+		targetW = (targetH * 4) / 3
+	} else {
+		targetW = u.VideoScale * 256
+	}
+	winW := targetW
+	if winW < 640 {
+		winW = 640
+	}
+	winH := targetH + MenuBarH
+	if winH < 480 {
+		winH = 480
+	}
+	ebiten.SetWindowSize(winW, winH)
+}
+
 // Run launches the Ebitengine graphical window.
 func (u *UI) Run() error {
-	ebiten.SetWindowSize(WindowWidth, WindowHeight)
+	u.applyWindowResize()
 	ebiten.SetWindowTitle("fMSXgo - MSX Emulator & Developer Workstation (64-bit)")
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 
@@ -147,8 +291,36 @@ func (u *UI) Update() error {
 		return nil
 	}
 
+	// F7: Quick Save State (compatible with fMSX .sta)
+	if inpututil.IsKeyJustPressed(ebiten.KeyF7) {
+		if u.Machine != nil {
+			if err := u.Machine.SaveSTA("fmsxgo_quick.sta"); err != nil {
+				fmt.Printf("[fMSXgo] Quick Save State error: %v\n", err)
+			} else {
+				fmt.Println("[fMSXgo] Emulation state saved to 'fmsxgo_quick.sta' (F7)")
+			}
+		}
+		return nil
+	}
+
+	// F8: Quick Load State (compatible with fMSX .sta)
+	if inpututil.IsKeyJustPressed(ebiten.KeyF8) {
+		if u.Machine != nil {
+			if err := u.Machine.LoadSTA("fmsxgo_quick.sta"); err != nil {
+				fmt.Printf("[fMSXgo] Quick Load State error: %v\n", err)
+			} else {
+				fmt.Println("[fMSXgo] Emulation state restored from 'fmsxgo_quick.sta' (F8)")
+			}
+		}
+		return nil
+	}
+
 	// Escape key handling
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
+		if u.ShowPicker {
+			u.ShowPicker = false
+			return nil
+		}
 		if u.ShowCatalog {
 			u.ShowCatalog = false
 			return nil
@@ -168,6 +340,16 @@ func (u *UI) Update() error {
 		return ebiten.Termination
 	}
 
+	// Mouse wheel handling for File Picker modal
+	if u.ShowPicker {
+		_, wy := ebiten.Wheel()
+		if wy > 0 && u.PickerScroll > 0 {
+			u.PickerScroll--
+		} else if wy < 0 && u.PickerScroll+9 < len(u.PickerFiles) {
+			u.PickerScroll++
+		}
+	}
+
 	// Handle mouse clicks
 	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
 		mx, my := ebiten.CursorPosition()
@@ -177,6 +359,7 @@ func (u *UI) Update() error {
 	// Advance MSX emulation frame if not paused
 	if u.Machine != nil && !u.EmulationPaused {
 		u.updateKeyboard()
+		u.updateJoysticksAndMouse()
 		u.Machine.StepFrame()
 		fb := u.Machine.GetFrameBuffer()
 		if fb != nil && u.msxScreenImg != nil {
@@ -188,6 +371,12 @@ func (u *UI) Update() error {
 }
 
 func (u *UI) handleClick(x, y int) {
+	// -1. If File Picker dialog is open, handle its interactions
+	if u.ShowPicker {
+		u.handlePickerClick(x, y)
+		return
+	}
+
 	// 0. If Catalog dialog is open, handle its interactions
 	if u.ShowCatalog {
 		u.handleCatalogClick(x, y)
@@ -206,30 +395,56 @@ func (u *UI) handleClick(x, y int) {
 		return
 	}
 
+	winW := u.currWinW
+	if winW < 640 {
+		winW = 640
+	}
+
 	// 3. Click on top menu bar
 	if y < MenuBarH {
-		if x >= 10 && x <= 65 {
+		if x >= 10 && x < 65 {
 			if u.ActiveMenu == "File" {
 				u.ActiveMenu = ""
 			} else {
 				u.ActiveMenu = "File"
 			}
 			return
-		} else if x >= 70 && x <= 145 {
+		} else if x >= 65 && x < 145 {
+			if u.ActiveMenu == "Hardware" {
+				u.ActiveMenu = ""
+			} else {
+				u.ActiveMenu = "Hardware"
+			}
+			return
+		} else if x >= 145 && x < 205 {
+			if u.ActiveMenu == "Video" {
+				u.ActiveMenu = ""
+			} else {
+				u.ActiveMenu = "Video"
+			}
+			return
+		} else if x >= 205 && x < 265 {
+			if u.ActiveMenu == "Media" {
+				u.ActiveMenu = ""
+			} else {
+				u.ActiveMenu = "Media"
+			}
+			return
+		} else if x >= 265 && x < 360 {
 			if u.ActiveMenu == "Setup" {
 				u.ActiveMenu = ""
 			} else {
 				u.ActiveMenu = "Setup"
 			}
 			return
-		} else if x >= 150 && x <= 210 {
+		} else if x >= 360 && x < 420 {
 			if u.ActiveMenu == "Help" {
 				u.ActiveMenu = ""
 			} else {
 				u.ActiveMenu = "Help"
 			}
 			return
-		} else if x >= WindowWidth-170 && x <= WindowWidth-10 {
+		} else if x >= winW-160 && x <= winW-10 {
 			u.DisplayMode = 1 - u.DisplayMode
 			u.ActiveMenu = ""
 			return
@@ -241,17 +456,27 @@ func (u *UI) handleClick(x, y int) {
 	// 4. Click on File dropdown
 	if u.ActiveMenu == "File" {
 		if x >= 10 && x <= 240 {
-			if y >= MenuBarH && y < MenuBarH+30 {
+			if y >= MenuBarH+2 && y < MenuBarH+26 {
+				// Save State...
+				u.ActiveMenu = ""
+				u.OpenFilePicker(PickerSaveState)
+				return
+			} else if y >= MenuBarH+26 && y < MenuBarH+50 {
+				// Load State...
+				u.ActiveMenu = ""
+				u.OpenFilePicker(PickerLoadState)
+				return
+			} else if y >= MenuBarH+58 && y < MenuBarH+84 {
 				// Reset Machine
 				u.ActiveMenu = ""
 				u.Machine.Reset()
 				return
-			} else if y >= MenuBarH+30 && y < MenuBarH+60 {
+			} else if y >= MenuBarH+84 && y < MenuBarH+114 {
 				// Launch / Activate CLI
 				u.ActiveMenu = ""
 				u.ActivateCLI()
 				return
-			} else if y >= MenuBarH+60 && y < MenuBarH+95 {
+			} else if y >= MenuBarH+114 && y < MenuBarH+150 {
 				// Exit
 				u.ShouldExit = true
 				return
@@ -261,9 +486,151 @@ func (u *UI) handleClick(x, y int) {
 		return
 	}
 
+	// 4b. Click on Hardware dropdown
+	if u.ActiveMenu == "Hardware" {
+		if x >= 70 && x <= 300 {
+			if y >= MenuBarH+2 && y < MenuBarH+28 {
+				// Switch to MSX 1
+				u.ActiveMenu = ""
+				_ = u.Machine.SwitchModel(msx.ModelMSX1)
+				return
+			} else if y >= MenuBarH+28 && y < MenuBarH+54 {
+				// Switch to MSX 2
+				u.ActiveMenu = ""
+				_ = u.Machine.SwitchModel(msx.ModelMSX2)
+				return
+			} else if y >= MenuBarH+54 && y < MenuBarH+80 {
+				// Switch to MSX 2+
+				u.ActiveMenu = ""
+				_ = u.Machine.SwitchModel(msx.ModelMSX2P)
+				return
+			} else if y >= MenuBarH+85 && y < MenuBarH+110 {
+				// NTSC (60Hz)
+				u.ActiveMenu = ""
+				u.Machine.Config.Video = msx.VideoNTSC
+				u.Machine.Reset()
+				return
+			} else if y >= MenuBarH+110 && y < MenuBarH+136 {
+				// PAL (50Hz)
+				u.ActiveMenu = ""
+				u.Machine.Config.Video = msx.VideoPAL
+				u.Machine.Reset()
+				return
+			} else if y >= MenuBarH+136 && y < MenuBarH+160 {
+				// Reset Machine
+				u.ActiveMenu = ""
+				u.Machine.Reset()
+				return
+			}
+		}
+		u.ActiveMenu = ""
+		return
+	}
+
+	// 4c. Click on Video dropdown
+	if u.ActiveMenu == "Video" {
+		if x >= 160 && x <= 420 {
+			if y >= MenuBarH+2 && y < MenuBarH+26 {
+				u.ActiveMenu = ""
+				u.SetScale(1)
+				return
+			} else if y >= MenuBarH+26 && y < MenuBarH+50 {
+				u.ActiveMenu = ""
+				u.SetScale(2)
+				return
+			} else if y >= MenuBarH+50 && y < MenuBarH+74 {
+				u.ActiveMenu = ""
+				u.SetScale(3)
+				return
+			} else if y >= MenuBarH+74 && y < MenuBarH+98 {
+				u.ActiveMenu = ""
+				u.SetScale(4)
+				return
+			} else if y >= MenuBarH+108 && y < MenuBarH+132 {
+				u.ActiveMenu = ""
+				u.SetAspectRatio43(false)
+				return
+			} else if y >= MenuBarH+132 && y < MenuBarH+156 {
+				u.ActiveMenu = ""
+				u.SetAspectRatio43(true)
+				return
+			} else if y >= MenuBarH+166 && y < MenuBarH+195 {
+				u.ActiveMenu = ""
+				u.SetBilinearFilter(!u.BilinearFilter)
+				return
+			}
+		}
+		u.ActiveMenu = ""
+		return
+	}
+
+	// 4d. Click on Media dropdown
+	if u.ActiveMenu == "Media" {
+		if x >= 205 && x <= 495 {
+			if y >= MenuBarH+22 && y < MenuBarH+42 {
+				// Insert Disk A (.dsk)
+				u.ActiveMenu = ""
+				u.OpenFilePicker(PickerDriveA)
+				return
+			} else if y >= MenuBarH+42 && y < MenuBarH+60 {
+				// Eject Disk A
+				u.ActiveMenu = ""
+				u.Machine.EjectDisk(0)
+				return
+			} else if y >= MenuBarH+78 && y < MenuBarH+98 {
+				// Insert Disk B (.dsk)
+				u.ActiveMenu = ""
+				u.OpenFilePicker(PickerDriveB)
+				return
+			} else if y >= MenuBarH+98 && y < MenuBarH+116 {
+				// Eject Disk B
+				u.ActiveMenu = ""
+				u.Machine.EjectDisk(1)
+				return
+			} else if y >= MenuBarH+144 && y < MenuBarH+164 {
+				// Insert Cartridge 1 (.rom)
+				u.ActiveMenu = ""
+				u.OpenFilePicker(PickerCart1)
+				return
+			} else if y >= MenuBarH+164 && y < MenuBarH+182 {
+				// Eject Cartridge 1
+				u.ActiveMenu = ""
+				u.Machine.EjectCartridge(1)
+				return
+			} else if y >= MenuBarH+200 && y < MenuBarH+220 {
+				// Insert Cartridge 2 (.rom)
+				u.ActiveMenu = ""
+				u.OpenFilePicker(PickerCart2)
+				return
+			} else if y >= MenuBarH+220 && y < MenuBarH+238 {
+				// Eject Cartridge 2
+				u.ActiveMenu = ""
+				u.Machine.EjectCartridge(2)
+				return
+			} else if y >= MenuBarH+266 && y < MenuBarH+286 {
+				// Insert Tape (.cas)
+				u.ActiveMenu = ""
+				u.OpenFilePicker(PickerTape)
+				return
+			} else if y >= MenuBarH+286 && y < MenuBarH+312 {
+				u.ActiveMenu = ""
+				if x < 350 {
+					// Eject Tape
+					u.Machine.EjectTape()
+				} else {
+					// Rewind Tape
+					u.Machine.RewindTape()
+				}
+				return
+			}
+		}
+		u.ActiveMenu = ""
+		return
+	}
+
 	// 5. Click on Setup dropdown
 	if u.ActiveMenu == "Setup" {
-		if x >= 70 && x <= 300 {
+		if x >= 265 && x <= 495 {
 			if y >= MenuBarH && y < MenuBarH+32 {
 				// Open Configuration (Language, Theme, Font)
 				u.ActiveMenu = ""
@@ -282,7 +649,7 @@ func (u *UI) handleClick(x, y int) {
 
 	// 6. Click on Help dropdown
 	if u.ActiveMenu == "Help" {
-		if x >= 150 && x <= 380 && y >= MenuBarH && y < MenuBarH+35 {
+		if x >= 360 && x <= 590 && y >= MenuBarH && y < MenuBarH+35 {
 			u.ActiveMenu = ""
 			u.ShowAbout = true
 			return
@@ -295,8 +662,16 @@ func (u *UI) handleClick(x, y int) {
 }
 
 func (u *UI) handleConfigClick(x, y int) {
-	diagX := (WindowWidth - 600) / 2
-	diagY := (WindowHeight - 420) / 2
+	winW := u.currWinW
+	if winW < 620 {
+		winW = 620
+	}
+	winH := u.currWinH
+	if winH < 450 {
+		winH = 450
+	}
+	diagX := (winW - 600) / 2
+	diagY := (winH - 420) / 2
 
 	// Click outside modal closes it
 	if x < diagX || x > diagX+600 || y < diagY || y > diagY+420 {
@@ -365,6 +740,9 @@ func (u *UI) handleConfigClick(x, y int) {
 // Draw renders the full GUI window.
 func (u *UI) Draw(screen *ebiten.Image) {
 	eff := theme.GetEffective()
+	bounds := screen.Bounds()
+	winW := bounds.Dx()
+	winH := bounds.Dy()
 
 	// 1. Draw Screen Background (workstation monitor area)
 	screenOp := &ebiten.DrawImageOptions{}
@@ -372,10 +750,40 @@ func (u *UI) Draw(screen *ebiten.Image) {
 	screen.DrawImage(u.screenBg, screenOp)
 
 	if u.DisplayMode == 0 && u.msxScreenImg != nil {
-		// Draw Live MSX Screen at 2x integer scale centered
+		availW := winW
+		availH := winH - MenuBarH
+
+		targetH := u.VideoScale * 212
+		var targetW int
+		if u.AspectRatio43 {
+			targetW = (targetH * 4) / 3
+		} else {
+			targetW = u.VideoScale * 256
+		}
+
+		// Scale down to fit if window was manually shrunk smaller than preset
+		if targetW > availW || targetH > availH {
+			aspect := float64(targetW) / float64(targetH)
+			if float64(availW)/float64(availH) > aspect {
+				targetH = availH
+				targetW = int(float64(targetH) * aspect)
+			} else {
+				targetW = availW
+				targetH = int(float64(targetW) / aspect)
+			}
+		}
+
+		destX := (availW - targetW) / 2
+		destY := MenuBarH + (availH - targetH) / 2
+
 		msxOp := &ebiten.DrawImageOptions{}
-		msxOp.GeoM.Scale(2, 2)
-		msxOp.GeoM.Translate(48, MenuBarH)
+		scaleX := float64(targetW) / 512.0
+		scaleY := float64(targetH) / 212.0
+		msxOp.GeoM.Scale(scaleX, scaleY)
+		msxOp.GeoM.Translate(float64(destX), float64(destY))
+		if u.BilinearFilter || u.AspectRatio43 || scaleX != float64(int(scaleX)) {
+			msxOp.Filter = ebiten.FilterLinear
+		}
 		screen.DrawImage(u.msxScreenImg, msxOp)
 	} else {
 		// Draw Machine Status / Developer Debug Overlay
@@ -387,36 +795,170 @@ func (u *UI) Draw(screen *ebiten.Image) {
 	screen.DrawImage(u.barImg, barOp)
 
 	// Draw Menu text labels (antialiased TrueType)
-	font.DrawBold(screen, i18n.T("menu_file"), 16, 5, 13, eff.MenuBarText)
-	font.DrawBold(screen, i18n.T("menu_setup"), 76, 5, 13, eff.MenuBarText)
-	font.DrawBold(screen, i18n.T("menu_help"), 156, 5, 13, eff.MenuBarText)
+	font.DrawBold(screen, i18n.T("menu_file"), 14, 5, 13, eff.MenuBarText)
+	font.DrawBold(screen, i18n.T("menu_hardware"), 70, 5, 13, eff.MenuBarText)
+	font.DrawBold(screen, i18n.T("menu_video"), 150, 5, 13, eff.MenuBarText)
+	font.DrawBold(screen, i18n.T("menu_media"), 210, 5, 13, eff.MenuBarText)
+	font.DrawBold(screen, i18n.T("menu_setup"), 270, 5, 13, eff.MenuBarText)
+	font.DrawBold(screen, i18n.T("menu_help"), 370, 5, 13, eff.MenuBarText)
 
 	// Display mode badge on the right
 	badgeText := "[ F11: Screen ]"
 	if u.DisplayMode == 1 {
 		badgeText = "[ F11: Debug ]"
 	}
-	font.DrawCode(screen, badgeText, WindowWidth-145, 5, 12, eff.AccentColor)
+	font.DrawCode(screen, badgeText, float64(winW-145), 5, 12, eff.AccentColor)
 
 	// 3. Draw Active Dropdown Menu
 	if u.ActiveMenu == "File" {
 		dropOp := &ebiten.DrawImageOptions{}
 		dropOp.GeoM.Translate(10, MenuBarH)
 		screen.DrawImage(u.fileMenuBg, dropOp)
-		font.Draw(screen, i18n.T("menu_reset"), 18, MenuBarH+6, 13, eff.MenuDropdownText)
-		font.Draw(screen, i18n.T("menu_cli"), 18, MenuBarH+34, 13, eff.MenuDropdownText)
-		font.Draw(screen, i18n.T("menu_exit"), 18, MenuBarH+64, 13, eff.MenuDropdownText)
-	} else if u.ActiveMenu == "Setup" {
+		font.Draw(screen, i18n.T("menu_save_state"), 18, MenuBarH+6, 12, eff.MenuDropdownText)
+		font.Draw(screen, i18n.T("menu_load_state"), 18, MenuBarH+30, 12, eff.MenuDropdownText)
+		font.Draw(screen, "--------------------------", 18, MenuBarH+46, 10, eff.StatusLabel)
+		font.Draw(screen, i18n.T("menu_reset"), 18, MenuBarH+62, 12, eff.MenuDropdownText)
+		font.Draw(screen, i18n.T("menu_cli"), 18, MenuBarH+90, 12, eff.MenuDropdownText)
+		font.Draw(screen, i18n.T("menu_exit"), 18, MenuBarH+120, 12, eff.MenuDropdownText)
+	} else if u.ActiveMenu == "Hardware" {
 		dropOp := &ebiten.DrawImageOptions{}
 		dropOp.GeoM.Translate(70, MenuBarH)
+		screen.DrawImage(u.hardwareMenuBg, dropOp)
+
+		chk1 := "   "
+		if u.Machine.Config.Model == msx.ModelMSX1 {
+			chk1 = "✓ "
+		}
+		chk2 := "   "
+		if u.Machine.Config.Model == msx.ModelMSX2 {
+			chk2 = "✓ "
+		}
+		chk2p := "   "
+		if u.Machine.Config.Model == msx.ModelMSX2P {
+			chk2p = "✓ "
+		}
+		chkNtsc := "   "
+		if u.Machine.Config.Video == msx.VideoNTSC {
+			chkNtsc = "✓ "
+		}
+		chkPal := "   "
+		if u.Machine.Config.Video == msx.VideoPAL {
+			chkPal = "✓ "
+		}
+
+		font.Draw(screen, chk1+i18n.T("lbl_msx1"), 78, MenuBarH+6, 13, eff.MenuDropdownText)
+		font.Draw(screen, chk2+i18n.T("lbl_msx2"), 78, MenuBarH+32, 13, eff.MenuDropdownText)
+		font.Draw(screen, chk2p+i18n.T("lbl_msx2p"), 78, MenuBarH+58, 13, eff.MenuDropdownText)
+
+		// Separator line
+		font.Draw(screen, "--------------------------", 78, MenuBarH+76, 10, eff.StatusLabel)
+
+		font.Draw(screen, chkNtsc+i18n.T("lbl_ntsc"), 78, MenuBarH+92, 13, eff.MenuDropdownText)
+		font.Draw(screen, chkPal+i18n.T("lbl_pal"), 78, MenuBarH+118, 13, eff.MenuDropdownText)
+		font.Draw(screen, "   "+i18n.T("menu_reset")+" (F12)", 78, MenuBarH+140, 12, eff.AccentColor)
+	} else if u.ActiveMenu == "Video" {
+		dropOp := &ebiten.DrawImageOptions{}
+		dropOp.GeoM.Translate(160, MenuBarH)
+		screen.DrawImage(u.videoMenuBg, dropOp)
+
+		chkS1 := "   "
+		if u.VideoScale == 1 {
+			chkS1 = "✓ "
+		}
+		chkS2 := "   "
+		if u.VideoScale == 2 {
+			chkS2 = "✓ "
+		}
+		chkS3 := "   "
+		if u.VideoScale == 3 {
+			chkS3 = "✓ "
+		}
+		chkS4 := "   "
+		if u.VideoScale == 4 {
+			chkS4 = "✓ "
+		}
+
+		chkAsp11 := "   "
+		if !u.AspectRatio43 {
+			chkAsp11 = "✓ "
+		}
+		chkAsp43 := "   "
+		if u.AspectRatio43 {
+			chkAsp43 = "✓ "
+		}
+
+		chkSmooth := "   "
+		if u.BilinearFilter {
+			chkSmooth = "✓ "
+		}
+
+		font.Draw(screen, chkS1+i18n.T("video_scale_1"), 168, MenuBarH+6, 13, eff.MenuDropdownText)
+		font.Draw(screen, chkS2+i18n.T("video_scale_2"), 168, MenuBarH+30, 13, eff.MenuDropdownText)
+		font.Draw(screen, chkS3+i18n.T("video_scale_3"), 168, MenuBarH+54, 13, eff.MenuDropdownText)
+		font.Draw(screen, chkS4+i18n.T("video_scale_4"), 168, MenuBarH+78, 13, eff.MenuDropdownText)
+
+		// Separator line
+		font.Draw(screen, "------------------------------", 168, MenuBarH+96, 10, eff.StatusLabel)
+
+		font.Draw(screen, chkAsp11+i18n.T("video_aspect_11"), 168, MenuBarH+112, 13, eff.MenuDropdownText)
+		font.Draw(screen, chkAsp43+i18n.T("video_aspect_43"), 168, MenuBarH+136, 13, eff.MenuDropdownText)
+
+		// Separator line
+		font.Draw(screen, "------------------------------", 168, MenuBarH+154, 10, eff.StatusLabel)
+
+		font.Draw(screen, chkSmooth+i18n.T("video_filter_smooth"), 168, MenuBarH+170, 13, eff.MenuDropdownText)
+	} else if u.ActiveMenu == "Media" {
+		dropOp := &ebiten.DrawImageOptions{}
+		dropOp.GeoM.Translate(205, MenuBarH)
+		screen.DrawImage(u.mediaMenuBg, dropOp)
+
+		dA := mediaBasename(u.Machine.Config.DiskAPath)
+		dB := mediaBasename(u.Machine.Config.DiskBPath)
+		c1 := mediaBasename(u.Machine.Config.CartAPath)
+		c2 := mediaBasename(u.Machine.Config.CartBPath)
+		tp := mediaBasename(u.Machine.Config.TapePath)
+
+		// Drive A
+		font.DrawBold(screen, fmt.Sprintf("%s [%s]", i18n.T("media_drive_a"), dA), 212, MenuBarH+6, 12, eff.AccentColor)
+		font.Draw(screen, "   "+i18n.T("media_insert_dsk"), 212, MenuBarH+24, 12, eff.MenuDropdownText)
+		font.Draw(screen, "   "+i18n.T("media_eject_dsk"), 212, MenuBarH+42, 12, eff.MenuDropdownText)
+
+		// Drive B
+		font.DrawBold(screen, fmt.Sprintf("%s [%s]", i18n.T("media_drive_b"), dB), 212, MenuBarH+62, 12, eff.AccentColor)
+		font.Draw(screen, "   "+i18n.T("media_insert_dsk"), 212, MenuBarH+80, 12, eff.MenuDropdownText)
+		font.Draw(screen, "   "+i18n.T("media_eject_dsk"), 212, MenuBarH+98, 12, eff.MenuDropdownText)
+
+		// Separator
+		font.Draw(screen, "-----------------------------------", 212, MenuBarH+114, 10, eff.StatusLabel)
+
+		// Cartridge Slot 1
+		font.DrawBold(screen, fmt.Sprintf("%s [%s]", i18n.T("media_cart_1"), c1), 212, MenuBarH+128, 12, eff.AccentColor)
+		font.Draw(screen, "   "+i18n.T("media_insert_rom"), 212, MenuBarH+146, 12, eff.MenuDropdownText)
+		font.Draw(screen, "   "+i18n.T("media_eject_rom"), 212, MenuBarH+164, 12, eff.MenuDropdownText)
+
+		// Cartridge Slot 2
+		font.DrawBold(screen, fmt.Sprintf("%s [%s]", i18n.T("media_cart_2"), c2), 212, MenuBarH+184, 12, eff.AccentColor)
+		font.Draw(screen, "   "+i18n.T("media_insert_rom"), 212, MenuBarH+202, 12, eff.MenuDropdownText)
+		font.Draw(screen, "   "+i18n.T("media_eject_rom"), 212, MenuBarH+220, 12, eff.MenuDropdownText)
+
+		// Separator
+		font.Draw(screen, "-----------------------------------", 212, MenuBarH+236, 10, eff.StatusLabel)
+
+		// Cassette Tape
+		font.DrawBold(screen, fmt.Sprintf("%s [%s]", i18n.T("media_tape"), tp), 212, MenuBarH+250, 12, eff.AccentColor)
+		font.Draw(screen, "   "+i18n.T("media_insert_cas"), 212, MenuBarH+268, 12, eff.MenuDropdownText)
+		font.Draw(screen, "   "+i18n.T("media_eject_cas")+"  |  "+i18n.T("media_rewind_cas"), 212, MenuBarH+288, 12, eff.MenuDropdownText)
+	} else if u.ActiveMenu == "Setup" {
+		dropOp := &ebiten.DrawImageOptions{}
+		dropOp.GeoM.Translate(265, MenuBarH)
 		screen.DrawImage(u.menuBg, dropOp)
-		font.Draw(screen, i18n.T("menu_config"), 78, MenuBarH+6, 13, eff.MenuDropdownText)
-		font.Draw(screen, i18n.T("menu_catalog"), 78, MenuBarH+34, 13, eff.MenuDropdownText)
+		font.Draw(screen, i18n.T("menu_config"), 273, MenuBarH+6, 13, eff.MenuDropdownText)
+		font.Draw(screen, i18n.T("menu_catalog"), 273, MenuBarH+34, 13, eff.MenuDropdownText)
 	} else if u.ActiveMenu == "Help" {
 		dropOp := &ebiten.DrawImageOptions{}
-		dropOp.GeoM.Translate(150, MenuBarH)
+		dropOp.GeoM.Translate(360, MenuBarH)
 		screen.DrawImage(u.menuBg, dropOp)
-		font.Draw(screen, i18n.T("menu_about"), 158, MenuBarH+8, 13, eff.MenuDropdownText)
+		font.Draw(screen, i18n.T("menu_about"), 368, MenuBarH+8, 13, eff.MenuDropdownText)
 	}
 
 	// 4. Draw About Modal Dialog
@@ -433,6 +975,11 @@ func (u *UI) Draw(screen *ebiten.Image) {
 	if u.ShowCatalog {
 		u.drawCatalogModal(screen)
 	}
+
+	// 7. Draw Media File Picker Modal Dialog
+	if u.ShowPicker {
+		u.drawPickerModal(screen)
+	}
 }
 
 func (u *UI) drawStatus(screen *ebiten.Image) {
@@ -440,11 +987,11 @@ func (u *UI) drawStatus(screen *ebiten.Image) {
 
 	font.DrawBold(screen, i18n.T("lbl_title"), 80, 42, 14, eff.StatusTitle)
 
-	model := "MSX 2"
+	model := "MSX 2 (V9938)"
 	if u.Machine.Config.Model == msx.ModelMSX1 {
-		model = "MSX 1"
+		model = "MSX 1 (TMS9918)"
 	} else if u.Machine.Config.Model == msx.ModelMSX2P {
-		model = "MSX 2+"
+		model = "MSX 2+ (V9958)"
 	}
 	video := "NTSC (60Hz)"
 	if u.Machine.Config.Video == msx.VideoPAL {
@@ -461,7 +1008,7 @@ func (u *UI) drawStatus(screen *ebiten.Image) {
 	font.DrawBold(screen, fmt.Sprintf("%d KB (%d pages)", u.Machine.Config.RAMPages*16, u.Machine.Config.RAMPages), 240, 124, 13, eff.StatusValue)
 
 	font.Draw(screen, i18n.T("lbl_vram"), 80, 146, 13, eff.StatusLabel)
-	font.DrawBold(screen, fmt.Sprintf("%d KB", u.Machine.Config.VRAMPages*64), 240, 146, 13, eff.StatusValue)
+	font.DrawBold(screen, fmt.Sprintf("%d KB (%d pages)", u.Machine.Config.VRAMPages*16, u.Machine.Config.VRAMPages), 240, 146, 13, eff.StatusValue)
 
 	cpu := u.Machine.CPU
 	font.DrawBold(screen, i18n.T("lbl_cpu_state"), 80, 180, 13, eff.AccentColor)
@@ -499,7 +1046,7 @@ func (u *UI) updateKeyboard() {
 	}
 
 	// Don't capture keys if modal dialogs are open
-	if u.ShowConfig || u.ShowCatalog || u.ShowAbout {
+	if u.ShowConfig || u.ShowCatalog || u.ShowAbout || u.ShowPicker {
 		return
 	}
 
@@ -597,10 +1144,139 @@ func (u *UI) updateKeyboard() {
 	if ebiten.IsKeyPressed(ebiten.KeyArrowRight) { press(8, 7) }
 }
 
+func (u *UI) updateJoysticksAndMouse() {
+	if u.Machine == nil || u.Machine.Joy == nil {
+		return
+	}
+
+	// Don't capture gameplay inputs if modal dialogs are open
+	if u.ShowConfig || u.ShowCatalog || u.ShowAbout || u.ShowPicker {
+		return
+	}
+
+	// 1. Joystick 1 (Port 0): Keyboard fallback + Physical Gamepad 1
+	up1 := ebiten.IsKeyPressed(ebiten.KeyArrowUp) || ebiten.IsKeyPressed(ebiten.KeyNumpad8)
+	down1 := ebiten.IsKeyPressed(ebiten.KeyArrowDown) || ebiten.IsKeyPressed(ebiten.KeyNumpad2)
+	left1 := ebiten.IsKeyPressed(ebiten.KeyArrowLeft) || ebiten.IsKeyPressed(ebiten.KeyNumpad4)
+	right1 := ebiten.IsKeyPressed(ebiten.KeyArrowRight) || ebiten.IsKeyPressed(ebiten.KeyNumpad6)
+	btnA1 := ebiten.IsKeyPressed(ebiten.KeySpace) || ebiten.IsKeyPressed(ebiten.KeyZ)
+	btnB1 := ebiten.IsKeyPressed(ebiten.KeyX) || ebiten.IsKeyPressed(ebiten.KeyC) || ebiten.IsKeyPressed(ebiten.KeyControlLeft)
+
+	// Scan connected USB gamepads
+	gamepadIDs := ebiten.AppendGamepadIDs(nil)
+	if len(gamepadIDs) > 0 {
+		gp0 := gamepadIDs[0]
+		// D-Pad buttons
+		if ebiten.IsStandardGamepadButtonPressed(gp0, ebiten.StandardGamepadButtonLeftTop) {
+			up1 = true
+		}
+		if ebiten.IsStandardGamepadButtonPressed(gp0, ebiten.StandardGamepadButtonLeftBottom) {
+			down1 = true
+		}
+		if ebiten.IsStandardGamepadButtonPressed(gp0, ebiten.StandardGamepadButtonLeftLeft) {
+			left1 = true
+		}
+		if ebiten.IsStandardGamepadButtonPressed(gp0, ebiten.StandardGamepadButtonLeftRight) {
+			right1 = true
+		}
+
+		// Analog Left Stick axes (-1.0 to +1.0)
+		stickX := ebiten.StandardGamepadAxisValue(gp0, ebiten.StandardGamepadAxisLeftStickHorizontal)
+		stickY := ebiten.StandardGamepadAxisValue(gp0, ebiten.StandardGamepadAxisLeftStickVertical)
+		if stickY < -0.35 {
+			up1 = true
+		} else if stickY > 0.35 {
+			down1 = true
+		}
+		if stickX < -0.35 {
+			left1 = true
+		} else if stickX > 0.35 {
+			right1 = true
+		}
+
+		// Action buttons (A, B, X, Y)
+		if ebiten.IsStandardGamepadButtonPressed(gp0, ebiten.StandardGamepadButtonRightBottom) || // South (A / Cross)
+			ebiten.IsStandardGamepadButtonPressed(gp0, ebiten.StandardGamepadButtonRightLeft) { // West (X / Square)
+			btnA1 = true
+		}
+		if ebiten.IsStandardGamepadButtonPressed(gp0, ebiten.StandardGamepadButtonRightRight) || // East (B / Circle)
+			ebiten.IsStandardGamepadButtonPressed(gp0, ebiten.StandardGamepadButtonRightTop) { // North (Y / Triangle)
+			btnB1 = true
+		}
+	}
+
+	u.Machine.Joy.UpdateButtons(0, up1, down1, left1, right1, btnA1, btnB1)
+
+	// 2. Joystick 2 (Port 1): Physical Gamepad 2 or alternative keys
+	up2 := false
+	down2 := false
+	left2 := false
+	right2 := false
+	btnA2 := false
+	btnB2 := false
+
+	if len(gamepadIDs) > 1 {
+		gp1 := gamepadIDs[1]
+		if ebiten.IsStandardGamepadButtonPressed(gp1, ebiten.StandardGamepadButtonLeftTop) {
+			up2 = true
+		}
+		if ebiten.IsStandardGamepadButtonPressed(gp1, ebiten.StandardGamepadButtonLeftBottom) {
+			down2 = true
+		}
+		if ebiten.IsStandardGamepadButtonPressed(gp1, ebiten.StandardGamepadButtonLeftLeft) {
+			left2 = true
+		}
+		if ebiten.IsStandardGamepadButtonPressed(gp1, ebiten.StandardGamepadButtonLeftRight) {
+			right2 = true
+		}
+
+		stickX := ebiten.StandardGamepadAxisValue(gp1, ebiten.StandardGamepadAxisLeftStickHorizontal)
+		stickY := ebiten.StandardGamepadAxisValue(gp1, ebiten.StandardGamepadAxisLeftStickVertical)
+		if stickY < -0.35 {
+			up2 = true
+		} else if stickY > 0.35 {
+			down2 = true
+		}
+		if stickX < -0.35 {
+			left2 = true
+		} else if stickX > 0.35 {
+			right2 = true
+		}
+
+		if ebiten.IsStandardGamepadButtonPressed(gp1, ebiten.StandardGamepadButtonRightBottom) ||
+			ebiten.IsStandardGamepadButtonPressed(gp1, ebiten.StandardGamepadButtonRightLeft) {
+			btnA2 = true
+		}
+		if ebiten.IsStandardGamepadButtonPressed(gp1, ebiten.StandardGamepadButtonRightRight) ||
+			ebiten.IsStandardGamepadButtonPressed(gp1, ebiten.StandardGamepadButtonRightTop) {
+			btnB2 = true
+		}
+	}
+
+	u.Machine.Joy.UpdateButtons(1, up2, down2, left2, right2, btnA2, btnB2)
+
+	// 3. Mouse Update (Port 0 or Port 1)
+	mx, my := ebiten.CursorPosition()
+	leftBtn := ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft)
+	rightBtn := ebiten.IsMouseButtonPressed(ebiten.MouseButtonRight)
+	isHighRes := false
+	if u.Machine.VDP != nil {
+		isHighRes = u.Machine.VDP.ScrMode == 6 || u.Machine.VDP.ScrMode == 7 || u.Machine.VDP.ScrMode == 13
+	}
+
+	// If mouse is plugged into Port 0 or Port 1, route mouse coordinates
+	if u.Machine.Joy.Ports[0].Type == msx.JoyMouse {
+		u.Machine.Joy.UpdateMouse(0, mx, my, leftBtn, rightBtn, isHighRes)
+	}
+	if u.Machine.Joy.Ports[1].Type == msx.JoyMouse {
+		u.Machine.Joy.UpdateMouse(1, mx, my, leftBtn, rightBtn, isHighRes)
+	}
+}
+
 func (u *UI) drawAboutModal(screen *ebiten.Image) {
 	eff := theme.GetEffective()
-	diagX := float64((WindowWidth - 440) / 2)
-	diagY := float64((WindowHeight - 230) / 2)
+	diagX := float64((screen.Bounds().Dx() - 440) / 2)
+	diagY := float64((screen.Bounds().Dy() - 230) / 2)
 
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(diagX, diagY)
@@ -621,8 +1297,8 @@ func (u *UI) drawAboutModal(screen *ebiten.Image) {
 
 func (u *UI) drawConfigModal(screen *ebiten.Image) {
 	eff := theme.GetEffective()
-	diagX := (WindowWidth - 600) / 2
-	diagY := (WindowHeight - 420) / 2
+	diagX := (screen.Bounds().Dx() - 600) / 2
+	diagY := (screen.Bounds().Dy() - 420) / 2
 
 	// 1. Draw dialog background
 	op := &ebiten.DrawImageOptions{}
@@ -720,8 +1396,16 @@ func (u *UI) drawConfigModal(screen *ebiten.Image) {
 }
 
 func (u *UI) handleCatalogClick(x, y int) {
-	diagX := (WindowWidth - 620) / 2
-	diagY := (WindowHeight - 440) / 2
+	winW := u.currWinW
+	if winW < 640 {
+		winW = 640
+	}
+	winH := u.currWinH
+	if winH < 480 {
+		winH = 480
+	}
+	diagX := (winW - 620) / 2
+	diagY := (winH - 440) / 2
 
 	// Click outside closes modal
 	if x < diagX || x > diagX+620 || y < diagY || y > diagY+440 {
@@ -756,8 +1440,8 @@ func (u *UI) handleCatalogClick(x, y int) {
 
 func (u *UI) drawCatalogModal(screen *ebiten.Image) {
 	eff := theme.GetEffective()
-	diagX := (WindowWidth - 620) / 2
-	diagY := (WindowHeight - 440) / 2
+	diagX := (screen.Bounds().Dx() - 620) / 2
+	diagY := (screen.Bounds().Dy() - 440) / 2
 
 	// 1. Dialog background
 	op := &ebiten.DrawImageOptions{}
@@ -837,7 +1521,333 @@ func (u *UI) drawCatalogModal(screen *ebiten.Image) {
 
 // Layout defines the logical window resolution.
 func (u *UI) Layout(outsideWidth, outsideHeight int) (int, int) {
-	return WindowWidth, WindowHeight
+	if outsideWidth < 640 {
+		outsideWidth = 640
+	}
+	if outsideHeight < 480 {
+		outsideHeight = 480
+	}
+	u.currWinW = outsideWidth
+	u.currWinH = outsideHeight
+	return outsideWidth, outsideHeight
+}
+
+func mediaBasename(path string) string {
+	if path == "" {
+		return i18n.T("media_empty")
+	}
+	b := filepath.Base(path)
+	if len(b) > 16 {
+		b = b[:13] + "..."
+	}
+	return b
+}
+
+// OpenFilePicker opens the File Picker modal for the given media target.
+func (u *UI) OpenFilePicker(target int) {
+	u.ShowPicker = true
+	u.PickerTarget = target
+	u.PickerSelected = -1
+	u.PickerScroll = 0
+	if u.PickerDir == "" {
+		if cwd, err := os.Getwd(); err == nil {
+			u.PickerDir = cwd
+		} else {
+			u.PickerDir = "."
+		}
+	}
+	u.refreshPickerFiles()
+}
+
+func (u *UI) refreshPickerFiles() {
+	u.PickerFiles = nil
+	u.PickerSelected = -1
+	u.PickerScroll = 0
+
+	entries, err := os.ReadDir(u.PickerDir)
+	if err != nil {
+		return
+	}
+
+	var dirs []PickerItem
+	var files []PickerItem
+
+	for _, e := range entries {
+		name := e.Name()
+		if strings.HasPrefix(name, ".") && name != ".." {
+			continue
+		}
+		if e.IsDir() {
+			dirs = append(dirs, PickerItem{
+				Name:  name,
+				IsDir: true,
+			})
+		} else {
+			ext := strings.ToLower(filepath.Ext(name))
+			valid := false
+			switch u.PickerTarget {
+			case PickerDriveA, PickerDriveB:
+				valid = (ext == ".dsk" || ext == ".di1" || ext == ".di2" || ext == ".dmk" || ext == ".img")
+			case PickerCart1, PickerCart2:
+				valid = (ext == ".rom" || ext == ".mx1" || ext == ".mx2" || ext == ".bin")
+			case PickerTape:
+				valid = (ext == ".cas")
+			case PickerSaveState, PickerLoadState:
+				valid = (ext == ".sta")
+			}
+			if valid {
+				info, err := e.Info()
+				var sz int64
+				if err == nil {
+					sz = info.Size()
+				}
+				files = append(files, PickerItem{
+					Name:  name,
+					IsDir: false,
+					Size:  sz,
+				})
+			}
+		}
+	}
+
+	sort.Slice(dirs, func(i, j int) bool {
+		return strings.ToLower(dirs[i].Name) < strings.ToLower(dirs[j].Name)
+	})
+	sort.Slice(files, func(i, j int) bool {
+		return strings.ToLower(files[i].Name) < strings.ToLower(files[j].Name)
+	})
+
+	u.PickerFiles = append(dirs, files...)
+}
+
+func (u *UI) mountPickerFile(fullPath string) {
+	if u.Machine == nil {
+		return
+	}
+	var err error
+	switch u.PickerTarget {
+	case PickerDriveA:
+		err = u.Machine.LoadDisk(0, fullPath)
+	case PickerDriveB:
+		err = u.Machine.LoadDisk(1, fullPath)
+	case PickerCart1:
+		err = u.Machine.LoadCartridge(1, fullPath)
+	case PickerCart2:
+		err = u.Machine.LoadCartridge(2, fullPath)
+	case PickerTape:
+		err = u.Machine.LoadTape(fullPath)
+	case PickerSaveState:
+		err = u.Machine.SaveSTA(fullPath)
+		if err == nil {
+			fmt.Printf("[fMSXgo] State snapshot saved to: %s\n", fullPath)
+		}
+	case PickerLoadState:
+		err = u.Machine.LoadSTA(fullPath)
+		if err == nil {
+			fmt.Printf("[fMSXgo] State snapshot restored from: %s\n", fullPath)
+		}
+	}
+	if err != nil {
+		fmt.Printf("[fMSXgo] Error loading/saving media: %v\n", err)
+	}
+}
+
+func (u *UI) drawPickerModal(screen *ebiten.Image) {
+	eff := theme.GetEffective()
+	diagX := (screen.Bounds().Dx() - 620) / 2
+	diagY := (screen.Bounds().Dy() - 440) / 2
+
+	// 1. Dialog background
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(float64(diagX), float64(diagY))
+	screen.DrawImage(u.pickerDlgBg, op)
+
+	// 2. Title & Target Subtitle
+	font.DrawBold(screen, fmt.Sprintf("=== %s ===", i18n.T("dlg_picker_title")), float64(diagX+140), float64(diagY+14), 14, eff.DialogHeader)
+
+	targetDesc := ""
+	switch u.PickerTarget {
+	case PickerDriveA:
+		targetDesc = fmt.Sprintf("%s (.dsk, .img)", i18n.T("media_drive_a"))
+	case PickerDriveB:
+		targetDesc = fmt.Sprintf("%s (.dsk, .img)", i18n.T("media_drive_b"))
+	case PickerCart1:
+		targetDesc = fmt.Sprintf("%s (.rom, .mx1, .mx2)", i18n.T("media_cart_1"))
+	case PickerCart2:
+		targetDesc = fmt.Sprintf("%s (.rom, .mx1, .mx2)", i18n.T("media_cart_2"))
+	case PickerTape:
+		targetDesc = fmt.Sprintf("%s (.cas)", i18n.T("media_tape"))
+	case PickerSaveState:
+		targetDesc = fmt.Sprintf("%s (.sta)", i18n.T("menu_save_state"))
+	case PickerLoadState:
+		targetDesc = fmt.Sprintf("%s (.sta)", i18n.T("menu_load_state"))
+	}
+	font.DrawBold(screen, "Target: "+targetDesc, float64(diagX+20), float64(diagY+38), 12, eff.AccentColor)
+
+	displayPath := u.PickerDir
+	if len(displayPath) > 65 {
+		displayPath = "..." + displayPath[len(displayPath)-62:]
+	}
+	font.Draw(screen, "Dir: "+displayPath, float64(diagX+20), float64(diagY+58), 12, eff.StatusLabel)
+
+	// 3. Parent Directory item [..]
+	font.DrawBold(screen, i18n.T("lbl_parent_dir"), float64(diagX+20), float64(diagY+84), 12, eff.DialogHeader)
+
+	// Scroll buttons indicator on right
+	font.DrawBold(screen, "[▲]", float64(diagX+570), float64(diagY+84), 12, eff.AccentColor)
+	font.DrawBold(screen, "[▼]", float64(diagX+570), float64(diagY+344), 12, eff.AccentColor)
+
+	// 4. File and Directory list (up to 9 visible items)
+	startY := diagY + 110
+	for row := 0; row < 9; row++ {
+		idx := u.PickerScroll + row
+		if idx >= len(u.PickerFiles) {
+			break
+		}
+		item := u.PickerFiles[idx]
+		rowY := startY + (row * 26)
+
+		isSelected := (idx == u.PickerSelected)
+		if isSelected {
+			rowOp := &ebiten.DrawImageOptions{}
+			rowOp.GeoM.Scale(2.25, 1.0)
+			rowOp.GeoM.Translate(float64(diagX+15), float64(rowY-2))
+			screen.DrawImage(u.selectedRowBg, rowOp)
+		}
+
+		typePrefix := "[FILE]"
+		sizeStr := fmt.Sprintf("%5d KB", (item.Size+1023)/1024)
+		if item.IsDir {
+			typePrefix = "[DIR] "
+			sizeStr = " <DIR> "
+		}
+
+		name := item.Name
+		if len(name) > 42 {
+			name = name[:39] + "..."
+		}
+
+		rowStr := fmt.Sprintf(" %-6s %-44s %s", typePrefix, name, sizeStr)
+		textColor := eff.DialogText
+		if isSelected {
+			textColor = eff.SelectedText
+		} else if item.IsDir {
+			textColor = eff.AccentColor
+		}
+		font.DrawCode(screen, rowStr, float64(diagX+20), float64(rowY+2), 12, textColor)
+	}
+
+	// 5. Scroll / Count indicator
+	countStr := fmt.Sprintf("Items: %d", len(u.PickerFiles))
+	if len(u.PickerFiles) > 9 {
+		endIdx := u.PickerScroll + 9
+		if endIdx > len(u.PickerFiles) {
+			endIdx = len(u.PickerFiles)
+		}
+		countStr = fmt.Sprintf("Showing %d-%d of %d items", u.PickerScroll+1, endIdx, len(u.PickerFiles))
+	}
+	font.Draw(screen, countStr, float64(diagX+20), float64(diagY+355), 11, eff.StatusLabel)
+
+	// 6. Action buttons (Load / Mount, Cancel)
+	loadBtnOp := &ebiten.DrawImageOptions{}
+	loadBtnOp.GeoM.Translate(float64(diagX+110), float64(diagY+390))
+	screen.DrawImage(u.buttonBg, loadBtnOp)
+	font.DrawBold(screen, i18n.T("btn_load"), float64(diagX+125), float64(diagY+396), 12, eff.ButtonText)
+
+	cancelBtnOp := &ebiten.DrawImageOptions{}
+	cancelBtnOp.GeoM.Translate(float64(diagX+330), float64(diagY+390))
+	screen.DrawImage(u.buttonBg, cancelBtnOp)
+	font.DrawBold(screen, i18n.T("btn_cancel"), float64(diagX+360), float64(diagY+396), 12, eff.ButtonText)
+}
+
+func (u *UI) handlePickerClick(x, y int) {
+	winW := u.currWinW
+	if winW < 640 {
+		winW = 640
+	}
+	winH := u.currWinH
+	if winH < 480 {
+		winH = 480
+	}
+	diagX := (winW - 620) / 2
+	diagY := (winH - 440) / 2
+
+	// Click outside modal closes it
+	if x < diagX || x > diagX+620 || y < diagY || y > diagY+440 {
+		u.ShowPicker = false
+		return
+	}
+
+	// 1. Parent Directory [..]
+	if y >= diagY+80 && y <= diagY+104 && x >= diagX+20 && x <= diagX+350 {
+		parent := filepath.Dir(u.PickerDir)
+		if parent != u.PickerDir {
+			u.PickerDir = parent
+			u.refreshPickerFiles()
+		}
+		return
+	}
+
+	// 2. Scroll Up Button [▲]
+	if y >= diagY+80 && y <= diagY+104 && x >= diagX+560 && x <= diagX+600 {
+		if u.PickerScroll > 0 {
+			u.PickerScroll--
+		}
+		return
+	}
+
+	// 3. Scroll Down Button [▼]
+	if y >= diagY+340 && y <= diagY+365 && x >= diagX+560 && x <= diagX+600 {
+		if u.PickerScroll+9 < len(u.PickerFiles) {
+			u.PickerScroll++
+		}
+		return
+	}
+
+	// 4. File/Dir list item click
+	startY := diagY + 110
+	for row := 0; row < 9; row++ {
+		idx := u.PickerScroll + row
+		if idx >= len(u.PickerFiles) {
+			break
+		}
+		rowY := startY + (row * 26)
+		if y >= rowY && y < rowY+24 && x >= diagX+15 && x <= diagX+560 {
+			item := u.PickerFiles[idx]
+			if item.IsDir {
+				u.PickerDir = filepath.Join(u.PickerDir, item.Name)
+				u.refreshPickerFiles()
+				return
+			}
+			// File clicked
+			if u.PickerSelected == idx {
+				// Second click on already selected file -> load immediately
+				u.mountPickerFile(filepath.Join(u.PickerDir, item.Name))
+				u.ShowPicker = false
+				return
+			}
+			u.PickerSelected = idx
+			return
+		}
+	}
+
+	// 5. Load / Mount Button
+	if x >= diagX+110 && x <= diagX+290 && y >= diagY+390 && y <= diagY+420 {
+		if u.PickerSelected >= 0 && u.PickerSelected < len(u.PickerFiles) {
+			sel := u.PickerFiles[u.PickerSelected]
+			if !sel.IsDir {
+				u.mountPickerFile(filepath.Join(u.PickerDir, sel.Name))
+				u.ShowPicker = false
+			}
+		}
+		return
+	}
+
+	// 6. Cancel Button
+	if x >= diagX+330 && x <= diagX+510 && y >= diagY+390 && y <= diagY+420 {
+		u.ShowPicker = false
+		return
+	}
 }
 
 // ActivateCLI launches the interactive CLI console in a background goroutine

@@ -64,6 +64,28 @@ func TestShellCommands(t *testing.T) {
 		t.Fatalf("Expected in output, got:\n%s", inOutput)
 	}
 
+	// Test Model command
+	outBuf.Reset()
+	sh.ExecuteCommand("model")
+	if !strings.Contains(outBuf.String(), "Current Model: MSX 2") {
+		t.Fatalf("Expected MSX 2 model info, got:\n%s", outBuf.String())
+	}
+
+	outBuf.Reset()
+	sh.ExecuteCommand("model msx1")
+	if !strings.Contains(outBuf.String(), "MSX 1") || machine.Config.Model != msx.ModelMSX1 {
+		t.Fatalf("Expected switch to MSX 1, got:\n%s", outBuf.String())
+	}
+
+	outBuf.Reset()
+	sh.ExecuteCommand("model msx2+")
+	if !strings.Contains(outBuf.String(), "MSX 2+") || machine.Config.Model != msx.ModelMSX2P {
+		t.Fatalf("Expected switch to MSX 2+, got:\n%s", outBuf.String())
+	}
+
+	// Switch back to MSX 2
+	sh.ExecuteCommand("model msx2")
+
 	// Test Language command
 	outBuf.Reset()
 	sh.ExecuteCommand("lang")

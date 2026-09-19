@@ -174,6 +174,18 @@ func (sh *Shell) ExecuteCommand(line string) bool {
 	case "out", "po":
 		sh.cmdOut(args)
 
+	case "model", "msx", "machine":
+		sh.cmdModel(args)
+
+	case "savesta", "save":
+		sh.cmdSaveSTA(args)
+
+	case "loadsta", "load":
+		sh.cmdLoadSTA(args)
+
+	case "fdc":
+		sh.cmdFDC(args)
+
 	case "reset":
 		sh.Machine.Reset()
 		fmt.Fprintln(sh.Out, "MSX Machine & CPU reset.")
@@ -204,16 +216,10 @@ func (sh *Shell) printBanner() {
 }
 
 func (sh *Shell) modelName() string {
-	switch sh.Machine.Config.Model {
-	case msx.ModelMSX1:
-		return "MSX 1"
-	case msx.ModelMSX2:
-		return "MSX 2"
-	case msx.ModelMSX2P:
-		return "MSX 2+"
-	default:
-		return "Unknown"
+	if sh.Machine != nil {
+		return sh.Machine.ModelName()
 	}
+	return "MSX 2"
 }
 
 func (sh *Shell) videoName() string {
@@ -339,11 +345,15 @@ func (sh *Shell) cmdHelp() {
 	fmt.Fprintf(sh.Out, "  bp                        %s\n", i18n.T("cli_bp_desc"))
 	fmt.Fprintln(sh.Out)
 	fmt.Fprintln(sh.Out, "MSX Hardware & Slots:")
+	fmt.Fprintf(sh.Out, "  model [msx1|msx2|msx2+]   %s\n", i18n.T("cli_model_desc"))
 	fmt.Fprintf(sh.Out, "  slots / page              %s\n", i18n.T("cli_slots_desc"))
 	fmt.Fprintf(sh.Out, "  mapper                    %s\n", i18n.T("cli_mapper_desc"))
 	fmt.Fprintf(sh.Out, "  diskcreate [name] [size]  %s\n", i18n.T("cli_diskcreate_desc"))
 	fmt.Fprintf(sh.Out, "  loaddsk [file]            %s\n", i18n.T("cli_loaddsk_desc"))
 	fmt.Fprintf(sh.Out, "  zap [sec] [desloc] [len]  %s\n", i18n.T("cli_zap_desc"))
+	fmt.Fprintf(sh.Out, "  fdc [bdos|wd1793]         View or switch WD2793 floppy controller mode\n")
+	fmt.Fprintf(sh.Out, "  savesta [file.sta]        Save snapshot (fMSX .sta format)\n")
+	fmt.Fprintf(sh.Out, "  loadsta [file.sta]        Load snapshot (fMSX .sta format)\n")
 	fmt.Fprintf(sh.Out, "  in / pi <port>            %s\n", i18n.T("cli_in_desc"))
 	fmt.Fprintf(sh.Out, "  out / po <port> <val>     %s\n", i18n.T("cli_out_desc"))
 	fmt.Fprintf(sh.Out, "  info                      %s\n", i18n.T("cli_info_desc"))
@@ -1226,4 +1236,138 @@ func detectDiskFormat(data []byte) string {
 		return fmt.Sprintf("Custom %d KB (%d sectors, media ID %02Xh)", kb, sectors, media)
 	}
 }
+
+func (sh *Shell) cmdModel(args []string) {
+	if len(args) == 0 {
+		fmt.Fprintf(sh.Out, "Current Model: %s (VDP: %s)\n", sh.modelName(), sh.Machine.VDPChipName())
+		fmt.Fprintf(sh.Out, "RAM: %d KB (%d pages) | VRAM: %d KB (%d pages)\n",
+			sh.Machine.Config.RAMPages*16, sh.Machine.Config.RAMPages,
+			sh.Machine.Config.VRAMPages*16, sh.Machine.Config.VRAMPages)
+		fmt.Fprintf(sh.Out, "Mapped ROMs: %s\n", strings.Join(sh.Machine.CurrentROMs(), ", "))
+		fmt.Fprintln(sh.Out, "Available models: msx1, msx2, msx2+")
+		fmt.Fprintln(sh.Out, "Usage: model <msx1|msx2|msx2+> or 'model select' for interactive TUI menu")
+		return
+	}
+
+	argJoined := strings.ToLower(strings.Join(args, " "))
+	target := strings.ToLower(args[0])
+
+	if target == "select" || target == "menu" || target == "tui" || target == "choose" {
+		chosen, err := tui.SelectMachineModel(tui.ModelPickerOptions{
+			CurrentModel: sh.Machine.Config.Model,
+			In:           sh.In,
+			Out:          sh.Out,
+		})
+		if err != nil {
+			if errors.Is(err, tui.ErrCancelled) {
+				fmt.Fprintln(sh.Out, "Model selection cancelled.")
+				return
+			}
+			fmt.Fprintf(sh.Out, "TUI selection error: %v\n", err)
+			return
+		}
+		if err := sh.Machine.SwitchModel(chosen); err != nil {
+			fmt.Fprintf(sh.Out, "Failed to switch model: %v\n", err)
+			return
+		}
+		fmt.Fprintf(sh.Out, "%s %s (%s). ROMs: %s\n",
+			i18n.T("cli_model_changed"), sh.modelName(), sh.Machine.VDPChipName(),
+			strings.Join(sh.Machine.CurrentROMs(), ", "))
+		return
+	}
+
+	var targetModel int
+	switch {
+	case target == "msx1" || target == "1" || argJoined == "msx 1":
+		targetModel = msx.ModelMSX1
+	case target == "msx2" || target == "2" || argJoined == "msx 2":
+		targetModel = msx.ModelMSX2
+	case target == "msx2+" || target == "msx2p" || target == "2+" || target == "2p" || target == "3" || argJoined == "msx 2+":
+		targetModel = msx.ModelMSX2P
+	default:
+		fmt.Fprintf(sh.Out, "Unknown model %q. Valid options: msx1, msx2, msx2+, or 'model select'\n", strings.Join(args, " "))
+		return
+	}
+
+	if err := sh.Machine.SwitchModel(targetModel); err != nil {
+		fmt.Fprintf(sh.Out, "Failed to switch model: %v\n", err)
+		return
+	}
+
+	fmt.Fprintf(sh.Out, "%s %s (%s). ROMs: %s\n",
+		i18n.T("cli_model_changed"), sh.modelName(), sh.Machine.VDPChipName(),
+		strings.Join(sh.Machine.CurrentROMs(), ", "))
+}
+
+func (sh *Shell) cmdSaveSTA(args []string) {
+	filename := "DEFAULT.STA"
+	if len(args) > 0 {
+		filename = args[0]
+	}
+	if !strings.HasSuffix(strings.ToUpper(filename), ".STA") {
+		filename += ".STA"
+	}
+	err := sh.Machine.SaveSTA(filename)
+	if err != nil {
+		fmt.Fprintf(sh.Out, "Error saving state to %s: %v\n", filename, err)
+		return
+	}
+	fmt.Fprintf(sh.Out, "State successfully saved to %s (%s, RAM: %d KB, VRAM: %d KB)\n",
+		filename, sh.modelName(), sh.Machine.Config.RAMPages*16, sh.Machine.Config.VRAMPages*16)
+}
+
+func (sh *Shell) cmdLoadSTA(args []string) {
+	filename := "DEFAULT.STA"
+	if len(args) > 0 {
+		filename = args[0]
+	}
+	if !strings.HasSuffix(strings.ToUpper(filename), ".STA") {
+		filename += ".STA"
+	}
+	err := sh.Machine.LoadSTA(filename)
+	if err != nil {
+		fmt.Fprintf(sh.Out, "Error loading state from %s: %v\n", filename, err)
+		return
+	}
+	fmt.Fprintf(sh.Out, "State successfully loaded from %s (%s, RAM: %d KB, VRAM: %d KB, PC=%04Xh)\n",
+		filename, sh.modelName(), sh.Machine.Config.RAMPages*16, sh.Machine.Config.VRAMPages*16, sh.Machine.CPU.PC)
+}
+
+func (sh *Shell) cmdFDC(args []string) {
+	fdc := sh.Machine.FDC
+	if len(args) > 0 {
+		sub := strings.ToLower(args[0])
+		if sub == "bdos" || sub == "fast" {
+			sh.Machine.Config.SimulateBDOS = true
+			fmt.Fprintln(sh.Out, "FDC mode: BDOS high-speed simulation enabled (MSX-DOS fast disk).")
+			return
+		} else if sub == "wd1793" || sub == "wd2793" || sub == "low" || sub == "hw" {
+			sh.Machine.Config.SimulateBDOS = false
+			fmt.Fprintln(sh.Out, "FDC mode: Low-level WD2793 register emulation enabled (raw floppy).")
+			return
+		}
+	}
+
+	modeStr := "WD2793 Low-Level Register Emulation"
+	if sh.Machine.Config.SimulateBDOS {
+		modeStr = "BDOS High-Speed BIOS Trap Simulation (WD2793 fallback)"
+	}
+	fmt.Fprintf(sh.Out, "WD2793 FDC Status [%s]:\n", modeStr)
+	if fdc == nil {
+		fmt.Fprintln(sh.Out, "  FDC not initialized.")
+		return
+	}
+	fmt.Fprintf(sh.Out, "  Drive: %c: (Drive=%d, Side=%d)\n", 'A'+fdc.Drive, fdc.Drive, fdc.Side)
+	fmt.Fprintf(sh.Out, "  Registers: CMD/STATUS=%02Xh TRACK=%02Xh SECTOR=%02Xh DATA=%02Xh\n",
+		fdc.R[0], fdc.R[1], fdc.R[2], fdc.R[3])
+	fmt.Fprintf(sh.Out, "  Head Track: Drive 0: %d | Drive 1: %d | Drive 2: %d | Drive 3: %d\n",
+		fdc.Track[0], fdc.Track[1], fdc.Track[2], fdc.Track[3])
+	irqPending := (fdc.IRQ & 0x80) != 0
+	drqPending := (fdc.IRQ & 0x40) != 0
+	fmt.Fprintf(sh.Out, "  Flags: IRQ=%v DRQ=%v SysReg(R4)=%02Xh LastCmd=%02Xh\n",
+		irqPending, drqPending, fdc.R[4], fdc.Cmd)
+	fmt.Fprintln(sh.Out, "Usage: fdc [bdos|wd1793] to switch floppy emulation mode.")
+}
+
+
 

@@ -152,3 +152,34 @@ func TestVDPSpritesCollision(t *testing.T) {
 		t.Errorf("expected sprite collision between sprite 0 and sprite 1 at same coordinates")
 	}
 }
+
+func TestVDPModelStatusAndYJK(t *testing.T) {
+	// 1. TMS9918 (MSX1) only reads Status 0
+	v1 := vdp.New(vdp.ModelMSX1, 2)
+	v1.Regs[15] = 1 // attempt to select status 1
+	v1.Status[0] = 0x80
+	v1.Status[1] = 0x55
+	s := v1.ReadStatus()
+	if s != 0x80 {
+		t.Fatalf("Expected TMS9918 to only return Status 0 (0x80), got %02X", s)
+	}
+
+	// 2. V9958 (MSX2+) has bit 2 in Status 1 set
+	v2p := vdp.New(vdp.ModelMSX2P, 8)
+	v2p.Regs[15] = 1
+	s1 := v2p.ReadStatus()
+	if (s1 & 0x04) == 0 {
+		t.Fatalf("Expected V9958 Status 1 bit 2 to be set (0x04), got %02X", s1)
+	}
+
+	// 3. YJK Color calculation
+	cWhite := vdp.YJKColor(31, 0, 0)
+	if cWhite.R == 0 || cWhite.G == 0 || cWhite.B == 0 {
+		t.Fatalf("Expected white YJK color to have high RGB values, got %+v", cWhite)
+	}
+	cBlack := vdp.YJKColor(0, 0, 0)
+	if cBlack.R != 0 || cBlack.G != 0 || cBlack.B != 0 {
+		t.Fatalf("Expected black YJK color to have zero RGB values, got %+v", cBlack)
+	}
+}
+

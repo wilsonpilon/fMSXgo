@@ -19,8 +19,18 @@ Running the program without arguments:
 ```
 The emulator opens a 640x480 graphical window featuring a top menu bar:
 * **`File` Menu**:
+  * `Save State... (F7)`: Save snapshot (.sta file) with custom name via the File Picker modal dialog.
+  * `Load State... (F8)`: Load snapshot (.sta file) from disk to instantly restore the machine.
+  * `Quick Save (F7)` / `Quick Load (F8)`: Instant hotkeys saving to / loading from `fmsxgo_quick.sta`.
   * `Reset Machine`: Resets the CPU, slot bus, and VDP to initial power-on state.
   * `Exit`: Gracefully shuts down the emulator (shortcut: `[ESC]`).
+* **`Media` Menu**:
+  * `Floppy Drive A:`: Mount / eject disk images (`.dsk`, `.img`, `.di1`, `.di2`).
+  * `Floppy Drive B:`: Mount / eject second floppy disk image.
+  * `Cartridge Slot 1`: Insert / eject MegaROM cartridge (`.rom`, `.mx1`, `.mx2`, `.bin`).
+  * `Cartridge Slot 2`: Insert / eject second cartridge.
+  * `Cassette Tape`: Load / eject cassette tapes (`.cas`), or rewind active tape to offset 0.
+  * **Interactive File Picker Modal**: Select any media option to open the visual directory browser dialog with folder navigation, parent `[..]` traversal, file extension filters, and mouse wheel scrolling.
 * **`Setup` Menu**:
   * `Configuration...`: Opens the comprehensive **Configuration & Preferences** modal dialog:
     * **Language Selection**: Switch dynamically between **English** (default), **Português**, **Español**, **Nederlands**, and **Français**.
@@ -30,7 +40,9 @@ The emulator opens a 640x480 graphical window featuring a top menu bar:
       * **Modern Dark**: **VS Code Dark+**, **Dracula**, **Monokai Pro**, **One Dark Pro**.
       * **Modern Light**: **Solarized Light**, **One Light**.
       * **Simple Fallbacks**: **Simple Dark**, **Simple Light**.
+    * **Typography / Vector Font**: Select from Ubuntu, Source Code Pro, or any `.ttf`/`.otf` font file.
     * Selections are applied immediately to all menus, windows, and dialogs, and persisted automatically to SQLite (`fmsxgo.db`).
+  * `ROMs & HW Catalog...`: Manage verified system ROMs, import custom ROMs, and toggle defaults.
 * **`Help` Menu**:
   * `About fMSXgo`: Displays an interactive dialog with the version, codename, Marat Fayzullin & Wilson Pilon credits, and non-commercial license notice.
 
@@ -119,8 +131,8 @@ fMSXgo includes a standalone, scriptable FAT12 disk manipulation utility ported 
 Like fMSX in C, fMSXgo includes full support for ROM patching via opcode `0xED, 0xFE, 0xC9` (hook vector):
 * **DiskROM BDOS Vectors (`0x4010` .. `0x401F`)**:
   * `0x4010` **PHYDIO**: Physical sector read/write on Drives A: and B: (supporting 360KB, 720KB, 640KB, 1280KB `.DSK` disk images). Automatically turns on RAM across all slots, performs sector data streaming, and restores slot state.
-  * `0x4013` **DSKCHG**: Disk change status detection.
-  * `0x4016` **GETDPB**: Extracts the Drive Parameter Block (DPB) from sector 0 boot sector.
+  * `0x4013` **DSKCHG**: Disk change status detection. Falls through directly into `GETDPB` (`0x4016`) when disk state is unknown (`B = 0`), updating DPB in place.
+  * `0x4016` **GETDPB**: Extracts the Drive Parameter Block (DPB) from sector 0 boot sector, accurately calculating `FIRDIR` (`reservedSectors + numFATs * sectorsPerFAT`).
   * `0x401C` **DSKFMT**: Formats virtual disks using the official MSX-DOS boot sector template (`BootBlock`).
   * `0x401F` **DRVOFF**: Disk motor shutoff.
 * **Main BIOS Tape Vectors (`0x00E1` .. `0x00F3`)**:
@@ -131,6 +143,30 @@ Like fMSX in C, fMSXgo includes full support for ROM patching via opcode `0xED, 
   * `0x00ED` **TAPOUT**: Write byte to tape stream.
   * `0x00F0` **TAPOOF**: Stop cassette recording.
   * `0x00F3` **STMOTR**: Motor control for cassette tape.
+
+### Low-Level Floppy Disk Controller (WD1793 / WD2793)
+For copy-protected software, disk magazines, custom bootloaders, and utilities that bypass BIOS calls:
+* Direct emulation of registers `R[0]` (Status/Command), `R[1]` (Track), `R[2]` (Sector), `R[3]` (Data), and `R[4]` (System Register).
+* Memory-mapped I/O port interception at `0x7FF8..0x7FFF`, `0xBFF8..0xBFFF`, `0x7F80..0x7F87`, `0x7FB8..0x7FBF`.
+* Type I, II, III, and IV floppy commands with accurate watchdog timeout counters.
+* Switchable via `-simbdos` (high-speed BIOS trap simulation) and `-wd1793` (low-level hardware register simulation), or at runtime via CLI `fdc bdos` / `fdc wd1793`.
+
+### Save States (Snapshots `.sta`)
+* 100% binary compatibility with Marat Fayzullin's fMSX `.sta` snapshot format.
+* Full serialization of Z80 CPU, I8255 PPI, VDP (registers, status, palette), AY-3-8910 PSG, YM2413 OPLL, Konami SCC, slot configurations (`State[256]`), RAM, and VRAM.
+* **Hotkeys**: `F7` (Quick Save) and `F8` (Quick Load).
+* **GUI**: `File -> Save State...` and `File -> Load State...` with interactive `.sta` file picker.
+* **CLI**: `savesta [file.sta]` and `loadsta [file.sta]`.
+
+### Audio Subsystem (PSG & Konami SCC)
+* **AY-3-8910 (PSG)**: 3 square-wave melodic channels, 17-bit polynomial noise generator, 16-bit envelope generator with all 8 cyclic/non-cyclic shapes.
+* **Konami SCC / SCC+**: 5-channel 32-byte wavetable synthesis for MegaROM soundtracks (e.g. *Nemesis 2*, *Salamander*, *Metal Gear 2*).
+* **Audio Mixer**: Clean, low-latency 44.1kHz stereo PCM audio output streamed via Ebitengine audio driver.
+
+### Joysticks, Gamepads & MSX Mouse
+* **USB Gamepads**: Plug-and-play detection and automatic mapping for standard USB/Bluetooth gamepads (D-Pad, Left Stick, Button A = Trigger 1, Button B = Trigger 2).
+* **Keyboard Joystick Fallback**: Arrow keys / Numpad 8, 2, 4, 6; Space / Z (Trigger 1); X / C (Trigger 2).
+* **MSX Mouse**: Authentic 4-nibble displacement protocol driven by PSG Register 15 strobe line toggling.
 
 ### Z80 CPU Fidelity
 * **Power-on State**: All 8-bit registers (`A`, `F`, `B`, `C`, `D`, `E`, `H`, `L`, alternate set) initialize to `0x00`; `SP` initializes to `0xF000` (matching fMSX `ResetZ80()`).
@@ -286,9 +322,12 @@ fMSXgo includes an integrated Z80 assembler!
     * **Hexadecimal Digits (`0-9`, `A-F`)**: Edit raw bytes directly in virtual floppy disk memory (`fdd.Modified = true`).
     * **`ENTER`**: Confirm byte edit.
     * **`ESC`**: Exit sector editor and return to debugger prompt.
+* **`savesta [file.sta]`** (or **`save`**): Save machine snapshot state to `.sta` file (fMSX compatible). If file is omitted, saves to `default.sta`.
+* **`loadsta [file.sta]`** (or **`load`**): Load machine snapshot state from `.sta` file. If file is omitted, loads from `default.sta`.
+* **`fdc [bdos|wd1793]`**: Query or switch the active Floppy Disk Controller emulation mode (`bdos` for fast BIOS traps, `wd1793` for cycle-accurate WD2793 hardware register emulation).
 * **`in <port>`** (or **`pi`** [Super-X]): Read a byte from an I/O port (hex).
 * **`out <port> <val>`** (or **`po`** [Super-X]): Write a byte to an I/O port (hex).
-* **`info`**: Display active machine configuration (Model, Video standard, RAM size).
+* **`info`**: Display active machine configuration (Model, Video standard, RAM size, FDC mode).
 * **`reset`**: Reset the MSX hardware bus and zero the CPU.
 
 ### ROMs & Hardware Catalog (SQLite CRUD)

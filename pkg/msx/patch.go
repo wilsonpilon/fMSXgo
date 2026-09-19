@@ -205,7 +205,30 @@ func (m *Machine) LoadDisk(drive int, path string) error {
 		FormatDesc:  formatDesc,
 		DiskType:    diskType,
 	}
+	if drive == 0 {
+		m.Config.DiskAPath = path
+	} else {
+		m.Config.DiskBPath = path
+	}
+	if m.FDC != nil {
+		m.FDC.Disk[drive] = m.FDD[drive]
+	}
 	return nil
+}
+
+// EjectDisk removes any loaded disk image from virtual drive 0 (A:) or 1 (B:).
+func (m *Machine) EjectDisk(drive int) {
+	if drive >= 0 && drive < 2 {
+		m.FDD[drive] = &FloppyDrive{ID: drive, SecSize: 512}
+		if drive == 0 {
+			m.Config.DiskAPath = ""
+		} else {
+			m.Config.DiskBPath = ""
+		}
+		if m.FDC != nil {
+			m.FDC.Disk[drive] = m.FDD[drive]
+		}
+	}
 }
 
 // DetectDiskGeometry analyzes disk image data (boot sector or size) and returns disk geometry:
@@ -269,7 +292,21 @@ func (m *Machine) LoadTape(path string) error {
 		Data: data,
 		Pos:  0,
 	}
+	m.Config.TapePath = path
 	return nil
+}
+
+// EjectTape removes any loaded tape image.
+func (m *Machine) EjectTape() {
+	m.Tape = &TapeDrive{}
+	m.Config.TapePath = ""
+}
+
+// RewindTape rewinds the loaded tape back to position 0.
+func (m *Machine) RewindTape() {
+	if m.Tape != nil {
+		m.Tape.Pos = 0
+	}
 }
 
 // PatchZ80 implements faithful emulation of MSX BIOS and DiskROM BDOS system calls.
@@ -379,6 +416,15 @@ func (m *Machine) PatchZ80(z *z80.Z80, bus z80.Bus) {
 
 	case 0x4013:
 		// DSKCHG: Check if disk was changed
+		// Input:
+		//   A: Drive number (0 = A:, 1 = B:)
+		//   B: Media descriptor
+		//   C: Media descriptor
+		//   HL: Base address of DPB
+		// Output:
+		//   F: Carry = 1 on error, 0 on success
+		//   A: Error code if error
+		//   B: 1 = Unchanged, 0 = Unknown, -1 (0xFF) = Changed
 		drive := int(z.A)
 		z.IFF1 = true
 		z.IFF2 = true
@@ -388,13 +434,19 @@ func (m *Machine) PatchZ80(z *z80.Z80, bus z80.Bus) {
 			z.F = (z.F &^ z80.FlagZ) | z80.FlagC
 			return
 		}
-		// B: 1=Unchanged, 0=Unknown, 0xFF=Changed
+		// In fMSX Patch.c:208:
+		// Set B = 0 (unknown) and clear carry, then fall through to GETDPB (0x4016)
+		// to read the boot sector and transfer the new DPB into [HL+1]..[HL+18].
 		z.B = 0
 		z.F &^= z80.FlagC
+		fallthrough
 
 	case 0x4016:
 		// GETDPB: Extract Drive Parameter Block from boot sector
 		drive := int(z.A)
+		z.IFF1 = true
+		z.IFF2 = true
+
 		if !m.DiskPresent(drive) {
 			z.A = 2
 			z.F = (z.F &^ z80.FlagZ) | z80.FlagC
@@ -408,12 +460,27 @@ func (m *Machine) PatchZ80(z *z80.Z80, bus z80.Bus) {
 		}
 
 		bytesPerSector := int(buf[0x0C])*256 + int(buf[0x0B])
-		if bytesPerSector == 0 {
+		if bytesPerSector <= 0 {
 			bytesPerSector = 512
 		}
 		sectorsPerDisk := int(buf[0x14])*256 + int(buf[0x13])
+		if sectorsPerDisk <= 0 && m.FDD[drive] != nil {
+			sectorsPerDisk = m.FDD[drive].Sectors
+		}
+		if sectorsPerDisk <= 0 && m.FDD[drive] != nil && len(m.FDD[drive].Data) > 0 {
+			sectorsPerDisk = len(m.FDD[drive].Data) / bytesPerSector
+		}
 		sectorsPerFAT := int(buf[0x17])*256 + int(buf[0x16])
+		if sectorsPerFAT <= 0 {
+			sectorsPerFAT = int(buf[0x16])
+		}
+		if sectorsPerFAT <= 0 {
+			sectorsPerFAT = 3
+		}
 		reservedSectors := int(buf[0x0F])*256 + int(buf[0x0E])
+		if reservedSectors <= 0 {
+			reservedSectors = 1
+		}
 
 		addr := z.HL() + 1
 		bus.Write(addr, buf[0x15]) // Media format ID [F8h-FFh]
@@ -433,7 +500,11 @@ func (m *Machine) PatchZ80(z *z80.Z80, bus z80.Bus) {
 		bus.Write(addr, uint8(i)) // Directory shift
 		addr++
 
-		j = int(buf[0x0D]) - 1
+		secPerCluster := int(buf[0x0D])
+		if secPerCluster <= 0 {
+			secPerCluster = 2
+		}
+		j = secPerCluster - 1
 		i = 0
 		for (j & (1 << i)) != 0 {
 			i++
@@ -447,31 +518,37 @@ func (m *Machine) PatchZ80(z *z80.Z80, bus z80.Bus) {
 		addr++
 		bus.Write(addr, buf[0x0F]) // Sector # of 1st FAT high
 		addr++
-		bus.Write(addr, buf[0x10]) // Number of FATs
+		numFATs := int(buf[0x10])
+		if numFATs <= 0 {
+			numFATs = 2
+		}
+		bus.Write(addr, uint8(numFATs)) // Number of FATs
 		addr++
 		bus.Write(addr, buf[0x11]) // Number of directory entries
 		addr++
 
-		firstData := reservedSectors + int(buf[0x10])*sectorsPerFAT + 32*int(buf[0x11])/bytesPerSector
-		bus.Write(addr, uint8(firstData&0xFF))
+		firstData := reservedSectors + numFATs*sectorsPerFAT + 32*int(buf[0x11])/bytesPerSector
+		bus.Write(addr, uint8(firstData&0xFF)) // Sector # of data low
 		addr++
-		bus.Write(addr, uint8((firstData>>8)&0xFF))
+		bus.Write(addr, uint8((firstData>>8)&0xFF)) // Sector # of data high
 		addr++
 
 		numClusters := 0
-		if int(buf[0x0D]) > 0 {
-			numClusters = (sectorsPerDisk - firstData) / int(buf[0x0D])
+		if secPerCluster > 0 {
+			numClusters = (sectorsPerDisk - firstData) / secPerCluster
 		}
-		bus.Write(addr, uint8(numClusters&0xFF))
+		bus.Write(addr, uint8(numClusters&0xFF)) // Number of clusters low
 		addr++
-		bus.Write(addr, uint8((numClusters>>8)&0xFF))
+		bus.Write(addr, uint8((numClusters>>8)&0xFF)) // Number of clusters high
 		addr++
 
-		bus.Write(addr, buf[0x16]) // Sectors per FAT
+		bus.Write(addr, uint8(sectorsPerFAT&0xFF)) // Sectors per FAT
 		addr++
-		bus.Write(addr, uint8(firstData&0xFF))
+
+		firstDir := reservedSectors + numFATs*sectorsPerFAT
+		bus.Write(addr, uint8(firstDir&0xFF)) // Sector # of directory low
 		addr++
-		bus.Write(addr, uint8((firstData>>8)&0xFF))
+		bus.Write(addr, uint8((firstDir>>8)&0xFF)) // Sector # of directory high
 
 		z.F &^= z80.FlagC
 
