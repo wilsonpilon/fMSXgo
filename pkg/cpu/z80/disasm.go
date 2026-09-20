@@ -557,3 +557,28 @@ func disasmIndex(bus Bus, pc uint16, regName string) (string, int) {
 		return fmt.Sprintf("PREFIX_%s %02Xh", regName, op), 2
 	}
 }
+
+// ByteBus wraps a static byte slice to satisfy the z80.Bus interface for disassembling.
+type ByteBus struct {
+	Base  uint16
+	Bytes []byte
+}
+
+func (b ByteBus) Read(addr uint16) uint8 {
+	offset := int(addr - b.Base)
+	if offset >= 0 && offset < len(b.Bytes) {
+		return b.Bytes[offset]
+	}
+	return 0x00
+}
+
+func (b ByteBus) Write(addr uint16, val uint8) {}
+func (b ByteBus) In(port uint16) uint8         { return 0xFF }
+func (b ByteBus) Out(port uint16, val uint8)   {}
+
+// Disassemble decodes and returns the instruction mnemonic from the trace entry.
+func (e TraceEntry) Disassemble() (string, int) {
+	bus := ByteBus{Base: e.PC, Bytes: e.Opcode[:]}
+	return Disassemble(bus, e.PC)
+}
+

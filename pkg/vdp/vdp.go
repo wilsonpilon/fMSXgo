@@ -473,6 +473,8 @@ func (v *VDP) PALVideo() bool      { return (v.Regs[9] & 0x02) != 0 }
 func (v *VDP) SolidColor0() bool   { return (v.Regs[8] & 0x20) != 0 }
 func (v *VDP) ModeYJK() bool       { return (v.Regs[25] & 0x08) != 0 }
 func (v *VDP) ModeYAE() bool       { return (v.Regs[25] & 0x10) != 0 }
+func (v *VDP) MaskLeft() bool       { return (v.Regs[25] & 0x02) != 0 }
+func (v *VDP) HScroll512() bool    { return (v.Regs[25] & 0x01) != 0 }
 func (v *VDP) VScroll() uint8      { return v.Regs[23] }
 func (v *VDP) HScroll() int        { return int(v.Regs[27]&0x07) | (int(v.Regs[26]&0x3F) << 3) }
 func (v *VDP) VAdjust() int        { return int(int8(v.Regs[18]) >> 4) }

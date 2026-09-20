@@ -362,3 +362,57 @@ func TestZ80PatchHook(t *testing.T) {
 	}
 }
 
+func TestZ80ExecutionHistory(t *testing.T) {
+	bus := newSimpleBus()
+	cpu := New()
+	cpu.Reset()
+
+	// Write small program:
+	// 0x0100: NOP
+	// 0x0101: LD A, 42h
+	// 0x0103: INC A
+	// 0x0104: HALT
+	cpu.PC = 0x0100
+	bus.Write(0x0100, 0x00) // NOP
+	bus.Write(0x0101, 0x3E) // LD A, 42h
+	bus.Write(0x0102, 0x42)
+	bus.Write(0x0103, 0x3C) // INC A
+	bus.Write(0x0104, 0x76) // HALT
+
+	for i := 0; i < 3; i++ {
+		cpu.Step(bus)
+	}
+
+	if cpu.HistoryCount != 3 {
+		t.Fatalf("expected HistoryCount=3, got %d", cpu.HistoryCount)
+	}
+
+	hist := cpu.GetHistory(3)
+	if len(hist) != 3 {
+		t.Fatalf("expected 3 history entries, got %d", len(hist))
+	}
+	if hist[0].PC != 0x0100 || hist[1].PC != 0x0101 || hist[2].PC != 0x0103 {
+		t.Fatalf("unexpected PCs in history: %04X, %04X, %04X", hist[0].PC, hist[1].PC, hist[2].PC)
+	}
+
+	dasm, _ := hist[1].Disassemble()
+	if dasm != "LD A, 42h" {
+		t.Fatalf("expected disassembled 'LD A, 42h', got '%s'", dasm)
+	}
+
+	// Test circular buffer rollover
+	for i := 0; i < HistoryBufferSize+50; i++ {
+		cpu.PC = 0x0100 // keep executing NOP
+		cpu.Step(bus)
+	}
+
+	if cpu.HistoryCount != HistoryBufferSize {
+		t.Fatalf("expected HistoryCount capped at %d, got %d", HistoryBufferSize, cpu.HistoryCount)
+	}
+	all := cpu.GetHistory(10)
+	if len(all) != 10 {
+		t.Fatalf("expected 10 items, got %d", len(all))
+	}
+}
+
+

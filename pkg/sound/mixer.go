@@ -24,6 +24,7 @@ type Mixer struct {
 	SampleRate int
 	PSG        *AY8910
 	SCC        *SCC
+	OPLL       *YM2413
 
 	// Phase accumulators for PSG melodic (3) and noise (3)
 	PSGPhase [NumChannels]ChannelPhase
@@ -43,7 +44,7 @@ type Mixer struct {
 }
 
 // NewMixer creates a new audio mixer and synthesis engine.
-func NewMixer(sampleRate int, psg *AY8910, scc *SCC) *Mixer {
+func NewMixer(sampleRate int, psg *AY8910, scc *SCC, opll *YM2413) *Mixer {
 	if sampleRate <= 0 {
 		sampleRate = DefaultSampleRate
 	}
@@ -51,12 +52,17 @@ func NewMixer(sampleRate int, psg *AY8910, scc *SCC) *Mixer {
 		SampleRate:   sampleRate,
 		PSG:          psg,
 		SCC:          scc,
+		OPLL:         opll,
 		NoiseGen:     0x10000,
 		MasterVolume: 192,
 		ringBuffer:   make([]byte, BufferSize*4), // 4 bytes per stereo sample (2 channels * 2 bytes)
 	}
+	if opll != nil {
+		opll.SampleRate = sampleRate
+	}
 	return m
 }
+
 
 // SetVolume sets the master volume (0..255).
 func (m *Mixer) SetVolume(vol int) {
@@ -174,7 +180,14 @@ func (m *Mixer) GenerateSamples(samples int) {
 		}
 	}
 
-	// 3. Normalize, scale master volume, and convert to 16-bit Signed Little Endian Stereo PCM
+	// 3. Synthesize Yamaha YM2413 (OPLL / MSX-MUSIC) FM channels
+	if m.OPLL != nil {
+		for i := 0; i < samples; i++ {
+			mix[i] += m.OPLL.GenerateSample() * 4
+		}
+	}
+
+	// 4. Normalize, scale master volume, and convert to 16-bit Signed Little Endian Stereo PCM
 	gain := m.MasterVolume
 	if m.Muted {
 		gain = 0

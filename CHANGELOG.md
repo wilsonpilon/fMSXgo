@@ -4,6 +4,107 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and version numbers follow the **`V X.Y.Z`** scheme with creative release codenames inspired by **Horror Cinema, MSX Classics, and Heavy Metal**.
 
+## [V 0.3.46] - "Nemesis 2" - 2026-09-20
+
+### Added
+- **MSX2+ VDP Smooth Horizontal Scroll (`pkg/vdp/render.go`, `vdp.go`)**:
+  - **Fine & Coarse Horizontal Scrolling**: Integrated registers R#26 (coarse scroll in steps of 8 pixels) and R#27 (fine scroll 0..7 pixels) across SCREEN 5, SCREEN 6, SCREEN 7, SCREEN 8, SCREEN 10/11 (YAE), and SCREEN 12 (YJK).
+  - **Single & Dual Page Wrapping**: Support for single-page 256-pixel circular wrapping and dual-page 512-pixel scroll (`R#25 bit 0`, `HScroll512`), enabling silky smooth side-scrolling in MSX2+ titles like *Space Manbow* and *F1 Spirit 3D*.
+  - **Left Margin Masking (`MSK`)**: Support for V9958 `R#25 bit 1`, blanking the leftmost 8 display dots with the border background color to prevent scrolling artifact fringe.
+- **Retro CRT Graphic Filters & Phosphor Modes (`pkg/ui/gui.go`, `pkg/i18n/i18n.go`)**:
+  - **CRT Scanlines Overlay**: Real-time scanline emulation with configurable intensity (Off, Light 30%, Medium 55%) rendered on top of active MSX display.
+  - **Monochrome CRT Phosphor Simulation**: GPU-accelerated color transformations using Ebitengine's `ColorM` pipeline:
+    - **P1 Green Phosphor**: Authentic green CRT monitor luminescence ($R=0.25Y, G=1.0Y, B=0.25Y$).
+    - **Amber Phosphor**: Warm vintage amber CRT monitor luminescence ($R=1.0Y, G=0.72Y, B=0.15Y$).
+  - **Video Menu Integration**: Video menu options with instant dynamic switching and persistence in SQLite `config` table (`crt_scanlines`, `phosphor_mode`).
+- **Graphical USB Joystick Calibration & Deadzone Modal (`pkg/ui/controller_config.go`, `pkg/ui/gui.go`)**:
+  - **Interactive Calibration Modal Dialog (`Setup -> Controllers & Calibration...`)**:
+    - **Live Analog Stick Visualizer**: Real-time stick crosshair tracking within outer boundary and inner deadzone box, highlighting active state vs deadzone deadband.
+    - **Interactive Input Indicators**: Visual status boxes for D-Pad directions (U, D, L, R) and MSX action buttons (A, B) lighting up on physical button press.
+    - **Adjustable Analog Deadzone**: Fine-grained deadzone controls with `[-]` and `[+]` buttons, percentage indicator (5% to 70%), and visual progress meter.
+    - **Button Remapping & A/B Inversion**: One-click "Swap A / B Buttons" toggle for standard Western vs Japanese gamepad layouts.
+    - **Independent Port Configuration**: Dedicated tabs for Port 1 (Joystick 1) and Port 2 (Joystick 2).
+    - **Persistent Storage**: Saves calibration preferences to SQLite `fmsxgo.db` (`joy1_deadzone`, `joy1_swap_ab`, `joy2_deadzone`, `joy2_swap_ab`).
+- **Comprehensive Verification Suite (`pkg/vdp/scroll_test.go`, `pkg/ui/controller_config_test.go`)**:
+  - Unit tests verifying fine scroll (1..7 px), coarse scroll (8 px steps), left masking, and deadzone persistence roundtrips.
+
+## [V 0.3.45] - "Nemesis 2" - 2026-09-20
+
+### Added
+- **Yamaha YM2413 (OPLL / MSX-MUSIC) FM Sound Synthesizer (`pkg/sound/ym2413.go`)**:
+  - **Log-Sine & Exponential ROM Lookup Tables**: Bit-exact mathematical emulation using Yamaha's 256-word `logSinTable` (`-log2(sin(x)) * 256`) and 256-word `expTable` (`2^(1 - x/256) * 1024`), transforming complex FM audio multiplications into pure integer table lookups and additions.
+  - **15 Built-in Melodic ROM Instrument Patches**: Hardwired ROM voice definitions for Violin, Guitar, Piano, Flute, Clarinet, Oboe, Trumpet, Organ, Horn, Synthesizer, Harpsichord, Vibraphone, Synth Bass, Wood Bass, and Electric Guitar.
+  - **User-Defined Custom Instrument Patch**: Complete support for programmable voice registers `0x00..0x07` allowing custom modulator/carrier parameters (AM/VIB/EG/KSR/MULT/KSL/TL/WF/FB/AR/DR/SL/RR).
+  - **9 Melodic Channels & 5 Rhythm Percussion Instruments**:
+    - 9-voice polyphonic melodic FM mode.
+    - Rhythm mode (Register `0x0E` bit 5) dynamically allocating 6 melodic FM channels + 5 rhythm drums: Bass Drum, Snare Drum, Tom-Tom, Top Cymbal, and High Hat.
+    - 17-bit polynomial noise generator (LFSR) coupled with phase modulation for authentic cymbal, snare, and hi-hat synthesis.
+  - **ADSR Envelope & LFO Generator**:
+    - Four envelope states: Attack (exponential rise), Decay (linear dB drop), Sustain (level hold), and Release (dampening).
+    - Auto-percussive envelopes (`EGType = false`) decaying automatically even during Key-On.
+    - Low Frequency Oscillators: Tremolo (Amplitude Modulation) and Vibrato (Phase Modulation).
+    - Key Scale Level (KSL) and Key Scale Rate (KSR) damping frequency and envelope timing across octaves.
+- **Mixer & Bus Integration (`pkg/sound/mixer.go`, `pkg/msx/bus.go`, `pkg/msx/machine.go`)**:
+  - Audio Mixer: Blends 9 FM/rhythm channels directly into master stereo output buffer alongside PSG and SCC voices with calibrated gain.
+  - I/O Ports: Ports `0x7C` (Register Address Latch) and `0x7D` (Register Data Write) wired into `MSXBus.Out` for standard MSX-MUSIC cartridges and internal FM hardware.
+  - Machine Lifecycle: Integrated into `Machine.Reset()` and audio tick loop.
+- **Snapshot Save/Load Fidelity (`pkg/msx/state.go`, `pkg/msx/msx_test.go`)**:
+  - Full serialization and restoration of OPLL state into the official 156-byte snapshot block (`.sta`), preserving all 64 registers, latched address, and channel frequency/volume caches.
+- **Automated Verification Suite (`pkg/sound/ym2413_test.go`, `pkg/msx/msx_test.go`)**:
+  - Unit tests verifying table math, melodic synthesis, envelope state transitions, custom patches, rhythm synthesis, audio mixer output, and bus I/O / save-state persistence.
+
+## [V 0.3.44] - "Nemesis 2" - 2026-09-19
+
+### Added
+- **Exotic MegaROM Mapper Emulation & Bank Switching (`pkg/msx/memory.go`, `bus.go`)**:
+  - **Cross Blaim (`MapperCrossBlaim = 6`)**: Full 64KB ROM mapping with 4x16KB block switching triggered on write across all addresses (state 0/1: block 1 in pages 0, 2, 3 and fixed block 0 in page 1; states 2/3: block 2/3 in page 2, pages 0 and 3 unmapped).
+  - **R-Type (`MapperRType = 7`)**: 384KB (24 x 16KB blocks) with 4000h..7FFFh fixed at bank 0x17 (23) and bank selection at 8000h..BFFFh via writes to 4000h..7FFFh (`value & (value & 0x10 ? 0x17 : 0x1F)`).
+  - **Harry Fox - Yuki no Maou Hen (`MapperHarryFox = 8`)**: 64KB ROM with 6000h..6FFFh selecting block 0/2 into 4000h..7FFFh and 7000h..7FFFh selecting block 1/3 into 8000h..BFFFh.
+  - **Super Pierrot (`MapperSuperPierrot = 9`)**: 128KB ROM with strict ASCII16 bank switching at 6000h and 7000h while ignoring extraneous writes (ASCII16 no-flash).
+  - **ASCII 16K with Battery-Backed SRAM (`MapperASCII16SRAM = 10`)**: 128KB ROM + 2KB/8KB SRAM (e.g. *Hydlide II*, *Harry Fox MSX Special*); bank bit 4 (`val & 0x10 != 0`) enables SRAM window with read-only in page 1 and read-write in page 2. Complete 2KB mirroring across 8KB/16KB windows.
+- **SRAM File Persistence (`.sav`) (`pkg/msx/memory.go`, `machine.go`)**:
+  - Automatic loading of `<rompath>.sav` on cartridge load.
+  - Automatic saving of modified battery-backed RAM on cartridge ejection, emulator reset, or exit.
+  - Cartridge methods `InitSRAM(size)`, `LoadSRAM(path)`, and `SaveSRAM(path)`.
+- **Intelligent Mapper Auto-Detection Engine (`pkg/msx/guess.go`)**:
+  - **Database SHA1 Matching**: Instant and accurate identification for known GoodMSX dumps of Cross Blaim, R-Type, Harry Fox, Super Pierrot, and Hydlide II.
+  - **Opcode Heuristic Scanning**: Scanning for characteristic Z80 `LD (nn), A` (`0x32, low, high`) banking instructions across ROM images for Konami 4, Konami 5 (SCC), ASCII 8K, and ASCII 16K.
+  - **Filename Keyword Fallback**: Heuristic recognition of ROM filenames containing game signatures.
+- **Comprehensive Unit Tests (`pkg/msx/mappers_test.go`)**:
+  - Tests for `GuessMapper` hashes, heuristics, Cross Blaim, R-Type, Harry Fox, Super Pierrot, ASCII16+SRAM mirroring, persistence, and MSX bus integration.
+
+## [V 0.3.43] - "Nemesis 2" - 2026-09-19
+
+### Added
+- **Phase 5: Advanced Developer / Hacker Workstation & Interactive Debugger (`pkg/ui/workstation.go`, `pkg/ui/gui.go`)**:
+  - **Workstation Modal Overlay (`F9` / Menu `Debug -> Developer Workstation`)**:
+    - **Tab 1: Disasm & Regs**: Live Z80 disassembly around current PC with symbol name annotations, full register inspection (AF, BC, DE, HL, IX, IY, SP, PC, Flags `[SZ5H3PNC]`, Cycles), and live SP stack preview. Single-step instruction execution with `F10` and pause/run with `F5`.
+    - **Tab 2: Memory & Slots**: Interactive visual 64KB memory map across all 4 MSX Pages (0..3) with primary slot, secondary slot, and RAM mapper bank allocations. Inspects Ports A8h, FFFFh, and FC..FFh.
+    - **Tab 3: VRAM & Tile Viewer**: Real-time graphical rendering of 128 character tiles (16x8 grid) decoded from VRAM `ChrGen`. Previews active sprite attributes (X, Y, Pattern, Color) and base table pointers.
+    - **Tab 4: Circular Execution Trace**: Time-Travel / Trace Buffer for the last 10,000 instructions with instruction mnemonics, operands, symbol labels, and register state snapshots.
+    - **Tab 5: Live Hex Editor**: Interactive 128-byte memory & VRAM inspector with hex/ASCII dump, page scrolling, and RAM/VRAM toggling (`V`).
+- **Circular Execution History Buffer (`pkg/cpu/z80/z80.go`, `opcodes.go`)**:
+  - `TraceRing [10000]TraceEntry` recording PC, 4-byte opcode preview, registers (AF, BC, DE, HL, IX, IY, SP), and CPU cycle timestamp.
+  - Nanosecond-level ring buffer overhead (`1-2 ns/instruction`), preserving 100% full 60Hz emulation speed.
+  - Methods `GetHistory(n)`, `RecordHistory()`, `ClearHistory()`, and `(e TraceEntry) Disassemble()`.
+- **Assembly Symbol & Label Management (`pkg/msx/symbols.go`)**:
+  - `SymbolTable` with built-in MSX BIOS jump table presets (`CHPUT`, `KEYINT`, `CALSLT`, etc.).
+  - File parser supporting Pasmo, asMSX, Glass, and standard `.sym` / `.map` formats.
+  - Automated symbol annotation in CLI disassembler (`u`) and GUI workstation.
+- **Advanced Multi-Criteria Breakpoints & Watchpoints (`pkg/msx/debug.go`)**:
+  - Conditional PC breakpoints (`bp add <addr> [condition]`).
+  - Memory Read and Write watchpoints (`watch r|w <addr> [endAddr] [condition]`).
+  - I/O Port watchpoints (`watch port <port> [in|out] [condition]`).
+  - VDP Scanline coincidence breakpoints (`watch line <scanlineNum>`).
+  - Condition evaluator supporting registers (`A`, `F`, `B`, `C`, `D`, `E`, `H`, `L`, `AF`, `BC`, `DE`, `HL`, `IX`, `IY`, `SP`, `PC`) and operators (`==`, `!=`, `>`, `<`, `>=`, `<=`).
+- **Expanded CLI Debugger & VDP Tools (`pkg/shell/cli.go`)**:
+  - `vdp`: Detailed dump of VDP registers R#0..R#63, status S#0..S#15, mode, and table pointers.
+  - `vd <addr> [len]`: Video RAM hex and ASCII dump.
+  - `ve <addr> <val...>`: In-place VRAM byte modification.
+  - `hist [n | clear]`: View recent instructions from circular trace ring.
+  - `sym [load|list|find]`: Load and search symbol files.
+  - `watch`: Comprehensive watchpoint management.
+
 ## [V 0.3.42] - "Nemesis 2" - 2026-09-19
 
 ### Added

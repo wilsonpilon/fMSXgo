@@ -3,6 +3,8 @@ package msx
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"fmsxgo/pkg/cpu/z80"
 	"fmsxgo/pkg/sound"
@@ -87,6 +89,7 @@ type Machine struct {
 	// Sound chips & synthesis
 	PSG   *sound.AY8910
 	SCC   *sound.SCC
+	OPLL  *sound.YM2413
 	Mixer *sound.Mixer
 	Joy   *JoystickManager
 
@@ -94,6 +97,10 @@ type Machine struct {
 	FDD  [2]*FloppyDrive
 	Tape *TapeDrive
 	FDC  *WD1793
+
+	// Developer / Hacker Workstation Debugger & Symbols
+	Symbols  *SymbolTable
+	Debugger *Debugger
 
 	// State
 	Running bool
@@ -113,13 +120,15 @@ func NewMachine(cfg Config) (*Machine, error) {
 
 	psg := sound.NewAY8910(3579545)
 	scc := sound.NewSCC(3579545)
+	opll := sound.NewYM2413(3579545)
 	sampleRate := cfg.SoundQuality
 	if sampleRate <= 0 {
 		sampleRate = 44100
 	}
-	mixer := sound.NewMixer(sampleRate, psg, scc)
+	mixer := sound.NewMixer(sampleRate, psg, scc, opll)
 	bus.PSG = psg
 	bus.SCC = scc
+	bus.OPLL = opll
 
 	// Wire PSG port A reading (Reg 14) to Joystick/Mouse manager
 	psg.ReadPortA = func() uint8 {
@@ -140,22 +149,30 @@ func NewMachine(cfg Config) (*Machine, error) {
 	fdc := NewWD1793(fdd0, fdd1)
 	bus.FDC = fdc
 
+	syms := NewSymbolTable()
+	dbg := NewDebugger(syms)
+	bus.CPU = cpu
+	bus.Debugger = dbg
+
 	m := &Machine{
-		Config: cfg,
-		CPU:    cpu,
-		Slots:  slots,
-		Mapper: mapper,
-		Bus:    bus,
-		VDP:    vdpInst,
-		PSG:    psg,
-		SCC:    scc,
-		Mixer:  mixer,
-		Joy:    bus.Joy,
-		ROMs:   romMgr,
-		DB:     cfg.DB,
-		FDD:    [2]*FloppyDrive{fdd0, fdd1},
-		Tape:   &TapeDrive{},
-		FDC:    fdc,
+		Config:   cfg,
+		CPU:      cpu,
+		Slots:    slots,
+		Mapper:   mapper,
+		Bus:      bus,
+		VDP:      vdpInst,
+		PSG:      psg,
+		SCC:      scc,
+		OPLL:     opll,
+		Mixer:    mixer,
+		Joy:      bus.Joy,
+		ROMs:     romMgr,
+		DB:       cfg.DB,
+		FDD:      [2]*FloppyDrive{fdd0, fdd1},
+		Tape:     &TapeDrive{},
+		FDC:      fdc,
+		Symbols:  syms,
+		Debugger: dbg,
 	}
 
 	// Connect CPU BIOS/BDOS patch hook to faithful PatchZ80 implementation
@@ -284,18 +301,31 @@ func (m *Machine) LoadCartridge(slot int, path string) error {
 		return err
 	}
 
-	mapperType := MapperGeneric16K
-	if len(data) > 32*1024 {
-		// Default to Konami or ASCII 8k heuristic
-		mapperType = MapperKonami4
+	mapperType, _ := GuessMapper(data, path)
+	cart := NewCartridge(path, data, mapperType)
+
+	// If cartridge uses SRAM, load .sav if present
+	if mapperType == MapperASCII16SRAM {
+		savPath := strings.TrimSuffix(path, filepath.Ext(path)) + ".sav"
+		cart.SavePath = savPath
+		if _, err := os.Stat(savPath); err == nil {
+			_ = cart.LoadSRAM(savPath)
+		}
 	}
 
-	cart := NewCartridge(path, data, mapperType)
 	if slot == 1 {
+		// Save old cartridge SRAM if needed
+		if m.Bus.CartA != nil && m.Bus.CartA.SRAMModified {
+			_ = m.Bus.CartA.SaveSRAM("")
+		}
 		m.Bus.CartA = cart
 		m.Config.CartAPath = path
 		m.Bus.RefreshCartridge(1, cart)
 	} else if slot == 2 {
+		// Save old cartridge SRAM if needed
+		if m.Bus.CartB != nil && m.Bus.CartB.SRAMModified {
+			_ = m.Bus.CartB.SaveSRAM("")
+		}
 		m.Bus.CartB = cart
 		m.Config.CartBPath = path
 		m.Bus.RefreshCartridge(2, cart)
@@ -307,15 +337,25 @@ func (m *Machine) LoadCartridge(slot int, path string) error {
 // EjectCartridge removes any cartridge inserted into slot 1 or 2.
 func (m *Machine) EjectCartridge(slot int) {
 	if slot == 1 {
-		m.Bus.CartA = nil
+		if m.Bus.CartA != nil {
+			if m.Bus.CartA.SRAMModified {
+				_ = m.Bus.CartA.SaveSRAM("")
+			}
+			m.Bus.CartA = nil
+		}
 		m.Config.CartAPath = ""
-		for p := 2; p < 6; p++ {
+		for p := 0; p < 8; p++ {
 			m.Slots.Map8K(1, 0, p, nil, false)
 		}
 	} else if slot == 2 {
-		m.Bus.CartB = nil
+		if m.Bus.CartB != nil {
+			if m.Bus.CartB.SRAMModified {
+				_ = m.Bus.CartB.SaveSRAM("")
+			}
+			m.Bus.CartB = nil
+		}
 		m.Config.CartBPath = ""
-		for p := 2; p < 6; p++ {
+		for p := 0; p < 8; p++ {
 			m.Slots.Map8K(2, 0, p, nil, false)
 		}
 	}
@@ -323,6 +363,12 @@ func (m *Machine) EjectCartridge(slot int) {
 
 // Reset resets the MSX CPU and hardware registers to power-on state.
 func (m *Machine) Reset() {
+	if m.Bus.CartA != nil && m.Bus.CartA.SRAMModified {
+		_ = m.Bus.CartA.SaveSRAM("")
+	}
+	if m.Bus.CartB != nil && m.Bus.CartB.SRAMModified {
+		_ = m.Bus.CartB.SaveSRAM("")
+	}
 	m.CPU.Reset()
 	if m.VDP != nil {
 		m.VDP.Reset()
@@ -330,8 +376,12 @@ func (m *Machine) Reset() {
 	if m.PSG != nil {
 		m.PSG.Reset()
 	}
+
 	if m.SCC != nil {
 		m.SCC.Reset()
+	}
+	if m.OPLL != nil {
+		m.OPLL.Reset()
 	}
 	if m.Joy != nil {
 		m.Joy.Reset()
@@ -353,19 +403,35 @@ func (m *Machine) Reset() {
 		m.Bus.RTCMode = 0
 	}
 	m.CPU.PC = 0x0000
+	m.Running = true
+	if m.Debugger != nil {
+		m.Debugger.LastHit = nil
+	}
 }
 
 // Step runs a single Z80 instruction and returns CPU cycles elapsed.
 func (m *Machine) Step() int {
-	return m.CPU.Step(m.Bus)
+	if m.Debugger != nil {
+		if _, hit := m.Debugger.CheckPC(m.CPU); hit {
+			m.Running = false
+		}
+	}
+	c := m.CPU.Step(m.Bus)
+	if m.Debugger != nil && m.Debugger.LastHit != nil {
+		m.Running = false
+	}
+	return c
 }
 
 // Run executes instructions until target cycles are reached.
 func (m *Machine) Run(targetCycles int) int {
 	elapsed := 0
 	for elapsed < targetCycles && !m.CPU.Halted {
-		c := m.CPU.Step(m.Bus)
+		c := m.Step()
 		elapsed += c
+		if !m.Running {
+			break
+		}
 	}
 	return elapsed
 }
@@ -377,12 +443,22 @@ func (m *Machine) StepScanline() int {
 	elapsed := 0
 
 	for elapsed < cyclesPerLine {
+		if m.Debugger != nil {
+			if _, hit := m.Debugger.CheckPC(m.CPU); hit {
+				m.Running = false
+				return elapsed
+			}
+		}
 		if m.CPU.Halted {
 			// When halted, CPU waits for interrupt, consume 4 cycles per tick
 			elapsed += 4
 		} else {
 			c := m.CPU.Step(m.Bus)
 			elapsed += c
+			if m.Debugger != nil && m.Debugger.LastHit != nil {
+				m.Running = false
+				return elapsed
+			}
 		}
 	}
 
@@ -393,6 +469,13 @@ func (m *Machine) StepScanline() int {
 	// 1. Advance scanline
 	line := m.VDP.ScanLine
 	m.VDP.RenderScanline(line)
+
+	if m.Debugger != nil && m.Debugger.HasScanline {
+		if _, hit := m.Debugger.CheckScanline(line); hit {
+			m.Running = false
+			return elapsed
+		}
+	}
 
 	// Sound synthesis step every 8 scanlines (~509 microseconds)
 	// Directly mirrors fMSX MSX.c lines 2158-2174
@@ -467,6 +550,9 @@ func (m *Machine) StepFrame() int {
 	cycles := 0
 	for i := 0; i < totalLines; i++ {
 		cycles += m.StepScanline()
+		if !m.Running {
+			break
+		}
 	}
 	return cycles
 }

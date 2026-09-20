@@ -1158,5 +1158,94 @@ func TestCommandDiskCreate(t *testing.T) {
 	}
 }
 
+func TestShellPhase5Commands(t *testing.T) {
+	cfg := msx.DefaultConfig()
+	machine, err := msx.NewMachine(cfg)
+	if err != nil {
+		t.Fatalf("Failed to create machine: %v", err)
+	}
+
+	var inBuf bytes.Buffer
+	var outBuf bytes.Buffer
+	sh := New(machine, &inBuf, &outBuf)
+
+	// 1. Test VDP command
+	outBuf.Reset()
+	sh.ExecuteCommand("vdp")
+	vdpOut := outBuf.String()
+	if !strings.Contains(vdpOut, "Video Display Processor") || !strings.Contains(vdpOut, "Control Registers") {
+		t.Fatalf("vdp command output missing expected headers:\n%s", vdpOut)
+	}
+
+	// 2. Test VE (VRAM Enter) and VD (VRAM Dump)
+	outBuf.Reset()
+	sh.ExecuteCommand("ve 0100 11 22 33 44")
+	if !strings.Contains(outBuf.String(), "Updated 4 bytes in VRAM") {
+		t.Fatalf("ve command failed:\n%s", outBuf.String())
+	}
+
+	outBuf.Reset()
+	sh.ExecuteCommand("vd 0100 16")
+	vdOut := outBuf.String()
+	if !strings.Contains(vdOut, "11 22 33 44") {
+		t.Fatalf("vd command failed to show edited bytes:\n%s", vdOut)
+	}
+
+	// 3. Test execution history (hist)
+	machine.CPU.PC = 0xC000
+	machine.Bus.Write(0xC000, 0x00) // NOP
+	machine.Bus.Write(0xC001, 0x3E) // LD A, 55h
+	machine.Bus.Write(0xC002, 0x55)
+	machine.Step()
+	machine.Step()
+
+	outBuf.Reset()
+	sh.ExecuteCommand("hist 5")
+	histOut := outBuf.String()
+	if !strings.Contains(histOut, "Last 2 Executed Instructions") || !strings.Contains(histOut, "LD A, 55h") {
+		t.Fatalf("hist command failed:\n%s", histOut)
+	}
+
+	// 4. Test sym command
+	outBuf.Reset()
+	sh.ExecuteCommand("sym find chput")
+	symOut := outBuf.String()
+	if !strings.Contains(symOut, "00A2h") {
+		t.Fatalf("sym find failed to find CHPUT:\n%s", symOut)
+	}
+
+	outBuf.Reset()
+	sh.ExecuteCommand("sym list CH")
+	listOut := outBuf.String()
+	if !strings.Contains(listOut, "CHPUT") || !strings.Contains(listOut, "CHGET") {
+		t.Fatalf("sym list failed:\n%s", listOut)
+	}
+
+	// 5. Test watch and bp commands
+	outBuf.Reset()
+	sh.ExecuteCommand("watch r C000 C010")
+	sh.ExecuteCommand("watch w 8000")
+	sh.ExecuteCommand("watch port 98 out")
+	sh.ExecuteCommand("watch line 150")
+	sh.ExecuteCommand("bp add 4000 A == 42h")
+
+	outBuf.Reset()
+	sh.ExecuteCommand("watch")
+	watchOut := outBuf.String()
+	if !strings.Contains(watchOut, "MEM_READ") || !strings.Contains(watchOut, "MEM_WRITE") ||
+		!strings.Contains(watchOut, "IO_OUT") || !strings.Contains(watchOut, "SCANLINE") ||
+		!strings.Contains(watchOut, "PC") {
+		t.Fatalf("watch list missing expected watchpoints:\n%s", watchOut)
+	}
+
+	// Clear watchpoints
+	outBuf.Reset()
+	sh.ExecuteCommand("watch clear")
+	if !strings.Contains(outBuf.String(), "cleared") {
+		t.Fatalf("watch clear failed:\n%s", outBuf.String())
+	}
+}
+
+
 
 

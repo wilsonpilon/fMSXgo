@@ -983,3 +983,73 @@ func TestWD1793Emulation(t *testing.T) {
 
 	t.Logf("WD1793 FDC emulation passed all tests: SEEK, RESTORE, STEP, READ SECTORS & WRITE SECTORS!")
 }
+
+func TestOPLLBusAndSnapshotIntegration(t *testing.T) {
+	cfg := DefaultConfig()
+	m, err := NewMachine(cfg)
+	if err != nil {
+		t.Fatalf("failed to create MSX machine: %v", err)
+	}
+
+	if m.OPLL == nil || m.Bus.OPLL == nil {
+		t.Fatalf("expected non-nil OPLL in machine and bus")
+	}
+
+	// 1. Write to OPLL via MSX I/O ports:
+	// Port 0x7C = address latch 0x30 (Channel 0 patch/volume)
+	// Port 0x7D = data 0x25 (Guitar, volume 5)
+	m.Bus.Out(0x7C, 0x30)
+	m.Bus.Out(0x7D, 0x25)
+
+	// Port 0x7C = address latch 0x10 (Channel 0 F-Number LSB)
+	// Port 0x7D = data 0x80
+	m.Bus.Out(0x7C, 0x10)
+	m.Bus.Out(0x7D, 0x80)
+
+	// Port 0x7C = address latch 0x20 (Channel 0 KeyOn/Block)
+	// Port 0x7D = data 0x18
+	m.Bus.Out(0x7C, 0x20)
+	m.Bus.Out(0x7D, 0x18)
+
+	// Verify registers were updated in OPLL
+	if m.OPLL.Regs[0x30] != 0x25 {
+		t.Fatalf("expected OPLL R30h to be 0x25, got %02Xh", m.OPLL.Regs[0x30])
+	}
+	if m.OPLL.Regs[0x10] != 0x80 {
+		t.Fatalf("expected OPLL R10h to be 0x80, got %02Xh", m.OPLL.Regs[0x10])
+	}
+	if m.OPLL.Regs[0x20] != 0x18 {
+		t.Fatalf("expected OPLL R20h to be 0x18, got %02Xh", m.OPLL.Regs[0x20])
+	}
+
+	// 2. Test snapshot save and load roundtrip
+	tmpSTA := t.TempDir() + "/opll_test.sta"
+	if err := m.SaveSTA(tmpSTA); err != nil {
+		t.Fatalf("SaveSTA failed: %v", err)
+	}
+
+	// Reset machine or clear OPLL registers
+	m.OPLL.Reset()
+	if m.OPLL.Regs[0x30] != 0 {
+		t.Fatalf("expected OPLL R30h to be 0 after reset")
+	}
+
+	// Restore snapshot
+	if err := m.LoadSTA(tmpSTA); err != nil {
+		t.Fatalf("LoadSTA failed: %v", err)
+	}
+
+	// Verify OPLL registers restored
+	if m.OPLL.Regs[0x30] != 0x25 {
+		t.Fatalf("expected OPLL R30h restored to 0x25, got %02Xh", m.OPLL.Regs[0x30])
+	}
+	if m.OPLL.Regs[0x10] != 0x80 {
+		t.Fatalf("expected OPLL R10h restored to 0x80, got %02Xh", m.OPLL.Regs[0x10])
+	}
+	if m.OPLL.Regs[0x20] != 0x18 {
+		t.Fatalf("expected OPLL R20h restored to 0x18, got %02Xh", m.OPLL.Regs[0x20])
+	}
+
+	t.Logf("OPLL Bus I/O ports 7Ch/7Dh and .STA snapshot persistence verified!")
+}
+

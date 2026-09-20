@@ -342,58 +342,173 @@ func (v *VDP) renderLine3(y int, lineBuf *[ScreenWidth]uint8) {
 // renderLine5 renders SCREEN 5 (MSX2 256x192 16 colors: 4bpp, 128 bytes/line, doubled to 512).
 func (v *VDP) renderLine5(y int, lineBuf *[ScreenWidth]uint8) {
 	yAddr := (v.ChrTab + (((y + int(v.VScroll())) << 7) & v.ChrTabM & 0x7FFF)) % len(v.VRAM)
-	pX := 0
-	for byteIdx := 0; byteIdx < 128; byteIdx++ {
-		addr := (yAddr + byteIdx) % len(v.VRAM)
-		b := v.VRAM[addr]
-		c1 := b >> 4
-		c2 := b & 0x0F
-		lineBuf[pX] = c1
-		lineBuf[pX+1] = c1
-		lineBuf[pX+2] = c2
-		lineBuf[pX+3] = c2
-		pX += 4
+	hScroll := v.HScroll()
+
+	if hScroll == 0 {
+		pX := 0
+		for byteIdx := 0; byteIdx < 128; byteIdx++ {
+			addr := (yAddr + byteIdx) % len(v.VRAM)
+			b := v.VRAM[addr]
+			c1 := b >> 4
+			c2 := b & 0x0F
+			lineBuf[pX] = c1
+			lineBuf[pX+1] = c1
+			lineBuf[pX+2] = c2
+			lineBuf[pX+3] = c2
+			pX += 4
+		}
+	} else {
+		h512 := v.HScroll512()
+		vramLen := len(v.VRAM)
+		for x := 0; x < 256; x++ {
+			sX := x + hScroll
+			pageOffset := 0
+			if h512 {
+				sX &= 0x1FF
+				if sX >= 256 {
+					pageOffset = 0x10000
+					sX -= 256
+				}
+			} else {
+				sX &= 0xFF
+			}
+			addr := (yAddr + pageOffset + (sX >> 1)) % vramLen
+			b := v.VRAM[addr]
+			var c uint8
+			if (sX & 1) == 0 {
+				c = b >> 4
+			} else {
+				c = b & 0x0F
+			}
+			pX := x * 2
+			lineBuf[pX] = c
+			lineBuf[pX+1] = c
+		}
+	}
+
+	if v.MaskLeft() {
+		bg := v.Regs[7] & 0x0F
+		for i := 0; i < 16; i++ {
+			lineBuf[i] = bg
+		}
 	}
 }
 
 // renderLine6 renders SCREEN 6 (MSX2 512x192 4 colors: 2bpp, 128 bytes/line, 512 pixels).
 func (v *VDP) renderLine6(y int, lineBuf *[ScreenWidth]uint8) {
 	yAddr := (v.ChrTab + (((y + int(v.VScroll())) << 7) & v.ChrTabM & 0x7FFF)) % len(v.VRAM)
-	pX := 0
-	for byteIdx := 0; byteIdx < 128; byteIdx++ {
-		addr := (yAddr + byteIdx) % len(v.VRAM)
-		b := v.VRAM[addr]
-		lineBuf[pX] = (b >> 6) & 0x03
-		lineBuf[pX+1] = (b >> 4) & 0x03
-		lineBuf[pX+2] = (b >> 2) & 0x03
-		lineBuf[pX+3] = b & 0x03
-		pX += 4
+	hScroll := v.HScroll()
+
+	if hScroll == 0 {
+		pX := 0
+		for byteIdx := 0; byteIdx < 128; byteIdx++ {
+			addr := (yAddr + byteIdx) % len(v.VRAM)
+			b := v.VRAM[addr]
+			lineBuf[pX] = (b >> 6) & 0x03
+			lineBuf[pX+1] = (b >> 4) & 0x03
+			lineBuf[pX+2] = (b >> 2) & 0x03
+			lineBuf[pX+3] = b & 0x03
+			pX += 4
+		}
+	} else {
+		vramLen := len(v.VRAM)
+		for x := 0; x < 512; x++ {
+			sX := (x + hScroll) & 0x1FF
+			addr := (yAddr + (sX >> 2)) % vramLen
+			b := v.VRAM[addr]
+			shift := (3 - (sX & 3)) * 2
+			lineBuf[x] = (b >> shift) & 0x03
+		}
+	}
+
+	if v.MaskLeft() {
+		bg := v.Regs[7] & 0x03
+		for i := 0; i < 16; i++ {
+			lineBuf[i] = bg
+		}
 	}
 }
 
 // renderLine7 renders SCREEN 7 (MSX2 512x192 16 colors: 4bpp, 256 bytes/line, 512 pixels).
 func (v *VDP) renderLine7(y int, lineBuf *[ScreenWidth]uint8) {
 	yAddr := (v.ChrTab + (((y + int(v.VScroll())) << 8) & v.ChrTabM & 0xFFFF)) % len(v.VRAM)
-	pX := 0
-	for byteIdx := 0; byteIdx < 256; byteIdx++ {
-		addr := (yAddr + byteIdx) % len(v.VRAM)
-		b := v.VRAM[addr]
-		lineBuf[pX] = b >> 4
-		lineBuf[pX+1] = b & 0x0F
-		pX += 2
+	hScroll := v.HScroll()
+
+	if hScroll == 0 {
+		pX := 0
+		for byteIdx := 0; byteIdx < 256; byteIdx++ {
+			addr := (yAddr + byteIdx) % len(v.VRAM)
+			b := v.VRAM[addr]
+			lineBuf[pX] = b >> 4
+			lineBuf[pX+1] = b & 0x0F
+			pX += 2
+		}
+	} else {
+		vramLen := len(v.VRAM)
+		for x := 0; x < 512; x++ {
+			sX := (x + hScroll) & 0x1FF
+			addr := (yAddr + (sX >> 1)) % vramLen
+			b := v.VRAM[addr]
+			var c uint8
+			if (sX & 1) == 0 {
+				c = b >> 4
+			} else {
+				c = b & 0x0F
+			}
+			lineBuf[x] = c
+		}
+	}
+
+	if v.MaskLeft() {
+		bg := v.Regs[7] & 0x0F
+		for i := 0; i < 16; i++ {
+			lineBuf[i] = bg
+		}
 	}
 }
 
 // renderLine8 renders SCREEN 8 (MSX2 256x192 256 colors: 8bpp RGB 3:3:2, doubled to 512).
 func (v *VDP) renderLine8(y int, lineBuf *[ScreenWidth]uint8) {
 	yAddr := (v.ChrTab + (((y + int(v.VScroll())) << 8) & v.ChrTabM & 0xFFFF)) % len(v.VRAM)
-	pX := 0
-	for x := 0; x < 256; x++ {
-		addr := (yAddr + x) % len(v.VRAM)
-		b := v.VRAM[addr]
-		lineBuf[pX] = b
-		lineBuf[pX+1] = b
-		pX += 2
+	hScroll := v.HScroll()
+
+	if hScroll == 0 {
+		pX := 0
+		for x := 0; x < 256; x++ {
+			addr := (yAddr + x) % len(v.VRAM)
+			b := v.VRAM[addr]
+			lineBuf[pX] = b
+			lineBuf[pX+1] = b
+			pX += 2
+		}
+	} else {
+		h512 := v.HScroll512()
+		vramLen := len(v.VRAM)
+		for x := 0; x < 256; x++ {
+			sX := x + hScroll
+			pageOffset := 0
+			if h512 {
+				sX &= 0x1FF
+				if sX >= 256 {
+					pageOffset = 0x10000
+					sX -= 256
+				}
+			} else {
+				sX &= 0xFF
+			}
+			addr := (yAddr + pageOffset + sX) % vramLen
+			b := v.VRAM[addr]
+			pX := x * 2
+			lineBuf[pX] = b
+			lineBuf[pX+1] = b
+		}
+	}
+
+	if v.MaskLeft() {
+		bg := v.Regs[7]
+		for i := 0; i < 16; i++ {
+			lineBuf[i] = bg
+		}
 	}
 }
 
@@ -430,12 +545,28 @@ func YJKColor(Y, J, K int) RGBA {
 // renderLineYJK renders SCREEN 12 (MSX2+ 256x192 19268 colors YJK, doubled horizontally to 512).
 func (v *VDP) renderLineYJK(y int, customRGB *[ScreenWidth]RGBA) {
 	yAddr := (v.ChrTab + (((y + int(v.VScroll())) << 8) & v.ChrTabM & 0xFFFF)) % len(v.VRAM)
+	hScroll := v.HScroll()
+	h512 := v.HScroll512()
+	vramLen := len(v.VRAM)
+
 	pX := 0
 	for x := 0; x < 256; x += 4 {
-		b0 := v.VRAM[(yAddr+x)%len(v.VRAM)]
-		b1 := v.VRAM[(yAddr+x+1)%len(v.VRAM)]
-		b2 := v.VRAM[(yAddr+x+2)%len(v.VRAM)]
-		b3 := v.VRAM[(yAddr+x+3)%len(v.VRAM)]
+		sX := x + hScroll
+		pageOffset := 0
+		if h512 {
+			sX &= 0x1FF
+			if sX >= 256 {
+				pageOffset = 0x10000
+				sX -= 256
+			}
+		} else {
+			sX &= 0xFF
+		}
+
+		b0 := v.VRAM[(yAddr+pageOffset+sX)%vramLen]
+		b1 := v.VRAM[(yAddr+pageOffset+((sX+1)&0xFF))%vramLen]
+		b2 := v.VRAM[(yAddr+pageOffset+((sX+2)&0xFF))%vramLen]
+		b3 := v.VRAM[(yAddr+pageOffset+((sX+3)&0xFF))%vramLen]
 
 		K := int(b0&0x07) | (int(b1&0x03) << 3)
 		if K >= 16 {
@@ -461,17 +592,40 @@ func (v *VDP) renderLineYJK(y int, customRGB *[ScreenWidth]RGBA) {
 		customRGB[pX+7] = c3
 		pX += 8
 	}
+
+	if v.MaskLeft() {
+		bg := v.Palette.Colors[v.Regs[7]&0x0F]
+		for i := 0; i < 16; i++ {
+			customRGB[i] = bg
+		}
+	}
 }
 
 // renderLineYAE renders SCREEN 10/11 (MSX2+ 256x192 YJK/YAE with 16-color palette attribute, doubled to 512).
 func (v *VDP) renderLineYAE(y int, customRGB *[ScreenWidth]RGBA) {
 	yAddr := (v.ChrTab + (((y + int(v.VScroll())) << 8) & v.ChrTabM & 0xFFFF)) % len(v.VRAM)
+	hScroll := v.HScroll()
+	h512 := v.HScroll512()
+	vramLen := len(v.VRAM)
+
 	pX := 0
 	for x := 0; x < 256; x += 4 {
-		b0 := v.VRAM[(yAddr+x)%len(v.VRAM)]
-		b1 := v.VRAM[(yAddr+x+1)%len(v.VRAM)]
-		b2 := v.VRAM[(yAddr+x+2)%len(v.VRAM)]
-		b3 := v.VRAM[(yAddr+x+3)%len(v.VRAM)]
+		sX := x + hScroll
+		pageOffset := 0
+		if h512 {
+			sX &= 0x1FF
+			if sX >= 256 {
+				pageOffset = 0x10000
+				sX -= 256
+			}
+		} else {
+			sX &= 0xFF
+		}
+
+		b0 := v.VRAM[(yAddr+pageOffset+sX)%vramLen]
+		b1 := v.VRAM[(yAddr+pageOffset+((sX+1)&0xFF))%vramLen]
+		b2 := v.VRAM[(yAddr+pageOffset+((sX+2)&0xFF))%vramLen]
+		b3 := v.VRAM[(yAddr+pageOffset+((sX+3)&0xFF))%vramLen]
 
 		K := int(b0&0x07) | (int(b1&0x03) << 3)
 		if K >= 16 {
@@ -496,6 +650,13 @@ func (v *VDP) renderLineYAE(y int, customRGB *[ScreenWidth]RGBA) {
 			customRGB[pX] = c
 			customRGB[pX+1] = c
 			pX += 2
+		}
+	}
+
+	if v.MaskLeft() {
+		bg := v.Palette.Colors[v.Regs[7]&0x0F]
+		for i := 0; i < 16; i++ {
+			customRGB[i] = bg
 		}
 	}
 }

@@ -25,6 +25,7 @@ type MSXBus struct {
 	VDP       *vdp.VDP
 	PSG       *sound.AY8910
 	SCC       *sound.SCC
+	OPLL      *sound.YM2413
 	Joy       *JoystickManager
 	FDC       *WD1793
 
@@ -41,6 +42,10 @@ type MSXBus struct {
 	// IO Ports debugging/callbacks
 	OnIORead  func(port uint16)
 	OnIOWrite func(port uint16, val uint8)
+
+	// CPU & Debugger hooks
+	CPU      *z80.Z80
+	Debugger *Debugger
 }
 
 // Ensure MSXBus implements z80.Bus
@@ -81,6 +86,10 @@ func (b *MSXBus) InitRTC() {
 
 // Read reads a byte from the Z80 16-bit address space.
 func (b *MSXBus) Read(addr uint16) uint8 {
+	if b.Debugger != nil && b.Debugger.HasWatch && b.CPU != nil {
+		b.Debugger.CheckMemRead(b.CPU, addr)
+	}
+
 	// Secondary slot selector register at 0xFFFF (only if slot in page 3 is expanded)
 	if addr == 0xFFFF && b.Slots.IsSubslot[b.Slots.CurPSL[3]] {
 		return b.Slots.GetSSL()
@@ -127,6 +136,10 @@ func (b *MSXBus) Read(addr uint16) uint8 {
 
 // Write writes a byte to the Z80 16-bit address space.
 func (b *MSXBus) Write(addr uint16, val uint8) {
+	if b.Debugger != nil && b.Debugger.HasWatch && b.CPU != nil {
+		b.Debugger.CheckMemWrite(b.CPU, addr, val)
+	}
+
 	// Secondary slot selector register at 0xFFFF (only if slot in page 3 is expanded)
 	if addr == 0xFFFF && b.Slots.IsSubslot[b.Slots.CurPSL[3]] {
 		b.Slots.SetSSL(val)
@@ -215,6 +228,19 @@ func (b *MSXBus) Write(addr uint16, val uint8) {
 				return
 			}
 		}
+	} else {
+		// Also support CrossBlaim all-region writes if cartridge slot is selected
+		if psl == 1 && b.CartA != nil && b.CartA.MapperType == MapperCrossBlaim {
+			if b.CartA.Write(addr, val) {
+				b.RefreshCartridge(1, b.CartA)
+				return
+			}
+		} else if psl == 2 && b.CartB != nil && b.CartB.MapperType == MapperCrossBlaim {
+			if b.CartB.Write(addr, val) {
+				b.RefreshCartridge(2, b.CartB)
+				return
+			}
+		}
 	}
 }
 
@@ -223,6 +249,9 @@ func (b *MSXBus) In(port uint16) uint8 {
 	p := uint8(port & 0xFF)
 	if b.OnIORead != nil {
 		b.OnIORead(port)
+	}
+	if b.Debugger != nil && b.Debugger.HasWatch && b.CPU != nil {
+		b.Debugger.CheckIO(b.CPU, port, false)
 	}
 
 	switch p {
@@ -334,6 +363,9 @@ func (b *MSXBus) Out(port uint16, val uint8) {
 	if b.OnIOWrite != nil {
 		b.OnIOWrite(port, val)
 	}
+	if b.Debugger != nil && b.Debugger.HasWatch && b.CPU != nil {
+		b.Debugger.CheckIO(b.CPU, port, true)
+	}
 
 	switch p {
 	// PPI 8255
@@ -361,6 +393,16 @@ func (b *MSXBus) Out(port uint16, val uint8) {
 			// Update the corresponding 16KB page in Slot 3 Subslot 2 and Subslot 0
 			b.Slots.Map16K(3, 2, page, b.Mapper.Get16KPage(page), true)
 			b.Slots.Map16K(3, 0, page, b.Mapper.Get16KPage(page), true)
+		}
+
+	// OPLL (YM2413 / MSX-MUSIC / FM-PAC)
+	case 0x7C: // OPLL register latch
+		if b.OPLL != nil {
+			b.OPLL.WriteAddress(val)
+		}
+	case 0x7D: // OPLL data write
+		if b.OPLL != nil {
+			b.OPLL.WriteData(val)
 		}
 
 	// PSG
@@ -420,4 +462,11 @@ func (b *MSXBus) RefreshCartridge(slot int, c *Cartridge) {
 	b.Slots.Map8K(slot, 0, 3, c.Get8KBank(1), false)
 	b.Slots.Map8K(slot, 0, 4, c.Get8KBank(2), false)
 	b.Slots.Map8K(slot, 0, 5, c.Get8KBank(3), false)
+
+	if c.MapperType == MapperCrossBlaim {
+		b.Slots.Map8K(slot, 0, 0, c.Get8KBankExtra(0), false)
+		b.Slots.Map8K(slot, 0, 1, c.Get8KBankExtra(1), false)
+		b.Slots.Map8K(slot, 0, 6, c.Get8KBankExtra(6), false)
+		b.Slots.Map8K(slot, 0, 7, c.Get8KBankExtra(7), false)
+	}
 }

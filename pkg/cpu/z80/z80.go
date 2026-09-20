@@ -46,6 +46,30 @@ type Z80 struct {
 	Trap      uint16
 	Trace     bool
 	PatchHook func(z *Z80, bus Bus)
+
+	// Execution History Ring Buffer (10,000 steps)
+	HistoryRing    [HistoryBufferSize]TraceEntry
+	HistoryHead    int
+	HistoryCount   int
+	HistoryEnabled bool
+}
+
+// HistoryBufferSize defines the maximum number of instructions stored in the execution trace ring.
+const HistoryBufferSize = 10000
+
+// TraceEntry represents a snapshot of CPU state at the start of an instruction's execution.
+type TraceEntry struct {
+	PC     uint16
+	Opcode [4]byte
+	OpLen  uint8
+	AF     uint16
+	BC     uint16
+	DE     uint16
+	HL     uint16
+	IX     uint16
+	IY     uint16
+	SP     uint16
+	Cycles int64
 }
 
 // New creates and initializes a new Z80 CPU instance.
@@ -89,6 +113,47 @@ func (z *Z80) Reset() {
 	z.EIWait = false
 	z.Trap = 0xFFFF
 	z.Trace = false
+	z.HistoryHead = 0
+	z.HistoryCount = 0
+	z.HistoryEnabled = true
+}
+
+// RecordHistory writes an instruction execution snapshot into the circular ring buffer.
+func (z *Z80) RecordHistory(entry TraceEntry) {
+	z.HistoryRing[z.HistoryHead] = entry
+	z.HistoryHead = (z.HistoryHead + 1) % HistoryBufferSize
+	if z.HistoryCount < HistoryBufferSize {
+		z.HistoryCount++
+	}
+}
+
+// GetHistory returns up to `count` most recent execution trace entries,
+// ordered from oldest to newest (the last element is the most recent instruction).
+func (z *Z80) GetHistory(count int) []TraceEntry {
+	if count <= 0 || z.HistoryCount == 0 {
+		return nil
+	}
+	if count > z.HistoryCount {
+		count = z.HistoryCount
+	}
+
+	result := make([]TraceEntry, count)
+	start := (z.HistoryHead - count + HistoryBufferSize) % HistoryBufferSize
+	for i := 0; i < count; i++ {
+		result[i] = z.HistoryRing[(start+i)%HistoryBufferSize]
+	}
+	return result
+}
+
+// ClearHistory resets the execution history buffer.
+func (z *Z80) ClearHistory() {
+	z.HistoryHead = 0
+	z.HistoryCount = 0
+}
+
+// SetHistoryEnabled toggles execution history recording.
+func (z *Z80) SetHistoryEnabled(enable bool) {
+	z.HistoryEnabled = enable
 }
 
 // 16-bit register accessors

@@ -87,7 +87,8 @@ func TestSCCBasic(t *testing.T) {
 func TestMixerSynthesis(t *testing.T) {
 	psg := NewAY8910(3579545)
 	scc := NewSCC(3579545)
-	mixer := NewMixer(44100, psg, scc)
+	opll := NewYM2413(3579545)
+	mixer := NewMixer(44100, psg, scc, opll)
 
 	// Configure Channel A tone on PSG
 	psg.Write(0, 100)

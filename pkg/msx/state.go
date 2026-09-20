@@ -180,7 +180,15 @@ func (m *Machine) SaveState() ([]byte, error) {
 	}
 	offset += 88
 
-	// 7. OPLL YM2413 (156 bytes, zeroed stub)
+	// 7. OPLL YM2413 (156 bytes)
+	if m.OPLL != nil {
+		copy(buf[offset:offset+64], m.OPLL.Regs[:])
+		for ch := 0; ch < 9; ch++ {
+			binary.LittleEndian.PutUint32(buf[offset+64+(ch*4):offset+68+(ch*4)], uint32(m.OPLL.FreqCache[ch]))
+			binary.LittleEndian.PutUint32(buf[offset+100+(ch*4):offset+104+(ch*4)], uint32(m.OPLL.VolCache[ch]))
+		}
+		buf[offset+153] = m.OPLL.Latch
+	}
 	offset += 156
 
 	// 8. SCC (304 bytes)
@@ -394,6 +402,12 @@ func (m *Machine) LoadState(buf []byte) error {
 	offset += 88
 
 	// 7. OPLL YM2413 (156 bytes)
+	if m.OPLL != nil {
+		for r := 0; r < 64; r++ {
+			m.OPLL.Write(uint8(r), buf[offset+r])
+		}
+		m.OPLL.WriteAddress(buf[offset+153])
+	}
 	offset += 156
 
 	// 8. SCC (304 bytes)

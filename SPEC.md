@@ -26,7 +26,7 @@ fMSXgo follows the strict semantic versioning format: **`V X.Y.Z`**
 | **V 0.5.x** | **Iron Maiden (Powerslave)** | Heavy metal pioneer / Egyptian precision of Z80 cycle timing |
 | **V 1.0.x** | **Vampire Killer (Dracula's Curse)** | Konami's MSX magnum opus / 1.0 milestone release |
 
-*Current Version:* **V 0.3.42 ("Nemesis 2")**
+*Current Version:* **V 0.3.46 ("Nemesis 2")**
 
 ---
 
@@ -130,6 +130,11 @@ fMSXgo follows the strict semantic versioning format: **`V X.Y.Z`**
   - [x] SCREEN 6: 512x192 4-color bitmap (2bpp).
   - [x] SCREEN 7: 512x192 16-color bitmap (4bpp).
   - [x] SCREEN 8: 256x192 256-color bitmap (8bpp RGB 3:3:2).
+  - [x] SCREEN 10/11 & SCREEN 12: MSX2+ YJK/YAE color modes.
+- [x] **MSX2+ VDP Smooth Horizontal Scroll** (`pkg/vdp/render.go`, `vdp.go`):
+  - [x] Fine horizontal scroll (R#27 bits 0..2: 0..7 pixels) and coarse scroll (R#26: 8-pixel steps) across SCREEN 5, 6, 7, 8, 10, 11, and 12.
+  - [x] Single-page (256 px) circular wrapping and dual-page (512 px) scroll (`R#25 bit 0`, `HScroll512`) for smooth MSX2+ scrolling (e.g. *Space Manbow*).
+  - [x] Left margin masking (`MSK`, `R#25 bit 1`) blanking leftmost 8 display dots with border color.
 - [x] **Sprite Generation & Collision Engine** (`pkg/vdp/sprites.go`):
   - [x] Mode 1 Sprites: 32 sprites, 4 per line max, 8x8 and 16x16, zoom 2x, 5th sprite flag, collision detection.
   - [x] Mode 2 Sprites: 32 sprites, 8 per line max, per-line color table, CC (Color Compare) OR-combination, 9th sprite flag.
@@ -139,9 +144,11 @@ fMSXgo follows the strict semantic versioning format: **`V X.Y.Z`**
   - [x] ~228 CPU cycles per scanline (262 lines NTSC, 313 lines PAL).
   - [x] VBlank interrupt IE0 (sets bit 7 in Status 0, triggers Z80 maskable IRQ if enabled).
   - [x] Line coincidence interrupt IE1 (R#19, bit 0 in Status 1).
-- [x] **Live Graphical Workstation Display & Keyboard Matrix** (`pkg/ui/gui.go`):
+- [x] **Live Graphical Workstation Display, Keyboard Matrix & CRT Shaders** (`pkg/ui/gui.go`):
   - [x] Real-time 2x integer scaled rendering in Ebitengine window (544x456 centered).
   - [x] Full PC-to-MSX keyboard matrix mapping (typing directly into MSX-BASIC).
+  - [x] CRT scanlines overlay with configurable intensity (Off, Light, Medium).
+  - [x] GPU-accelerated monochrome CRT phosphor simulation (P1 Green Phosphor & Amber Phosphor).
   - [x] Hotkey `F11` and top-right menu badge to toggle between Live MSX Screen and Developer Debug Overlay.
 
 ---
@@ -157,8 +164,17 @@ fMSXgo follows the strict semantic versioning format: **`V X.Y.Z`**
   - [x] 5-channel custom wavetable synthesis with 32-byte 8-bit signed sample buffers.
   - [x] 12-bit frequency period timers and independent 4-bit channel volumes.
   - [x] Memory-mapped I/O port interception at `0x9800..0x98FF` for MegaROM cartridges (`MapperKonami5`).
+- [x] **Yamaha YM2413 (OPLL / MSX-MUSIC) FM Synthesizer** (`pkg/sound/ym2413.go`):
+  - [x] Full 2-operator FM synthesis: 9 melodic channels or 6 melodic channels + 5 rhythm drum instruments.
+  - [x] Bit-exact Yamaha log-sine (`logSinTable`) and exponential (`expTable`) lookup tables.
+  - [x] 15 hardwired melodic ROM instrument patches (Violin, Guitar, Piano, Flute, Clarinet, Oboe, Trumpet, Organ, Horn, Synthesizer, Harpsichord, Vibraphone, Synth Bass, Wood Bass, Electric Guitar) + user custom patch (registers 0x00..0x07).
+  - [x] 5 rhythm percussion instruments (Bass Drum, Snare Drum, Tom-Tom, Top Cymbal, High Hat) with 17-bit noise LFSR.
+  - [x] ADSR envelope generator with linear logarithmic decay, attack, sustain, and release phases.
+  - [x] LFO (Tremolo AM and Vibrato PM) and Key Scale Level (KSL) / Key Scale Rate (KSR).
+  - [x] I/O Ports: 0x7C (Address latch) and 0x7D (Data write) mapped on MSX bus.
+  - [x] 156-byte OPLL `.sta` state snapshot serialization and restoration.
 - [x] **Audio Mixer & Output Streaming** (`pkg/sound/mixer.go`):
-  - [x] Real-time stereo mixer blending PSG and SCC voices with master volume control.
+  - [x] Real-time stereo mixer blending PSG, SCC, and OPLL FM voices with calibrated gain and master volume control.
   - [x] Low-latency 44.1kHz PCM stereo audio stream piped directly into Ebitengine's audio driver.
 
 ---
@@ -179,12 +195,18 @@ fMSXgo follows the strict semantic versioning format: **`V X.Y.Z`**
   - [x] Menu Bar `Media` dropdown: Drives A: & B: (`.dsk`), Cartridge Slots 1 & 2 (`.rom`), Cassette Tape (`.cas`).
   - [x] Interactive File Picker Modal Dialog with folder navigation, parent `[..]` traversal, extension filtering, scrolling.
   - [x] Runtime insert, eject, and tape rewind with zero emulator restart.
-- [x] **Joystick, Gamepad USB & MSX Mouse Emulation** (`pkg/msx/joystick.go`):
+- [x] **Joystick, Gamepad USB & MSX Mouse Emulation** (`pkg/msx/joystick.go`, `pkg/ui/controller_config.go`):
   - [x] Port selection via PSG Register 15 (bit 6 = Port 1/2).
   - [x] Joystick protocol via PSG Register 14 (Port 0xA2).
   - [x] Automatic physical USB Gamepad detection and mapping via Ebitengine Gamepad API.
   - [x] Keyboard joystick fallback (arrows/numpad, Space/Z, X/C).
   - [x] Authentic MSX Mouse 4-nibble displacement protocol with PSG R15 strobe toggling.
+  - [x] Graphical Calibration & Deadzone Modal (`Setup -> Controllers & Calibration...`):
+    - [x] Live real-time stick crosshairs and deadzone boundary tracker.
+    - [x] Live button press & D-Pad active indicator lights.
+    - [x] Adjustable analog deadzone (5% to 70%) with visual progress bar.
+    - [x] Button A / B remapping and quick "Swap A / B" toggle.
+    - [x] Independent Port 1 & Port 2 tabs and SQLite database persistence.
 - [x] **Disk Boot & BDOS Directory Reading Integrity** (`pkg/msx/patch.go`, `pkg/msx/machine.go`):
   - [x] Fixed `FIRDIR` root directory sector calculation in `GETDPB` (`0x4016`).
   - [x] Fixed `DSKCHG` (`0x4013`) fallthrough into `GETDPB` (`0x4016`).
@@ -192,14 +214,48 @@ fMSXgo follows the strict semantic versioning format: **`V X.Y.Z`**
 
 ---
 
-### Phase 5: Advanced Developer / Hacker Workstation Tools [IN PROGRESS]
-- [ ] **Interactive Visual Debugger**:
-  - [ ] Conditional breakpoints (PC address, memory read/write, I/O ports, scanline).
-  - [ ] Circular execution history (Time-Travel / Trace Buffer for the last 10,000 instructions).
-  - [ ] Symbol and label table import (`.sym`, `.map`, pasmo, asMSX, glass).
-- [ ] **Visual Memory Map & Slot Inspector Window**.
-- [ ] **VRAM & Tile / Sprite Viewer**.
-- [ ] **Integrated Hex Editor & Live Memory Patcher**.
+### Phase 5: Advanced Developer / Hacker Workstation Tools [COMPLETED]
+- [x] **Interactive Visual Debugger & Workstation GUI (`pkg/ui/workstation.go`, `pkg/ui/gui.go`)**:
+  - [x] Full-featured Hacker Workstation modal overlay toggled via `F9` or Menu `Debug -> Developer Workstation`.
+  - [x] Disassembly view around PC with symbol annotations, register grid (AF, BC, DE, HL, IX, IY, SP, PC, Flags, Cycles), and stack preview.
+  - [x] Single-step CPU instruction execution (`F10`) and Run/Pause toggling (`F5`).
+  - [x] Multi-criteria conditional breakpoints (PC address, memory read/write watchpoints, I/O port watchpoints, VDP scanlines).
+  - [x] Circular execution history (Time-Travel / Trace Buffer for the last 10,000 instructions) with zero emulation overhead.
+  - [x] Symbol and label table management (`pkg/msx/symbols.go`) with Pasmo, asMSX, Glass, and `.sym`/`.map` format parsers and MSX BIOS presets.
+- [x] **Visual Memory Map & Slot Inspector Window**:
+  - [x] Visual 64KB memory map across the 4 MSX Pages (0..3) displaying primary slot, secondary slot, and RAM mapper bank allocations.
+  - [x] Hardware register inspector (Ports A8h, FFFFh, FC..FFh).
+- [x] **VRAM & Tile / Sprite Pattern Viewer**:
+  - [x] Real-time graphical rendering of 128 character tiles (16x8 grid) decoded from VRAM `ChrGen`.
+  - [x] Active sprite attributes preview (X, Y, Pattern, Color).
+  - [x] Table base addresses and masks (`ChrTab`, `ChrGen`, `ColTab`, `SprTab`, `SprGen`).
+- [x] **Integrated Hex Editor & Live Memory Patcher**:
+  - [x] Live 128-byte hex and ASCII inspector for CPU memory or VRAM with scrolling and toggle support.
+- [x] **CLI Monitor Tools Expansion (`pkg/shell/cli.go`)**:
+  - [x] `vdp`: Detailed dump of VDP registers, status registers, mode, and tables.
+  - [x] `vd <addr> [len]`: VRAM hex and ASCII dump.
+  - [x] `ve <addr> <val...>`: In-place VRAM byte modification.
+  - [x] `hist [n | clear]`: View the last N instructions from circular execution trace ring.
+  - [x] `sym [load|list|find]`: Load and search assembly symbol files.
+  - [x] `watch [r|w|port|line]`: Multi-criteria memory, IO, and scanline watchpoint management.
+
+---
+
+### MegaROM Architecture & Exotic Mappers Support [COMPLETED]
+- [x] **Exotic MegaROM Cartridge Mappers (`pkg/msx/memory.go`, `bus.go`)**:
+  - [x] **Cross Blaim (`MapperCrossBlaim`)**: Full 64KB ROM mapping with 4x16KB block switching on write across all addresses (state 0/1: block 1 in pages 0, 2, 3 and fixed block 0 in page 1; states 2/3: block 2/3 in page 2, pages 0 and 3 unmapped).
+  - [x] **R-Type (`MapperRType`)**: 384KB (24 x 16KB blocks) with 4000h..7FFFh fixed at bank 0x17 (23) and bank selection at 8000h..BFFFh via writes to 4000h..7FFFh.
+  - [x] **Harry Fox - Yuki no Maou Hen (`MapperHarryFox`)**: 64KB ROM with 6000h..6FFFh selecting block 0/2 into 4000h..7FFFh and 7000h..7FFFh selecting block 1/3 into 8000h..BFFFh.
+  - [x] **Super Pierrot (`MapperSuperPierrot`)**: 128KB ROM with strict ASCII16 bank switching at 6000h and 7000h while ignoring extraneous writes (ASCII16 no-flash).
+  - [x] **ASCII 16K with Battery-Backed SRAM (`MapperASCII16SRAM`)**: 128KB ROM + 2KB/8KB SRAM (e.g. *Hydlide II*, *Harry Fox MSX Special*); bank bit 4 (`val & 0x10 != 0`) enables SRAM window with read-only in page 1 and read-write in page 2. Complete 2KB mirroring across 8KB/16KB windows.
+- [x] **SRAM File Persistence (`.sav`) (`pkg/msx/memory.go`, `machine.go`)**:
+  - [x] Automatic loading of `<rompath>.sav` on cartridge insertion.
+  - [x] Automatic saving of modified battery-backed RAM on cartridge ejection, emulator reset, or exit.
+  - [x] Cartridge methods `InitSRAM(size)`, `LoadSRAM(path)`, and `SaveSRAM(path)`.
+- [x] **Intelligent Mapper Auto-Detection Engine (`pkg/msx/guess.go`)**:
+  - [x] **Database SHA1 Matching**: Instant and accurate identification for known GoodMSX dumps of Cross Blaim, R-Type, Harry Fox, Super Pierrot, and Hydlide II.
+  - [x] **Opcode Heuristic Scanning**: Scanning for characteristic Z80 `LD (nn), A` (`0x32, low, high`) banking instructions across ROM images for Konami 4, Konami 5 (SCC), ASCII 8K, and ASCII 16K.
+  - [x] **Filename Keyword Fallback**: Heuristic recognition of ROM filenames containing game signatures.
 
 ---
 
@@ -225,16 +281,18 @@ Every official fMSX parameter (`-verbose`, `-msx1/-msx2`, `-diska/-diskb`, `-rom
 ## 4. Progress Tracking & Next Direct Steps
 
 * **Where we are**:
-  - Phase 1, Phase 1.5, Phase 2 (VDP), Phase 3 (Audio: PSG & SCC), and Phase 4 (FDC, Media, Joysticks, Save States) are **100% complete**:
+  - Phase 1, Phase 1.5, Phase 2 (VDP), Phase 3 (Audio: PSG, SCC & MSX-MUSIC OPLL), Phase 4 (FDC, Media, Joysticks, Save States), and **Phase 5 (Developer / Hacker Workstation Tools)** are **100% complete**:
     - Z80 core, MSX bus, slot architecture, RAM mapper, SQLite single-file persistence.
     - TMS9918A / V9938 / V9958 VDP with 128KB VRAM, 64 control regs, 16 status regs, ports 0x98..0x9B.
     - Scanline renderers for SCREEN 0..8, 10, 12, border overscan, Mode 1 and Mode 2 sprites with collision.
-    - AY-3-8910 PSG and Konami SCC sound synthesis with stereo mixer and low-latency audio stream.
+    - AY-3-8910 PSG, Konami SCC, and Yamaha YM2413 (OPLL/MSX-MUSIC) FM synthesis with calibrated stereo mixer and low-latency audio stream.
     - Western Digital WD1793/WD2793 low-level floppy disk controller emulation.
     - fMSX-compatible `.sta` snapshots (Save States) with quick-save (F7) and quick-load (F8).
     - Runtime Media Management menu with interactive File Picker dialog.
     - USB Gamepads, keyboard fallback, and MSX mouse emulation.
-    - Fixed MSX-DOS disk booting and Disk BASIC `FILES` directory listing.
+    - Developer / Hacker Workstation overlay (F9) with live Disassembly, Memory Map & Slots, VRAM Tile Viewer, Trace Buffer, and Hex Editor.
+    - Breakpoints & Watchpoints (PC, Memory Read/Write, IO, Scanline), 10,000-instruction trace history, and Symbol Table parser.
 * **Immediate Next Step**:
-  - Begin **Phase 5 (Advanced Hacker / Debugger Tools)**: Graphical tile/sprite viewer, interactive visual memory map, and time-travel execution history.
+  - Release packaging & developer showcase.
+
 

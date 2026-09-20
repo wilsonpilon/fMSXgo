@@ -17,6 +17,26 @@ func (z *Z80) Step(bus Bus) int {
 	z.PC++
 	opcode := bus.Read(pc)
 
+	if z.HistoryEnabled {
+		entry := TraceEntry{
+			PC:     pc,
+			AF:     z.AF(),
+			BC:     z.BC(),
+			DE:     z.DE(),
+			HL:     z.HL(),
+			IX:     z.IX,
+			IY:     z.IY,
+			SP:     z.SP,
+			Cycles: z.Cycles,
+		}
+		entry.Opcode[0] = opcode
+		entry.Opcode[1] = bus.Read(pc + 1)
+		entry.Opcode[2] = bus.Read(pc + 2)
+		entry.Opcode[3] = bus.Read(pc + 3)
+		entry.OpLen = 4
+		z.RecordHistory(entry)
+	}
+
 	cycles := z.execOpcode(bus, opcode)
 	z.Cycles += int64(cycles)
 	return cycles

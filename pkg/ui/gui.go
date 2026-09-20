@@ -58,6 +58,15 @@ type UI struct {
 	AspectRatio43  bool // true = force 4:3 CRT TV aspect ratio, false = 1:1 pixel aspect
 	BilinearFilter bool // true = smooth linear interpolation, false = sharp nearest neighbor
 
+	// CRT Shader & Phosphor settings
+	CRTScanlines int // 0 = Off, 1 = Light, 2 = Medium
+	PhosphorMode int // 0 = Color RGB, 1 = Green CRT (P1), 2 = Amber CRT
+	scanlineImg  *ebiten.Image
+
+	// Controller Configuration state
+	ShowControllerConfig bool
+	ControllerConfig     ControllerConfig
+
 	// Modal and menu state
 	ActiveMenu  string // "File", "Hardware", "Video", "Media", "Setup", "Help", or ""
 	ShowAbout   bool
@@ -73,20 +82,29 @@ type UI struct {
 	PickerSelected int
 	PickerScroll   int
 
+	// Developer / Hacker Workstation state
+	ShowHackerWorkstation  bool
+	HackerTab              int
+	WorkstationHexAddr     uint16
+	WorkstationHexVRAM     bool
+	WorkstationTraceScroll int
+
 	// Drawing buffers (re-skinned dynamically when theme changes)
-	barImg         *ebiten.Image
-	menuBg         *ebiten.Image
-	fileMenuBg     *ebiten.Image
-	hardwareMenuBg *ebiten.Image
-	videoMenuBg    *ebiten.Image
-	mediaMenuBg    *ebiten.Image
-	dialogBg       *ebiten.Image
-	configDlgBg    *ebiten.Image
-	catalogDlgBg   *ebiten.Image
-	pickerDlgBg    *ebiten.Image
-	buttonBg       *ebiten.Image
-	screenBg       *ebiten.Image
-	selectedRowBg  *ebiten.Image
+	barImg           *ebiten.Image
+	menuBg           *ebiten.Image
+	fileMenuBg       *ebiten.Image
+	hardwareMenuBg   *ebiten.Image
+	videoMenuBg      *ebiten.Image
+	mediaMenuBg      *ebiten.Image
+	debugMenuBg      *ebiten.Image
+	dialogBg         *ebiten.Image
+	configDlgBg      *ebiten.Image
+	catalogDlgBg     *ebiten.Image
+	pickerDlgBg      *ebiten.Image
+	workstationDlgBg *ebiten.Image
+	buttonBg         *ebiten.Image
+	screenBg         *ebiten.Image
+	selectedRowBg    *ebiten.Image
 
 	// Current window geometry
 	currWinW int
@@ -102,6 +120,10 @@ func New(machine *msx.Machine) *UI {
 	scale := 2
 	aspect43 := false
 	smooth := false
+	crtScanlines := 0
+	phosphorMode := 0
+
+	ctrlCfg := DefaultControllerConfig()
 
 	if machine != nil && machine.DB != nil {
 		if s := machine.DB.GetConfig("video_scale", ""); s != "" {
@@ -115,6 +137,17 @@ func New(machine *msx.Machine) *UI {
 		if b := machine.DB.GetConfig("bilinear_filter", ""); b != "" {
 			smooth = (b == "true" || b == "1")
 		}
+		if cs := machine.DB.GetConfig("crt_scanlines", ""); cs != "" {
+			if v, err := strconv.Atoi(cs); err == nil && v >= 0 && v <= 2 {
+				crtScanlines = v
+			}
+		}
+		if pm := machine.DB.GetConfig("phosphor_mode", ""); pm != "" {
+			if v, err := strconv.Atoi(pm); err == nil && v >= 0 && v <= 2 {
+				phosphorMode = v
+			}
+		}
+		ctrlCfg.Load(machine.DB)
 	}
 
 	var audioDev *sound.AudioDevice
@@ -123,16 +156,20 @@ func New(machine *msx.Machine) *UI {
 	}
 
 	ui := &UI{
-		Machine:        machine,
-		AudioDevice:    audioDev,
-		msxScreenImg:   ebiten.NewImage(vdp.DisplayWidth, vdp.DisplayHeight),
-		DisplayMode:    0,
-		VideoScale:     scale,
-		AspectRatio43:  aspect43,
-		BilinearFilter: smooth,
+		Machine:          machine,
+		AudioDevice:      audioDev,
+		msxScreenImg:     ebiten.NewImage(vdp.DisplayWidth, vdp.DisplayHeight),
+		DisplayMode:      0,
+		VideoScale:       scale,
+		AspectRatio43:    aspect43,
+		BilinearFilter:   smooth,
+		CRTScanlines:     crtScanlines,
+		PhosphorMode:     phosphorMode,
+		ControllerConfig: ctrlCfg,
 	}
 
 	ui.ApplyTheme()
+	ui.updateScanlines()
 	return ui
 }
 
@@ -146,9 +183,9 @@ func (u *UI) ApplyTheme() {
 	}
 	u.barImg.Fill(eff.MenuBarBg)
 
-	// 2. Dropdown menu background
+	// 2. Dropdown menu background (Setup: Config, Controllers, Catalog)
 	if u.menuBg == nil {
-		u.menuBg = ebiten.NewImage(230, 65)
+		u.menuBg = ebiten.NewImage(260, 95)
 	}
 	u.menuBg.Fill(eff.MenuDropdownBg)
 
@@ -164,9 +201,9 @@ func (u *UI) ApplyTheme() {
 	}
 	u.hardwareMenuBg.Fill(eff.MenuDropdownBg)
 
-	// 2d. Video dropdown menu background (Scales 1..4, Aspect 1:1 / 4:3, Bilinear filter)
+	// 2d. Video dropdown menu background (Scales, Aspect, Bilinear, Scanlines, Phosphor)
 	if u.videoMenuBg == nil {
-		u.videoMenuBg = ebiten.NewImage(260, 205)
+		u.videoMenuBg = ebiten.NewImage(270, 360)
 	}
 	u.videoMenuBg.Fill(eff.MenuDropdownBg)
 
@@ -175,6 +212,12 @@ func (u *UI) ApplyTheme() {
 		u.mediaMenuBg = ebiten.NewImage(290, 315)
 	}
 	u.mediaMenuBg.Fill(eff.MenuDropdownBg)
+
+	// 2f. Debug dropdown menu background (260 x 160)
+	if u.debugMenuBg == nil {
+		u.debugMenuBg = ebiten.NewImage(260, 160)
+	}
+	u.debugMenuBg.Fill(eff.MenuDropdownBg)
 
 	// 3. Screen background
 	if u.screenBg == nil {
@@ -205,6 +248,12 @@ func (u *UI) ApplyTheme() {
 		u.pickerDlgBg = ebiten.NewImage(620, 440)
 	}
 	u.pickerDlgBg.Fill(eff.DialogBg)
+
+	// 5d. Workstation Dialog background (620 x 440)
+	if u.workstationDlgBg == nil {
+		u.workstationDlgBg = ebiten.NewImage(620, 440)
+	}
+	u.workstationDlgBg.Fill(eff.DialogBg)
 
 	// 6. Action button
 	if u.buttonBg == nil {
@@ -251,6 +300,49 @@ func (u *UI) SetBilinearFilter(smooth bool) {
 	}
 }
 
+// updateScanlines regenerates the CRT scanlines overlay texture.
+func (u *UI) updateScanlines() {
+	if u.scanlineImg == nil {
+		u.scanlineImg = ebiten.NewImage(512, 212)
+	}
+	u.scanlineImg.Clear()
+	if u.CRTScanlines == 0 {
+		return
+	}
+	alpha := uint8(75) // Light
+	if u.CRTScanlines == 2 {
+		alpha = 140 // Medium
+	}
+	lineBytes := make([]byte, 512*4)
+	for x := 0; x < 512; x++ {
+		lineBytes[x*4+3] = alpha // Black pixel with alpha
+	}
+	pix := make([]byte, 512*212*4)
+	for y := 0; y < 212; y++ {
+		if y%2 == 1 {
+			copy(pix[y*512*4:(y+1)*512*4], lineBytes)
+		}
+	}
+	u.scanlineImg.WritePixels(pix)
+}
+
+// SetCRTScanlines sets the scanline overlay intensity (0: Off, 1: Light, 2: Medium).
+func (u *UI) SetCRTScanlines(mode int) {
+	u.CRTScanlines = mode
+	u.updateScanlines()
+	if u.Machine != nil && u.Machine.DB != nil {
+		_ = u.Machine.DB.SetConfig("crt_scanlines", strconv.Itoa(mode))
+	}
+}
+
+// SetPhosphorMode sets the CRT monitor phosphor simulation (0: Color, 1: Green, 2: Amber).
+func (u *UI) SetPhosphorMode(mode int) {
+	u.PhosphorMode = mode
+	if u.Machine != nil && u.Machine.DB != nil {
+		_ = u.Machine.DB.SetConfig("phosphor_mode", strconv.Itoa(mode))
+	}
+}
+
 func (u *UI) applyWindowResize() {
 	targetH := u.VideoScale * 212
 	var targetW int
@@ -291,6 +383,67 @@ func (u *UI) Update() error {
 		return nil
 	}
 
+	// F9: Toggle Developer / Hacker Workstation
+	if inpututil.IsKeyJustPressed(ebiten.KeyF9) {
+		u.ShowHackerWorkstation = !u.ShowHackerWorkstation
+		if u.ShowHackerWorkstation {
+			u.EmulationPaused = true
+		}
+		return nil
+	}
+
+	// F10: Single Step CPU instruction
+	if inpututil.IsKeyJustPressed(ebiten.KeyF10) {
+		if u.Machine != nil {
+			u.EmulationPaused = true
+			u.Machine.Step()
+			fb := u.Machine.GetFrameBuffer()
+			if fb != nil && u.msxScreenImg != nil {
+				u.msxScreenImg.WritePixels(fb)
+			}
+		}
+		return nil
+	}
+
+	// F5: Toggle Emulation Pause / Run
+	if inpututil.IsKeyJustPressed(ebiten.KeyF5) {
+		u.EmulationPaused = !u.EmulationPaused
+		return nil
+	}
+
+	// Developer Workstation keys when modal is open
+	if u.ShowHackerWorkstation {
+		if inpututil.IsKeyJustPressed(ebiten.KeyDigit1) {
+			u.HackerTab = 0
+		} else if inpututil.IsKeyJustPressed(ebiten.KeyDigit2) {
+			u.HackerTab = 1
+		} else if inpututil.IsKeyJustPressed(ebiten.KeyDigit3) {
+			u.HackerTab = 2
+		} else if inpututil.IsKeyJustPressed(ebiten.KeyDigit4) {
+			u.HackerTab = 3
+		} else if inpututil.IsKeyJustPressed(ebiten.KeyDigit5) {
+			u.HackerTab = 4
+		} else if inpututil.IsKeyJustPressed(ebiten.KeyUp) {
+			if u.WorkstationHexAddr >= 16 {
+				u.WorkstationHexAddr -= 16
+			}
+		} else if inpututil.IsKeyJustPressed(ebiten.KeyDown) {
+			u.WorkstationHexAddr += 16
+		} else if inpututil.IsKeyJustPressed(ebiten.KeyPageUp) {
+			if u.WorkstationHexAddr >= 128 {
+				u.WorkstationHexAddr -= 128
+			}
+		} else if inpututil.IsKeyJustPressed(ebiten.KeyPageDown) {
+			u.WorkstationHexAddr += 128
+		} else if inpututil.IsKeyJustPressed(ebiten.KeyV) {
+			u.WorkstationHexVRAM = !u.WorkstationHexVRAM
+		} else if inpututil.IsKeyJustPressed(ebiten.KeyC) {
+			if u.Machine != nil && u.Machine.CPU != nil {
+				u.Machine.CPU.ClearHistory()
+			}
+		}
+	}
+
 	// F7: Quick Save State (compatible with fMSX .sta)
 	if inpututil.IsKeyJustPressed(ebiten.KeyF7) {
 		if u.Machine != nil {
@@ -317,6 +470,10 @@ func (u *UI) Update() error {
 
 	// Escape key handling
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
+		if u.ShowHackerWorkstation {
+			u.ShowHackerWorkstation = false
+			return nil
+		}
 		if u.ShowPicker {
 			u.ShowPicker = false
 			return nil
@@ -327,6 +484,10 @@ func (u *UI) Update() error {
 		}
 		if u.ShowConfig {
 			u.ShowConfig = false
+			return nil
+		}
+		if u.ShowControllerConfig {
+			u.ShowControllerConfig = false
 			return nil
 		}
 		if u.ShowAbout {
@@ -371,6 +532,18 @@ func (u *UI) Update() error {
 }
 
 func (u *UI) handleClick(x, y int) {
+	// -3. If Controller Configuration dialog is open, handle its interactions
+	if u.ShowControllerConfig {
+		u.handleControllerClick(x, y)
+		return
+	}
+
+	// -2. If Hacker Workstation is open, handle its interactions
+	if u.ShowHackerWorkstation {
+		u.handleWorkstationClick(x, y)
+		return
+	}
+
 	// -1. If File Picker dialog is open, handle its interactions
 	if u.ShowPicker {
 		u.handlePickerClick(x, y)
@@ -430,21 +603,35 @@ func (u *UI) handleClick(x, y int) {
 				u.ActiveMenu = "Media"
 			}
 			return
-		} else if x >= 265 && x < 360 {
+		} else if x >= 265 && x < 325 {
+			if u.ActiveMenu == "Debug" {
+				u.ActiveMenu = ""
+			} else {
+				u.ActiveMenu = "Debug"
+			}
+			return
+		} else if x >= 325 && x < 390 {
 			if u.ActiveMenu == "Setup" {
 				u.ActiveMenu = ""
 			} else {
 				u.ActiveMenu = "Setup"
 			}
 			return
-		} else if x >= 360 && x < 420 {
+		} else if x >= 390 && x < 450 {
 			if u.ActiveMenu == "Help" {
 				u.ActiveMenu = ""
 			} else {
 				u.ActiveMenu = "Help"
 			}
 			return
-		} else if x >= winW-160 && x <= winW-10 {
+		} else if x >= winW-315 && x < winW-150 {
+			u.ShowHackerWorkstation = !u.ShowHackerWorkstation
+			if u.ShowHackerWorkstation {
+				u.EmulationPaused = true
+			}
+			u.ActiveMenu = ""
+			return
+		} else if x >= winW-150 && x <= winW-10 {
 			u.DisplayMode = 1 - u.DisplayMode
 			u.ActiveMenu = ""
 			return
@@ -554,9 +741,33 @@ func (u *UI) handleClick(x, y int) {
 				u.ActiveMenu = ""
 				u.SetAspectRatio43(true)
 				return
-			} else if y >= MenuBarH+166 && y < MenuBarH+195 {
+			} else if y >= MenuBarH+166 && y < MenuBarH+192 {
 				u.ActiveMenu = ""
 				u.SetBilinearFilter(!u.BilinearFilter)
+				return
+			} else if y >= MenuBarH+200 && y < MenuBarH+222 {
+				u.ActiveMenu = ""
+				u.SetCRTScanlines(0) // Scanlines Off
+				return
+			} else if y >= MenuBarH+222 && y < MenuBarH+244 {
+				u.ActiveMenu = ""
+				u.SetCRTScanlines(1) // Scanlines Light
+				return
+			} else if y >= MenuBarH+244 && y < MenuBarH+266 {
+				u.ActiveMenu = ""
+				u.SetCRTScanlines(2) // Scanlines Medium
+				return
+			} else if y >= MenuBarH+276 && y < MenuBarH+298 {
+				u.ActiveMenu = ""
+				u.SetPhosphorMode(0) // Color RGB
+				return
+			} else if y >= MenuBarH+298 && y < MenuBarH+320 {
+				u.ActiveMenu = ""
+				u.SetPhosphorMode(1) // Green CRT
+				return
+			} else if y >= MenuBarH+320 && y < MenuBarH+345 {
+				u.ActiveMenu = ""
+				u.SetPhosphorMode(2) // Amber CRT
 				return
 			}
 		}
@@ -628,15 +839,59 @@ func (u *UI) handleClick(x, y int) {
 		return
 	}
 
+	// 4e. Click on Debug dropdown
+	if u.ActiveMenu == "Debug" {
+		if x >= 265 && x <= 525 {
+			if y >= MenuBarH+6 && y < MenuBarH+30 {
+				u.ActiveMenu = ""
+				u.ShowHackerWorkstation = true
+				u.EmulationPaused = true
+				return
+			} else if y >= MenuBarH+30 && y < MenuBarH+54 {
+				u.ActiveMenu = ""
+				u.EmulationPaused = true
+				u.Machine.Step()
+				fb := u.Machine.GetFrameBuffer()
+				if fb != nil && u.msxScreenImg != nil {
+					u.msxScreenImg.WritePixels(fb)
+				}
+				return
+			} else if y >= MenuBarH+54 && y < MenuBarH+78 {
+				u.ActiveMenu = ""
+				u.EmulationPaused = !u.EmulationPaused
+				return
+			} else if y >= MenuBarH+86 && y < MenuBarH+110 {
+				u.ActiveMenu = ""
+				if u.Machine.Debugger != nil {
+					u.Machine.Debugger.Clear()
+				}
+				return
+			} else if y >= MenuBarH+110 && y < MenuBarH+134 {
+				u.ActiveMenu = ""
+				if u.Machine.CPU != nil {
+					u.Machine.CPU.ClearHistory()
+				}
+				return
+			}
+		}
+		u.ActiveMenu = ""
+		return
+	}
+
 	// 5. Click on Setup dropdown
 	if u.ActiveMenu == "Setup" {
-		if x >= 265 && x <= 495 {
-			if y >= MenuBarH && y < MenuBarH+32 {
+		if x >= 265 && x <= 535 {
+			if y >= MenuBarH && y < MenuBarH+28 {
 				// Open Configuration (Language, Theme, Font)
 				u.ActiveMenu = ""
 				u.ShowConfig = true
 				return
-			} else if y >= MenuBarH+32 && y < MenuBarH+65 {
+			} else if y >= MenuBarH+28 && y < MenuBarH+56 {
+				// Open Controllers & Joystick Calibration Modal
+				u.ActiveMenu = ""
+				u.ShowControllerConfig = true
+				return
+			} else if y >= MenuBarH+56 && y < MenuBarH+90 {
 				// Open ROM & Hardware Catalog Modal
 				u.ActiveMenu = ""
 				u.ShowCatalog = true
@@ -784,7 +1039,28 @@ func (u *UI) Draw(screen *ebiten.Image) {
 		if u.BilinearFilter || u.AspectRatio43 || scaleX != float64(int(scaleX)) {
 			msxOp.Filter = ebiten.FilterLinear
 		}
+
+		// Phosphor color simulation (P1 Green or Amber CRT)
+		if u.PhosphorMode == 1 {
+			var cm ebiten.ColorM
+			cm.ChangeHSV(0, 0, 1)
+			cm.Scale(0.25, 1.0, 0.25, 1.0)
+			msxOp.ColorM = cm
+		} else if u.PhosphorMode == 2 {
+			var cm ebiten.ColorM
+			cm.ChangeHSV(0, 0, 1)
+			cm.Scale(1.0, 0.72, 0.15, 1.0)
+			msxOp.ColorM = cm
+		}
+
 		screen.DrawImage(u.msxScreenImg, msxOp)
+
+		// CRT Scanlines overlay
+		if u.CRTScanlines > 0 && u.scanlineImg != nil {
+			scanOp := &ebiten.DrawImageOptions{}
+			scanOp.GeoM = msxOp.GeoM
+			screen.DrawImage(u.scanlineImg, scanOp)
+		}
 	} else {
 		// Draw Machine Status / Developer Debug Overlay
 		u.drawStatus(screen)
@@ -798,11 +1074,14 @@ func (u *UI) Draw(screen *ebiten.Image) {
 	font.DrawBold(screen, i18n.T("menu_file"), 14, 5, 13, eff.MenuBarText)
 	font.DrawBold(screen, i18n.T("menu_hardware"), 70, 5, 13, eff.MenuBarText)
 	font.DrawBold(screen, i18n.T("menu_video"), 150, 5, 13, eff.MenuBarText)
-	font.DrawBold(screen, i18n.T("menu_media"), 210, 5, 13, eff.MenuBarText)
-	font.DrawBold(screen, i18n.T("menu_setup"), 270, 5, 13, eff.MenuBarText)
-	font.DrawBold(screen, i18n.T("menu_help"), 370, 5, 13, eff.MenuBarText)
+	font.DrawBold(screen, i18n.T("menu_media"), 205, 5, 13, eff.MenuBarText)
+	font.DrawBold(screen, "Debug", 265, 5, 13, eff.MenuBarText)
+	font.DrawBold(screen, i18n.T("menu_setup"), 325, 5, 13, eff.MenuBarText)
+	font.DrawBold(screen, i18n.T("menu_help"), 390, 5, 13, eff.MenuBarText)
 
-	// Display mode badge on the right
+	// Display mode badges on the right
+	font.DrawCode(screen, "[ F9: Workstation ]", float64(winW-310), 5, 12, eff.MenuBarText)
+
 	badgeText := "[ F11: Screen ]"
 	if u.DisplayMode == 1 {
 		badgeText = "[ F11: Debug ]"
@@ -907,6 +1186,46 @@ func (u *UI) Draw(screen *ebiten.Image) {
 		font.Draw(screen, "------------------------------", 168, MenuBarH+154, 10, eff.StatusLabel)
 
 		font.Draw(screen, chkSmooth+i18n.T("video_filter_smooth"), 168, MenuBarH+170, 13, eff.MenuDropdownText)
+
+		// Separator line
+		font.Draw(screen, "------------------------------", 168, MenuBarH+186, 10, eff.StatusLabel)
+
+		chkScan0 := "   "
+		if u.CRTScanlines == 0 {
+			chkScan0 = "✓ "
+		}
+		chkScan1 := "   "
+		if u.CRTScanlines == 1 {
+			chkScan1 = "✓ "
+		}
+		chkScan2 := "   "
+		if u.CRTScanlines == 2 {
+			chkScan2 = "✓ "
+		}
+
+		font.Draw(screen, chkScan0+i18n.T("video_scanlines_off"), 168, MenuBarH+200, 12, eff.MenuDropdownText)
+		font.Draw(screen, chkScan1+i18n.T("video_scanlines_low"), 168, MenuBarH+222, 12, eff.MenuDropdownText)
+		font.Draw(screen, chkScan2+i18n.T("video_scanlines_med"), 168, MenuBarH+244, 12, eff.MenuDropdownText)
+
+		// Separator line
+		font.Draw(screen, "------------------------------", 168, MenuBarH+262, 10, eff.StatusLabel)
+
+		chkPhos0 := "   "
+		if u.PhosphorMode == 0 {
+			chkPhos0 = "✓ "
+		}
+		chkPhos1 := "   "
+		if u.PhosphorMode == 1 {
+			chkPhos1 = "✓ "
+		}
+		chkPhos2 := "   "
+		if u.PhosphorMode == 2 {
+			chkPhos2 = "✓ "
+		}
+
+		font.Draw(screen, chkPhos0+i18n.T("video_phosphor_rgb"), 168, MenuBarH+276, 12, eff.MenuDropdownText)
+		font.Draw(screen, chkPhos1+i18n.T("video_phosphor_grn"), 168, MenuBarH+298, 12, eff.MenuDropdownText)
+		font.Draw(screen, chkPhos2+i18n.T("video_phosphor_amb"), 168, MenuBarH+320, 12, eff.MenuDropdownText)
 	} else if u.ActiveMenu == "Media" {
 		dropOp := &ebiten.DrawImageOptions{}
 		dropOp.GeoM.Translate(205, MenuBarH)
@@ -948,17 +1267,28 @@ func (u *UI) Draw(screen *ebiten.Image) {
 		font.DrawBold(screen, fmt.Sprintf("%s [%s]", i18n.T("media_tape"), tp), 212, MenuBarH+250, 12, eff.AccentColor)
 		font.Draw(screen, "   "+i18n.T("media_insert_cas"), 212, MenuBarH+268, 12, eff.MenuDropdownText)
 		font.Draw(screen, "   "+i18n.T("media_eject_cas")+"  |  "+i18n.T("media_rewind_cas"), 212, MenuBarH+288, 12, eff.MenuDropdownText)
-	} else if u.ActiveMenu == "Setup" {
+	} else if u.ActiveMenu == "Debug" {
 		dropOp := &ebiten.DrawImageOptions{}
 		dropOp.GeoM.Translate(265, MenuBarH)
+		screen.DrawImage(u.debugMenuBg, dropOp)
+		font.Draw(screen, "Hacker Workstation (F9)", 273, MenuBarH+8, 12, eff.AccentColor)
+		font.Draw(screen, "Single Step CPU (F10)", 273, MenuBarH+32, 12, eff.MenuDropdownText)
+		font.Draw(screen, "Toggle Run / Pause (F5)", 273, MenuBarH+56, 12, eff.MenuDropdownText)
+		font.Draw(screen, "--------------------------", 273, MenuBarH+72, 10, eff.StatusLabel)
+		font.Draw(screen, "Reset Breakpoints", 273, MenuBarH+88, 12, eff.MenuDropdownText)
+		font.Draw(screen, "Clear Execution Trace (C)", 273, MenuBarH+112, 12, eff.MenuDropdownText)
+	} else if u.ActiveMenu == "Setup" {
+		dropOp := &ebiten.DrawImageOptions{}
+		dropOp.GeoM.Translate(325, MenuBarH)
 		screen.DrawImage(u.menuBg, dropOp)
-		font.Draw(screen, i18n.T("menu_config"), 273, MenuBarH+6, 13, eff.MenuDropdownText)
-		font.Draw(screen, i18n.T("menu_catalog"), 273, MenuBarH+34, 13, eff.MenuDropdownText)
+		font.Draw(screen, i18n.T("menu_config"), 333, MenuBarH+6, 12, eff.MenuDropdownText)
+		font.Draw(screen, i18n.T("menu_controllers"), 333, MenuBarH+32, 12, eff.MenuDropdownText)
+		font.Draw(screen, i18n.T("menu_catalog"), 333, MenuBarH+58, 12, eff.MenuDropdownText)
 	} else if u.ActiveMenu == "Help" {
 		dropOp := &ebiten.DrawImageOptions{}
-		dropOp.GeoM.Translate(360, MenuBarH)
+		dropOp.GeoM.Translate(390, MenuBarH)
 		screen.DrawImage(u.menuBg, dropOp)
-		font.Draw(screen, i18n.T("menu_about"), 368, MenuBarH+8, 13, eff.MenuDropdownText)
+		font.Draw(screen, i18n.T("menu_about"), 398, MenuBarH+8, 13, eff.MenuDropdownText)
 	}
 
 	// 4. Draw About Modal Dialog
@@ -971,6 +1301,11 @@ func (u *UI) Draw(screen *ebiten.Image) {
 		u.drawConfigModal(screen)
 	}
 
+	// 5b. Draw Controller Calibration Modal Dialog
+	if u.ShowControllerConfig {
+		u.drawControllerModal(screen)
+	}
+
 	// 6. Draw ROM Catalog Modal Dialog
 	if u.ShowCatalog {
 		u.drawCatalogModal(screen)
@@ -979,6 +1314,11 @@ func (u *UI) Draw(screen *ebiten.Image) {
 	// 7. Draw Media File Picker Modal Dialog
 	if u.ShowPicker {
 		u.drawPickerModal(screen)
+	}
+
+	// 8. Draw Developer / Hacker Workstation Modal Dialog
+	if u.ShowHackerWorkstation {
+		u.drawWorkstationModal(screen)
 	}
 }
 
@@ -1046,7 +1386,7 @@ func (u *UI) updateKeyboard() {
 	}
 
 	// Don't capture keys if modal dialogs are open
-	if u.ShowConfig || u.ShowCatalog || u.ShowAbout || u.ShowPicker {
+	if u.ShowConfig || u.ShowCatalog || u.ShowAbout || u.ShowPicker || u.ShowHackerWorkstation {
 		return
 	}
 
@@ -1150,7 +1490,7 @@ func (u *UI) updateJoysticksAndMouse() {
 	}
 
 	// Don't capture gameplay inputs if modal dialogs are open
-	if u.ShowConfig || u.ShowCatalog || u.ShowAbout || u.ShowPicker {
+	if u.ShowConfig || u.ShowCatalog || u.ShowAbout || u.ShowPicker || u.ShowControllerConfig {
 		return
 	}
 
@@ -1180,28 +1520,44 @@ func (u *UI) updateJoysticksAndMouse() {
 			right1 = true
 		}
 
-		// Analog Left Stick axes (-1.0 to +1.0)
+		// Analog Left Stick axes with user-calibrated deadzone
+		dz0 := u.ControllerConfig.Deadzone[0]
+		if dz0 < 0.05 {
+			dz0 = 0.35
+		}
 		stickX := ebiten.StandardGamepadAxisValue(gp0, ebiten.StandardGamepadAxisLeftStickHorizontal)
 		stickY := ebiten.StandardGamepadAxisValue(gp0, ebiten.StandardGamepadAxisLeftStickVertical)
-		if stickY < -0.35 {
+		if stickY < -dz0 {
 			up1 = true
-		} else if stickY > 0.35 {
+		} else if stickY > dz0 {
 			down1 = true
 		}
-		if stickX < -0.35 {
+		if stickX < -dz0 {
 			left1 = true
-		} else if stickX > 0.35 {
+		} else if stickX > dz0 {
 			right1 = true
 		}
 
-		// Action buttons (A, B, X, Y)
-		if ebiten.IsStandardGamepadButtonPressed(gp0, ebiten.StandardGamepadButtonRightBottom) || // South (A / Cross)
-			ebiten.IsStandardGamepadButtonPressed(gp0, ebiten.StandardGamepadButtonRightLeft) { // West (X / Square)
-			btnA1 = true
-		}
-		if ebiten.IsStandardGamepadButtonPressed(gp0, ebiten.StandardGamepadButtonRightRight) || // East (B / Circle)
-			ebiten.IsStandardGamepadButtonPressed(gp0, ebiten.StandardGamepadButtonRightTop) { // North (Y / Triangle)
-			btnB1 = true
+		// Action buttons (A, B, X, Y) with optional SwapAB
+		rawA := ebiten.IsStandardGamepadButtonPressed(gp0, ebiten.StandardGamepadButtonRightBottom) || // South (A / Cross)
+			ebiten.IsStandardGamepadButtonPressed(gp0, ebiten.StandardGamepadButtonRightLeft) // West (X / Square)
+		rawB := ebiten.IsStandardGamepadButtonPressed(gp0, ebiten.StandardGamepadButtonRightRight) || // East (B / Circle)
+			ebiten.IsStandardGamepadButtonPressed(gp0, ebiten.StandardGamepadButtonRightTop) // North (Y / Triangle)
+
+		if u.ControllerConfig.SwapAB[0] {
+			if rawB {
+				btnA1 = true
+			}
+			if rawA {
+				btnB1 = true
+			}
+		} else {
+			if rawA {
+				btnA1 = true
+			}
+			if rawB {
+				btnB1 = true
+			}
 		}
 	}
 
@@ -1230,26 +1586,42 @@ func (u *UI) updateJoysticksAndMouse() {
 			right2 = true
 		}
 
+		dz1 := u.ControllerConfig.Deadzone[1]
+		if dz1 < 0.05 {
+			dz1 = 0.35
+		}
 		stickX := ebiten.StandardGamepadAxisValue(gp1, ebiten.StandardGamepadAxisLeftStickHorizontal)
 		stickY := ebiten.StandardGamepadAxisValue(gp1, ebiten.StandardGamepadAxisLeftStickVertical)
-		if stickY < -0.35 {
+		if stickY < -dz1 {
 			up2 = true
-		} else if stickY > 0.35 {
+		} else if stickY > dz1 {
 			down2 = true
 		}
-		if stickX < -0.35 {
+		if stickX < -dz1 {
 			left2 = true
-		} else if stickX > 0.35 {
+		} else if stickX > dz1 {
 			right2 = true
 		}
 
-		if ebiten.IsStandardGamepadButtonPressed(gp1, ebiten.StandardGamepadButtonRightBottom) ||
-			ebiten.IsStandardGamepadButtonPressed(gp1, ebiten.StandardGamepadButtonRightLeft) {
-			btnA2 = true
-		}
-		if ebiten.IsStandardGamepadButtonPressed(gp1, ebiten.StandardGamepadButtonRightRight) ||
-			ebiten.IsStandardGamepadButtonPressed(gp1, ebiten.StandardGamepadButtonRightTop) {
-			btnB2 = true
+		rawA2 := ebiten.IsStandardGamepadButtonPressed(gp1, ebiten.StandardGamepadButtonRightBottom) ||
+			ebiten.IsStandardGamepadButtonPressed(gp1, ebiten.StandardGamepadButtonRightLeft)
+		rawB2 := ebiten.IsStandardGamepadButtonPressed(gp1, ebiten.StandardGamepadButtonRightRight) ||
+			ebiten.IsStandardGamepadButtonPressed(gp1, ebiten.StandardGamepadButtonRightTop)
+
+		if u.ControllerConfig.SwapAB[1] {
+			if rawB2 {
+				btnA2 = true
+			}
+			if rawA2 {
+				btnB2 = true
+			}
+		} else {
+			if rawA2 {
+				btnA2 = true
+			}
+			if rawB2 {
+				btnB2 = true
+			}
 		}
 	}
 

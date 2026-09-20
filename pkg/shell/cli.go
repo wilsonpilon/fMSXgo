@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"fmsxgo/pkg/cpu/z80"
@@ -92,6 +93,12 @@ func (sh *Shell) ExecuteCommand(line string) bool {
 		args = append([]string{rest}, args...)
 	}
 
+	if strings.HasPrefix(cmd, "vd") && len(cmd) > 2 && cmd != "vdp" {
+		rest := parts[0][2:]
+		cmd = "vd"
+		args = append([]string{rest}, args...)
+	}
+
 	switch cmd {
 	case "exit", "quit", "q", "ba", "basic", "qt":
 		fmt.Fprintln(sh.Out, "Exiting fMSXgo...")
@@ -132,6 +139,12 @@ func (sh *Shell) ExecuteCommand(line string) bool {
 	case "dm":
 		sh.cmdDM(args)
 
+	case "vd":
+		sh.cmdVD(args)
+
+	case "ve":
+		sh.cmdVE(args)
+
 	case "e", "enter":
 		sh.cmdEnter(args)
 
@@ -150,8 +163,20 @@ func (sh *Shell) ExecuteCommand(line string) bool {
 	case "g", "run", "go":
 		sh.cmdRun(args)
 
+	case "hist", "trace", "history", "tracebuf":
+		sh.cmdHist(args)
+
+	case "sym", "symbols", "symbol":
+		sh.cmdSym(args)
+
+	case "watch", "wp":
+		sh.cmdWatch(args)
+
 	case "bp", "break":
 		sh.cmdBreakpoint(args)
+
+	case "vdp":
+		sh.cmdVDP()
 
 	case "slots", "page", "page?":
 		sh.cmdSlots()
@@ -329,20 +354,26 @@ func (sh *Shell) cmdHelp() {
 	fmt.Fprintf(sh.Out, "  r / x / rg                %s\n", i18n.T("cli_regs_desc"))
 	fmt.Fprintf(sh.Out, "  r <reg> <val>             %s\n", i18n.T("cli_setreg_desc"))
 	fmt.Fprintln(sh.Out)
-	fmt.Fprintln(sh.Out, "Memory Inspection & Editing:")
+	fmt.Fprintln(sh.Out, "Memory & VRAM Inspection / Editing:")
 	fmt.Fprintf(sh.Out, "  d [addr] [len]            %s\n", i18n.T("cli_dump_desc"))
 	fmt.Fprintf(sh.Out, "  dm [addr] [desloc] [len]  %s\n", i18n.T("cli_dm_desc"))
 	fmt.Fprintf(sh.Out, "  e <addr> <b0> [b1...]     %s\n", i18n.T("cli_enter_desc"))
+	fmt.Fprintf(sh.Out, "  vd [addr] [len]           Dump Video RAM (VRAM) in hex & ASCII\n")
+	fmt.Fprintf(sh.Out, "  ve <addr> <b0> [b1...]    Edit bytes in Video RAM (VRAM)\n")
+	fmt.Fprintf(sh.Out, "  vdp                       Display VDP registers, status, mode & tables\n")
 	fmt.Fprintln(sh.Out)
 	fmt.Fprintln(sh.Out, "Disassembly & Assembly:")
 	fmt.Fprintf(sh.Out, "  u / l / i [addr] [count]  %s\n", i18n.T("cli_dasm_desc"))
 	fmt.Fprintf(sh.Out, "  a <addr>                  %s\n", i18n.T("cli_asm_desc"))
 	fmt.Fprintln(sh.Out)
-	fmt.Fprintln(sh.Out, "Execution & Debugging:")
+	fmt.Fprintln(sh.Out, "Execution, History & Debugging:")
 	fmt.Fprintf(sh.Out, "  t / tr [n]                %s\n", i18n.T("cli_step_desc"))
 	fmt.Fprintf(sh.Out, "  p                         %s\n", i18n.T("cli_next_desc"))
 	fmt.Fprintf(sh.Out, "  g / go [addr]             %s\n", i18n.T("cli_run_desc"))
-	fmt.Fprintf(sh.Out, "  bp                        %s\n", i18n.T("cli_bp_desc"))
+	fmt.Fprintf(sh.Out, "  hist [n | clear]          View circular execution trace buffer (last 10,000 steps)\n")
+	fmt.Fprintf(sh.Out, "  sym [load|list|find]      Manage assembly symbol table (.sym, .map, Pasmo, asMSX)\n")
+	fmt.Fprintf(sh.Out, "  bp [add|del|list|clear]   %s (with optional condition, e.g. A == 42h)\n", i18n.T("cli_bp_desc"))
+	fmt.Fprintf(sh.Out, "  watch [r|w|port|line]     Memory read/write, IO port, and scanline watchpoints\n")
 	fmt.Fprintln(sh.Out)
 	fmt.Fprintln(sh.Out, "MSX Hardware & Slots:")
 	fmt.Fprintf(sh.Out, "  model [msx1|msx2|msx2+]   %s\n", i18n.T("cli_model_desc"))
@@ -540,7 +571,11 @@ func (sh *Shell) cmdDasm(args []string) {
 		if addr == sh.Machine.CPU.PC {
 			prefix = "=>"
 		}
-		fmt.Fprintf(sh.Out, "%s %04X:  %s  %s\n", prefix, addr, byteDump, dis)
+		annot := ""
+		if sh.Machine.Symbols != nil {
+			annot = sh.Machine.Symbols.FormatAnnotation(addr)
+		}
+		fmt.Fprintf(sh.Out, "%s %04X:  %s  %-20s%s\n", prefix, addr, byteDump, dis, annot)
 		addr += uint16(size)
 	}
 	sh.LastDasm = addr
@@ -680,15 +715,9 @@ func (sh *Shell) cmdRun(args []string) {
 }
 
 func (sh *Shell) cmdBreakpoint(args []string) {
+	dbg := sh.Machine.Debugger
 	if len(args) == 0 {
-		if len(sh.Breakpoints) == 0 {
-			fmt.Fprintln(sh.Out, "No active breakpoints.")
-			return
-		}
-		fmt.Fprintln(sh.Out, "Active Breakpoints:")
-		for bp := range sh.Breakpoints {
-			fmt.Fprintf(sh.Out, "  - %04Xh\n", bp)
-		}
+		sh.cmdWatch(nil)
 		return
 	}
 
@@ -696,7 +725,7 @@ func (sh *Shell) cmdBreakpoint(args []string) {
 	switch sub {
 	case "add":
 		if len(args) < 2 {
-			fmt.Fprintln(sh.Out, "Usage: bp add <addr>")
+			fmt.Fprintln(sh.Out, "Usage: bp add <addr> [condition]")
 			return
 		}
 		v, err := parseHex(args[1])
@@ -704,25 +733,396 @@ func (sh *Shell) cmdBreakpoint(args []string) {
 			fmt.Fprintf(sh.Out, "Invalid address: %s\n", args[1])
 			return
 		}
+		cond := ""
+		if len(args) >= 3 {
+			cond = strings.Join(args[2:], " ")
+		}
+		id := 0
+		if dbg != nil {
+			id = dbg.AddPC(uint16(v), cond)
+		}
 		sh.Breakpoints[uint16(v)] = true
-		fmt.Fprintf(sh.Out, "Breakpoint added at %04Xh\n", uint16(v))
+		if cond != "" {
+			fmt.Fprintf(sh.Out, "Breakpoint #%d added at %04Xh (if %s)\n", id, uint16(v), cond)
+		} else {
+			fmt.Fprintf(sh.Out, "Breakpoint #%d added at %04Xh\n", id, uint16(v))
+		}
 
 	case "del", "delete", "rm":
 		if len(args) < 2 {
-			fmt.Fprintln(sh.Out, "Usage: bp del <addr>")
+			fmt.Fprintln(sh.Out, "Usage: bp del <addr or id>")
+			return
+		}
+		if id, err := strconv.Atoi(args[1]); err == nil && dbg != nil && dbg.Remove(id) {
+			fmt.Fprintf(sh.Out, "Breakpoint #%d removed\n", id)
 			return
 		}
 		v, err := parseHex(args[1])
 		if err != nil {
-			fmt.Fprintf(sh.Out, "Invalid address: %s\n", args[1])
+			fmt.Fprintf(sh.Out, "Invalid address or ID: %s\n", args[1])
 			return
 		}
 		delete(sh.Breakpoints, uint16(v))
+		if dbg != nil {
+			for _, bp := range dbg.List() {
+				if bp.Addr == uint16(v) && bp.Type == msx.BPTypePC {
+					dbg.Remove(bp.ID)
+				}
+			}
+		}
 		fmt.Fprintf(sh.Out, "Breakpoint removed at %04Xh\n", uint16(v))
 
 	case "clear":
 		sh.Breakpoints = make(map[uint16]bool)
-		fmt.Fprintln(sh.Out, "All breakpoints cleared.")
+		if dbg != nil {
+			dbg.Clear()
+		}
+		fmt.Fprintln(sh.Out, "All breakpoints and watchpoints cleared.")
+
+	case "list":
+		sh.cmdWatch(nil)
+
+	default:
+		// Shorthand: bp <addr> -> bp add <addr>
+		if _, err := parseHex(args[0]); err == nil {
+			sh.cmdBreakpoint([]string{"add", args[0]})
+			return
+		}
+		fmt.Fprintln(sh.Out, "Usage: bp add <addr> [condition] | bp del <id|addr> | bp list | bp clear")
+	}
+}
+
+func (sh *Shell) cmdWatch(args []string) {
+	dbg := sh.Machine.Debugger
+	if dbg == nil {
+		fmt.Fprintln(sh.Out, "Debugger not initialized.")
+		return
+	}
+	if len(args) == 0 {
+		bps := dbg.List()
+		if len(bps) == 0 {
+			fmt.Fprintln(sh.Out, "No active breakpoints or watchpoints.")
+			return
+		}
+		fmt.Fprintln(sh.Out, "Active Breakpoints & Watchpoints:")
+		for _, bp := range bps {
+			fmt.Fprintf(sh.Out, "  [#%d] %-10s %-30s (Hits: %d, Enabled: %v)\n",
+				bp.ID, bp.Type, bp.Description(), bp.HitCount, bp.Enabled)
+		}
+		return
+	}
+
+	mode := strings.ToLower(args[0])
+	switch mode {
+	case "r", "read":
+		if len(args) < 2 {
+			fmt.Fprintln(sh.Out, "Usage: watch r <addr> [endAddr] [cond]")
+			return
+		}
+		a, err := parseHex(args[1])
+		if err != nil {
+			fmt.Fprintln(sh.Out, "Invalid address.")
+			return
+		}
+		endA := a
+		cond := ""
+		if len(args) >= 3 {
+			if e, err := parseHex(args[2]); err == nil {
+				endA = e
+				if len(args) >= 4 {
+					cond = strings.Join(args[3:], " ")
+				}
+			} else {
+				cond = strings.Join(args[2:], " ")
+			}
+		}
+		id := dbg.AddMemWatch(uint16(a), uint16(endA), false, cond)
+		fmt.Fprintf(sh.Out, "Added Read Watchpoint #%d for %04Xh..%04Xh\n", id, uint16(a), uint16(endA))
+
+	case "w", "write":
+		if len(args) < 2 {
+			fmt.Fprintln(sh.Out, "Usage: watch w <addr> [endAddr] [cond]")
+			return
+		}
+		a, err := parseHex(args[1])
+		if err != nil {
+			fmt.Fprintln(sh.Out, "Invalid address.")
+			return
+		}
+		endA := a
+		cond := ""
+		if len(args) >= 3 {
+			if e, err := parseHex(args[2]); err == nil {
+				endA = e
+				if len(args) >= 4 {
+					cond = strings.Join(args[3:], " ")
+				}
+			} else {
+				cond = strings.Join(args[2:], " ")
+			}
+		}
+		id := dbg.AddMemWatch(uint16(a), uint16(endA), true, cond)
+		fmt.Fprintf(sh.Out, "Added Write Watchpoint #%d for %04Xh..%04Xh\n", id, uint16(a), uint16(endA))
+
+	case "port", "io":
+		if len(args) < 2 {
+			fmt.Fprintln(sh.Out, "Usage: watch port <portHex> [in|out] [cond]")
+			return
+		}
+		p, err := parseHex(args[1])
+		if err != nil {
+			fmt.Fprintln(sh.Out, "Invalid port.")
+			return
+		}
+		isOut := false
+		cond := ""
+		if len(args) >= 3 {
+			if strings.ToLower(args[2]) == "out" {
+				isOut = true
+			}
+			if len(args) >= 4 {
+				cond = strings.Join(args[3:], " ")
+			}
+		}
+		id := dbg.AddIOWatch(uint16(p), isOut, cond)
+		dir := "IN"
+		if isOut {
+			dir = "OUT"
+		}
+		fmt.Fprintf(sh.Out, "Added IO Watchpoint #%d for Port %02Xh (%s)\n", id, uint8(p), dir)
+
+	case "line", "scanline":
+		if len(args) < 2 {
+			fmt.Fprintln(sh.Out, "Usage: watch line <scanlineNum>")
+			return
+		}
+		l, err := strconv.Atoi(args[1])
+		if err != nil {
+			fmt.Fprintln(sh.Out, "Invalid line number.")
+			return
+		}
+		id := dbg.AddScanline(l)
+		fmt.Fprintf(sh.Out, "Added Scanline Breakpoint #%d on line %d\n", id, l)
+
+	case "del", "rm":
+		if len(args) < 2 {
+			fmt.Fprintln(sh.Out, "Usage: watch del <id>")
+			return
+		}
+		id, err := strconv.Atoi(args[1])
+		if err != nil || !dbg.Remove(id) {
+			fmt.Fprintf(sh.Out, "Watchpoint #%s not found.\n", args[1])
+			return
+		}
+		fmt.Fprintf(sh.Out, "Watchpoint #%d removed.\n", id)
+
+	case "clear":
+		dbg.Clear()
+		fmt.Fprintln(sh.Out, "All watchpoints and breakpoints cleared.")
+
+	default:
+		fmt.Fprintln(sh.Out, "Usage: watch r <addr> | watch w <addr> | watch port <port> | watch line <line> | watch del <id> | watch clear")
+	}
+}
+
+func (sh *Shell) cmdVDP() {
+	v := sh.Machine.VDP
+	if v == nil {
+		fmt.Fprintln(sh.Out, "VDP not initialized.")
+		return
+	}
+
+	fmt.Fprintln(sh.Out, "=== Video Display Processor (VDP) State ===")
+	fmt.Fprintf(sh.Out, "Screen Mode: SCREEN %d (Scanline %d/%d, VR=%v, VBlank=%v)\n",
+		v.ScrMode, v.ScanLine, v.TotalLines, (v.Status[2]&0x40) != 0, (v.Status[0]&0x80) != 0)
+	fmt.Fprintf(sh.Out, "VRAM Address: %04Xh | VPageOffset: %05Xh | VKey: %v | IRQ: %02Xh\n",
+		v.VAddr, v.VPageOffset, v.VKey, v.IRQPending)
+	fmt.Fprintf(sh.Out, "Tables: ChrTab=%05Xh (Msk=%05Xh), ChrGen=%05Xh (Msk=%05Xh)\n",
+		v.ChrTab, v.ChrTabM, v.ChrGen, v.ChrGenM)
+	fmt.Fprintf(sh.Out, "        ColTab=%05Xh (Msk=%05Xh), SprTab=%05Xh, SprGen=%05Xh\n",
+		v.ColTab, v.ColTabM, v.SprTab, v.SprGen)
+	fmt.Fprintf(sh.Out, "Display: VAdjust: %+d, HAdjust: %+d, Blink: %v\n",
+		v.VAdjust(), v.HAdjust(), v.BFlag)
+
+	fmt.Fprintln(sh.Out, "\nControl Registers (R#0..R#23):")
+	for i := 0; i < 24; i += 8 {
+		var hexStrs []string
+		for j := 0; j < 8; j++ {
+			hexStrs = append(hexStrs, fmt.Sprintf("R#%02d=%02X", i+j, v.Regs[i+j]))
+		}
+		fmt.Fprintf(sh.Out, "  %s\n", strings.Join(hexStrs, "  "))
+	}
+
+	fmt.Fprintln(sh.Out, "\nStatus Registers (S#0..S#9):")
+	for i := 0; i < 10; i += 5 {
+		var hexStrs []string
+		for j := 0; j < 5 && (i+j) < 16; j++ {
+			hexStrs = append(hexStrs, fmt.Sprintf("S#%d=%02X", i+j, v.Status[i+j]))
+		}
+		fmt.Fprintf(sh.Out, "  %s\n", strings.Join(hexStrs, "  "))
+	}
+}
+
+func (sh *Shell) cmdVD(args []string) {
+	v := sh.Machine.VDP
+	if v == nil {
+		fmt.Fprintln(sh.Out, "VDP not initialized.")
+		return
+	}
+
+	addr := uint32(0)
+	count := 64
+	if len(args) >= 1 {
+		val, err := parseHex(args[0])
+		if err == nil {
+			addr = uint32(val)
+		}
+	}
+	if len(args) >= 2 {
+		val, err := parseHex(args[1])
+		if err == nil && val > 0 {
+			count = int(val)
+		}
+	}
+
+	vramLen := uint32(len(v.VRAM))
+	for count > 0 && addr < vramLen {
+		chunk := 16
+		if chunk > count {
+			chunk = count
+		}
+		var hexParts []string
+		var asciiParts []byte
+		for i := 0; i < chunk; i++ {
+			b := v.VRAM[(addr+uint32(i))%vramLen]
+			hexParts = append(hexParts, fmt.Sprintf("%02X", b))
+			if b >= 0x20 && b <= 0x7E {
+				asciiParts = append(asciiParts, b)
+			} else {
+				asciiParts = append(asciiParts, '.')
+			}
+		}
+		hexStr := fmt.Sprintf("%-48s", strings.Join(hexParts, " "))
+		fmt.Fprintf(sh.Out, "%05X: %s  |%s|\n", addr, hexStr, string(asciiParts))
+		addr += uint32(chunk)
+		count -= chunk
+	}
+}
+
+func (sh *Shell) cmdVE(args []string) {
+	v := sh.Machine.VDP
+	if v == nil {
+		fmt.Fprintln(sh.Out, "VDP not initialized.")
+		return
+	}
+	if len(args) < 2 {
+		fmt.Fprintln(sh.Out, "Usage: ve <addr> <b1> [b2...]")
+		return
+	}
+	addr64, err := parseHex(args[0])
+	if err != nil {
+		fmt.Fprintf(sh.Out, "Invalid address: %s\n", args[0])
+		return
+	}
+	addr := uint32(addr64) % uint32(len(v.VRAM))
+	for _, arg := range args[1:] {
+		val, err := parseHex(arg)
+		if err != nil {
+			fmt.Fprintf(sh.Out, "Invalid byte value: %s\n", arg)
+			return
+		}
+		v.VRAM[addr] = uint8(val)
+		addr = (addr + 1) % uint32(len(v.VRAM))
+	}
+	fmt.Fprintf(sh.Out, "Updated %d bytes in VRAM starting at %05Xh\n", len(args)-1, uint32(addr64))
+}
+
+func (sh *Shell) cmdHist(args []string) {
+	count := 20
+	if len(args) >= 1 {
+		if args[0] == "clear" {
+			sh.Machine.CPU.ClearHistory()
+			fmt.Fprintln(sh.Out, "Execution history cleared.")
+			return
+		}
+		v, err := parseHex(args[0])
+		if err == nil && v > 0 {
+			count = int(v)
+		}
+	}
+
+	history := sh.Machine.CPU.GetHistory(count)
+	if len(history) == 0 {
+		fmt.Fprintln(sh.Out, "Execution history is empty.")
+		return
+	}
+
+	fmt.Fprintf(sh.Out, "=== Last %d Executed Instructions (Total in Buffer: %d) ===\n", len(history), sh.Machine.CPU.HistoryCount)
+	for i, entry := range history {
+		dasm, _ := entry.Disassemble()
+		annot := ""
+		if sh.Machine.Symbols != nil {
+			annot = sh.Machine.Symbols.FormatAnnotation(entry.PC)
+		}
+		fmt.Fprintf(sh.Out, "[%3d] %04X: %-18s%-10s AF=%04X BC=%04X DE=%04X HL=%04X SP=%04X\n",
+			i+1, entry.PC, dasm, annot, entry.AF, entry.BC, entry.DE, entry.HL, entry.SP)
+	}
+}
+
+func (sh *Shell) cmdSym(args []string) {
+	if len(args) == 0 {
+		fmt.Fprintln(sh.Out, "Usage: sym load <file> | sym list [filter] | sym find <name/addr>")
+		return
+	}
+	st := sh.Machine.Symbols
+	if st == nil {
+		st = msx.NewSymbolTable()
+		sh.Machine.Symbols = st
+	}
+
+	sub := strings.ToLower(args[0])
+	switch sub {
+	case "load":
+		if len(args) < 2 {
+			fmt.Fprintln(sh.Out, "Usage: sym load <filename>")
+			return
+		}
+		path := args[1]
+		count, err := st.LoadFile(path)
+		if err != nil {
+			fmt.Fprintf(sh.Out, "Error loading symbol file '%s': %v\n", path, err)
+			return
+		}
+		fmt.Fprintf(sh.Out, "Successfully loaded %d symbols from %s\n", count, path)
+
+	case "list":
+		filter := ""
+		if len(args) >= 2 {
+			filter = args[1]
+		}
+		list := st.List(filter)
+		fmt.Fprintf(sh.Out, "Symbol Table (%d matching):\n", len(list))
+		for _, s := range list {
+			fmt.Fprintf(sh.Out, "  %04Xh  %s\n", s.Addr, s.Name)
+		}
+
+	case "find":
+		if len(args) < 2 {
+			fmt.Fprintln(sh.Out, "Usage: sym find <name or hex addr>")
+			return
+		}
+		target := args[1]
+		if addr, ok := st.Find(target); ok {
+			fmt.Fprintf(sh.Out, "Symbol %s -> %04Xh\n", strings.ToUpper(target), addr)
+			return
+		}
+		if v, err := parseHex(target); err == nil {
+			if name, ok := st.Lookup(uint16(v)); ok {
+				fmt.Fprintf(sh.Out, "Address %04Xh -> %s\n", uint16(v), name)
+				return
+			}
+		}
+		fmt.Fprintf(sh.Out, "No symbol found for '%s'\n", target)
 	}
 }
 
