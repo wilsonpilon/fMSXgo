@@ -49,7 +49,7 @@ fMSXgo follows strict **`V X.Y.Z`** semantic versioning with creative codenames 
 * **`Y` (Feature)**: Incremented upon completing and integrating a functional subsystem.
 * **`X` (Major)**: Incremented upon closing a major architectural milestone (e.g. Z80 certification = V 1.0.0).
 
-Current Version: **V 0.3.67 ("Nemesis 2")**
+Current Version: **V 0.3.68 ("Nemesis 2")**
 
 For complete phase tracking and immediate next steps, see [SPEC.md](SPEC.md).
 

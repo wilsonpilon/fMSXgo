@@ -15,7 +15,7 @@ func (v *VDP) RenderScanline(scanline int) {
 		firstLine = 8 + v.VAdjust()
 	}
 
-	bgCol := v.Palette.Colors[v.BGColor&0x0F]
+	bgCol := v.BackdropColor()
 	if !v.ScreenON() {
 		// When screen is off, entire line is background color
 		v.fillLineColor(scanline, bgCol)
@@ -129,7 +129,12 @@ func (v *VDP) RenderScanline(scanline int) {
 		} else if isScreen8 {
 			pixCol = v.Palette.BPalTable[lineBuf[x]]
 		} else {
-			pixCol = v.Palette.Colors[lineBuf[x]&0x0F]
+			c := lineBuf[x] & 0x0F
+			if c == 0 && !v.SolidColor0() {
+				pixCol = bgCol
+			} else {
+				pixCol = v.Palette.Colors[c]
+			}
 		}
 
 		v.FrameBuffer[idx] = pixCol.R

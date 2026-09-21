@@ -4,6 +4,20 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and version numbers follow the **`V X.Y.Z`** scheme with creative release codenames inspired by **Horror Cinema, MSX Classics, and Heavy Metal**.
 
+## [V 0.3.68] - "Nemesis 2" - 2026-09-21
+
+### Changed & Fixed
+- **V9938 VDP Command Transparency (`pkg/vdp/commands.go`)**:
+  - Implemented V9938 bit 3 (`0x08`) Transparency (TP) in logical blitter commands (`LMMM`, `LMMC`, `LMMV`, `LINE`, `PSET`).
+  - When the TP bit is set (e.g., `OP = 0x8` / T-IMP, T-AND, T-OR, T-XOR, T-NOT), source pixels with color 0 are transparent and skipped rather than overwriting destination VRAM.
+  - Fixes solid black rectangular bounding boxes around enemies blitted in SCREEN 5 during gameplay in Konami's *Firebird (Hi no Tori Hououhen - MSX2)*.
+- **V9938 Sprite Mode 2 CC (Color Combine) Engine (`pkg/vdp/sprites.go`)**:
+  - Refactored `RenderSpritesMode2` to align with fMSX's `ColorSprites` architecture using a dedicated scanline buffer (`zbuf [320]uint8`) and reverse-order sprite composition with `orThem & 0x20` propagation.
+  - Sprites with color 0 are treated as transparent, and multi-plane sprites with `CC=1` blend properly without dropping pixels or altering background tiles.
+- **V9938 Backdrop Color & Color 0 Transparency Resolution (`pkg/vdp/vdp.go`, `pkg/vdp/render.go`)**:
+  - Added `BackdropColor()` taking into account Register 8 bit 5 (`TP`) and Register 7 (`BGColor`).
+  - When `TP=0` and `BGColor=0`, transparent color 0 resolves to black (`RGB(0,0,0)`) rather than reading palette register 0, eliminating red backgrounds in title screens, dialogue boxes, and kanji character boxes in *Firebird*.
+
 ## [V 0.3.67] - "Nemesis 2" - 2026-09-21
 
 ### Added & Documented

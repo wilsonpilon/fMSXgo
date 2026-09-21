@@ -309,6 +309,30 @@ func (c *CommandEngine) executePoint(x, y uint16, col uint8) {
 	mode := c.vdp.ScrMode
 	op := c.Op
 
+	// High-speed commands (HMMM, HMMV, HMMC) ignore logical operations and transparency.
+	if c.ActiveOp == CmdHMMM || c.ActiveOp == CmdHMMV || c.ActiveOp == CmdHMMC {
+		op = 0
+	}
+
+	// In V9938, bit 3 (0x08) of the logical operation is the Transparency bit (TP).
+	// When bit 3 is set, if the source pixel color is 0, the pixel is transparent and not written.
+	if (op & 0x08) != 0 {
+		switch mode {
+		case 6:
+			if (col & 0x03) == 0 {
+				return
+			}
+		case 8:
+			if col == 0 {
+				return
+			}
+		default:
+			if (col & 0x0F) == 0 {
+				return
+			}
+		}
+	}
+
 	switch mode {
 	case 5: // 256x192x16 (4bpp)
 		addr := (int(y&1023)<<7 + int(x&255)>>1) % len(vram)

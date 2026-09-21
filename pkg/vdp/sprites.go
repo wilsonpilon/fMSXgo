@@ -134,11 +134,19 @@ func (v *VDP) RenderSpritesMode2(y int, lineBuf *[DisplayWidth]uint8) {
 	yScroll := y
 
 	maxSprites := 8
-	var markedSprites [32]bool
 	spriteCount := 0
 	lastChecked := 31
 
-	// Scan sprite table
+	type lineSprite struct {
+		x       int
+		pat16   uint16
+		width   int
+		colByte uint8
+	}
+	var visible [8]lineSprite
+	visibleCount := 0
+
+	// 1. Scan sprite table to find up to 8 sprites on this scanline
 	for i := 0; i < 32; i++ {
 		entry := (v.SprTab + (i * 4)) % len(v.VRAM)
 		k := int(uint8(v.VRAM[entry] - v.VScroll()))
@@ -152,102 +160,107 @@ func (v *VDP) RenderSpritesMode2(y int, lineBuf *[DisplayWidth]uint8) {
 
 		if yScroll > k && yScroll <= k+oh {
 			if spriteCount >= maxSprites {
-				// 9th sprite detected
+				// 9th sprite detected on line
 				v.Status[0] |= 0x40
 				lastChecked = i
 				break
 			}
-			markedSprites[i] = true
+
+			lineInSpr := yScroll - k - 1
+			if oh > ih {
+				lineInSpr >>= 1
+			}
+
+			colorTableBase := (v.SprTab - 512 + (i * 16)) % len(v.VRAM)
+			if colorTableBase < 0 {
+				colorTableBase += len(v.VRAM)
+			}
+			colByte := v.VRAM[(colorTableBase+lineInSpr)%len(v.VRAM)]
+			x := int(v.VRAM[(entry+1)%len(v.VRAM)])
+			if (colByte & 0x80) != 0 {
+				x -= 32
+			}
+
+			pat := int(v.VRAM[(entry+2)%len(v.VRAM)])
+			var patAddr int
+			if ih > 8 {
+				patAddr = (v.SprGen + ((pat & 0xFC) << 3) + lineInSpr) % len(v.VRAM)
+			} else {
+				patAddr = (v.SprGen + (pat << 3) + lineInSpr) % len(v.VRAM)
+			}
+
+			b1 := v.VRAM[patAddr]
+			var b2 uint8
+			if ih > 8 {
+				b2 = v.VRAM[(patAddr+16)%len(v.VRAM)]
+			}
+
+			pattern16 := (uint16(b1) << 8) | uint16(b2)
+			sprWidth := 8
+			if ih > 8 {
+				sprWidth = 16
+			}
+			if oh > ih {
+				sprWidth *= 2
+			}
+
+			visible[visibleCount] = lineSprite{
+				x:       x,
+				pat16:   pattern16,
+				width:   sprWidth,
+				colByte: colByte,
+			}
+			visibleCount++
 			spriteCount++
 		}
 	}
 
 	v.Status[0] = (v.Status[0] &^ 0x1F) | uint8(lastChecked&0x1F)
 
-	// Draw sprites in reverse order (0 has priority)
-	for i := 31; i >= 0; i-- {
-		if !markedSprites[i] {
-			continue
-		}
+	if visibleCount == 0 {
+		return
+	}
 
-		entry := (v.SprTab + (i * 4)) % len(v.VRAM)
-		k := int(uint8(v.VRAM[entry] - v.VScroll()))
-		if k > 256-ih {
-			k -= 256
-		}
-		x := int(v.VRAM[(entry+1)%len(v.VRAM)])
-		pat := int(v.VRAM[(entry+2)%len(v.VRAM)])
+	var zbuf [320]uint8
+	orThem := uint8(0)
 
-		lineInSpr := yScroll - k - 1
-		if oh > ih {
-			lineInSpr >>= 1
-		}
+	// 2. Draw sprites in reverse priority order (lower priority drawn first, higher priority overwrites or ORs)
+	for i := visibleCount - 1; i >= 0; i-- {
+		sp := visible[i]
+		orThem |= (sp.colByte & 0x40)
+		col := sp.colByte & 0x0F
 
-		// Color table for Mode 2 is at SprTab - 512
-		colorTableBase := (v.SprTab - 512 + (i * 16)) % len(v.VRAM)
-		if colorTableBase < 0 {
-			colorTableBase += len(v.VRAM)
-		}
-		colByte := v.VRAM[(colorTableBase+lineInSpr)%len(v.VRAM)]
-
-		if (colByte & 0x80) != 0 {
-			x -= 32
-		}
-		col := colByte & 0x0F
-		if col == 0 {
-			continue
-		}
-
-		var patAddr int
-		if ih > 8 {
-			patAddr = (v.SprGen + ((pat & 0xFC) << 3) + lineInSpr) % len(v.VRAM)
-		} else {
-			patAddr = (v.SprGen + (pat << 3) + lineInSpr) % len(v.VRAM)
-		}
-
-		b1 := v.VRAM[patAddr]
-		var b2 uint8
-		if ih > 8 {
-			b2 = v.VRAM[(patAddr+16)%len(v.VRAM)]
-		}
-
-		pattern16 := (uint16(b1) << 8) | uint16(b2)
-		sprWidth := 8
-		if ih > 8 {
-			sprWidth = 16
-		}
-		if oh > ih {
-			sprWidth *= 2
-		}
-
-		for px := 0; px < sprWidth; px++ {
-			sprX := x + px
-			dotX := LeftBorder + (sprX * 2)
-
-			srcBit := px
-			if oh > ih {
-				srcBit >>= 1
-			}
-			mask := uint16(0x8000) >> srcBit
-
-			if (pattern16 & mask) != 0 {
-				if (colByte & 0x40) != 0 {
-					// CC bit set: OR color with existing pixel
-					if dotX >= LeftBorder && dotX < LeftBorder+ScreenWidth {
-						lineBuf[dotX] |= col
-					}
-					if dotX+1 >= LeftBorder && dotX+1 < LeftBorder+ScreenWidth {
-						lineBuf[dotX+1] |= col
-					}
-				} else {
-					if dotX >= LeftBorder && dotX < LeftBorder+ScreenWidth {
-						lineBuf[dotX] = col
-					}
-					if dotX+1 >= LeftBorder && dotX+1 < LeftBorder+ScreenWidth {
-						lineBuf[dotX+1] = col
+		if col != 0 {
+			pBase := sp.x + 32
+			for px := 0; px < sp.width; px++ {
+				srcBit := px
+				if oh > ih {
+					srcBit >>= 1
+				}
+				mask := uint16(0x8000) >> srcBit
+				if (sp.pat16 & mask) != 0 {
+					dstX := pBase + px
+					if dstX >= 0 && dstX < 320 {
+						if (orThem & 0x20) != 0 {
+							zbuf[dstX] |= col
+						} else {
+							zbuf[dstX] = col
+						}
 					}
 				}
 			}
+		}
+
+		orThem >>= 1
+	}
+
+	// 3. Composite sprite buffer onto line buffer (never ORing with background tiles)
+	for x := 0; x < 256; x++ {
+		c := zbuf[32+x]
+		if c != 0 {
+			dotX := LeftBorder + (x * 2)
+			lineBuf[dotX] = c
+			lineBuf[dotX+1] = c
 		}
 	}
 }

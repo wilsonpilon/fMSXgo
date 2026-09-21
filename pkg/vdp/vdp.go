@@ -184,9 +184,20 @@ func (v *VDP) SetModel(model int, vramPages int) {
 	v.Reset()
 }
 
+// BackdropColor returns the RGBA color of the screen backdrop / border.
+// On MSX2/V9938, when TP=0 (SolidColor0 is false) and BGColor is 0,
+// the transparent backdrop defaults to black unless an external video mode is active.
+func (v *VDP) BackdropColor() RGBA {
+	bg := v.BGColor & 0x0F
+	if bg == 0 && !v.SolidColor0() {
+		return RGBA{R: 0, G: 0, B: 0, A: 255}
+	}
+	return v.Palette.Colors[bg]
+}
+
 // ClearScreen fills the frame buffer with border background color.
 func (v *VDP) ClearScreen() {
-	bg := v.Palette.Colors[v.BGColor&0x0F]
+	bg := v.BackdropColor()
 	for i := 0; i < len(v.FrameBuffer); i += 4 {
 		v.FrameBuffer[i] = bg.R
 		v.FrameBuffer[i+1] = bg.G
