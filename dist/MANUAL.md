@@ -158,10 +158,16 @@ For copy-protected software, disk magazines, custom bootloaders, and utilities t
 * **GUI**: `File -> Save State...` and `File -> Load State...` with interactive `.sta` file picker.
 * **CLI**: `savesta [file.sta]` and `loadsta [file.sta]`.
 
-### Audio Subsystem (PSG & Konami SCC)
+### Audio Subsystem (PSG, Konami SCC & MSX-MUSIC)
 * **AY-3-8910 (PSG)**: 3 square-wave melodic channels, 17-bit polynomial noise generator, 16-bit envelope generator with all 8 cyclic/non-cyclic shapes.
 * **Konami SCC / SCC+**: 5-channel 32-byte wavetable synthesis for MegaROM soundtracks (e.g. *Nemesis 2*, *Salamander*, *Metal Gear 2*).
-* **Audio Mixer**: Clean, low-latency 44.1kHz stereo PCM audio output streamed via Ebitengine audio driver.
+* **Yamaha YM2413 (OPLL/MSX-MUSIC)**: 9-channel 2-operator FM synthesis with 15 ROM instrument patches and 5 rhythm percussion voices.
+* **Audio Mixer**: Clean, low-latency 44.1kHz stereo PCM audio output streamed via Ebitengine audio driver, with the player's internal buffer (`PlayerBufferSize`, `pkg/sound/device.go`) and the mixer's ring buffer (`MinBufferMillis`, `pkg/sound/mixer.go`) both explicitly tuned for real-time PCM — see `SPEC.md §4.1` and `§4.2` for the history of a stutter bug and a follow-up latency regression these values were chosen to balance.
+* **Audio Timing Diagnostics**: Set the environment variable `FMSXGO_AUDIO_DEBUG=1` before launching to print a `[fMSXgo][audio]` line once per real second with buffer underrun/overrun counts, real FPS, and PSG sample generation rate — useful if `PLAY` or in-game music ever sounds clipped, mistimed, or laggy again.
+  ```powershell
+  $env:FMSXGO_AUDIO_DEBUG=1
+  .\fmsxgo.exe
+  ```
 
 ### Joysticks, Gamepads & MSX Mouse
 * **USB Gamepads**: Plug-and-play detection and automatic mapping for standard USB/Bluetooth gamepads (D-Pad, Left Stick, Button A = Trigger 1, Button B = Trigger 2).
@@ -433,4 +439,22 @@ The script automatically performs:
    - If `--window` (or `-w`, `--gui`) is passed after `--Run`, launches the graphical window GUI.
    - Switches working directory into `dist/`, launches `fmsxgo.exe`, and upon program exit returns seamlessly to the previous directory (`Pop-Location`).
 
+---
 
+## 8. Real-World Software Testing & Credits
+
+### Commercial Cartridge Validation (*King's Valley*)
+fMSXgo is tested against classic commercial MSX cartridges to verify real-world audio timing, sprite rendering, and joystick controls. Konami's *King's Valley* was used during PSG and latency verification and ran remarkably well:
+
+![fMSXgo Running King's Valley](images/fmsxgo-04.png)
+
+### Credits & Licensing
+This project is a pure Go port and developer workstation extension of **fMSX**, originally created by **Marat Fayzullin**.
+
+* **Original fMSX Core & Architecture**: &copy; Marat Fayzullin (1994-2021). Developed with the author's knowledge and blessing.
+* **Go Port, Developer Tools & Workstation Interface**: &copy; Wilson "Barney" Pilon.
+* **AI Pair Programming & Engineering Partners**:
+  * **Claude** (Anthropic) &mdash; Deep architectural diagnostics, audio timing synchronization, low-latency buffer tuning, and living documentation engineering.
+  * **Antigravity / Gemini** (Google DeepMind) &mdash; Workstation tooling, VDP overscan border subsystems, code generation, refactoring, and integration testing.
+
+**License**: Strictly non-commercial use, governed by the terms of [LICENSE](LICENSE).

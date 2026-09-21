@@ -187,9 +187,21 @@ Get-ChildItem -Path $DistDir | ForEach-Object {
     $sizeKb = [math]::Round($_.Length / 1KB, 1)
     Write-Host "   - $($_.Name) ($sizeKb KB)" -ForegroundColor Gray
 }
+
+# 6. Package dist/ into a standalone distribution ZIP archive
+$ZipFileName = "fmsxgo-v$VersionStr ($Codename).zip"
+$ZipPath = Join-Path $PSScriptRoot $ZipFileName
+if (Test-Path $ZipPath) {
+    Remove-Item -Path $ZipPath -Force
+}
+Write-Host "`n Packaging release archive: $ZipFileName..." -ForegroundColor Cyan
+Compress-Archive -Path (Join-Path $DistDir "*") -DestinationPath $ZipPath -Force
+$zipSizeMb = [math]::Round((Get-Item $ZipPath).Length / 1MB, 2)
+Write-Host "   -> Release ZIP created: $ZipFileName ($zipSizeMb MB)" -ForegroundColor Green
+
 Write-Host "=================================================================" -ForegroundColor Green
 
-# 6. Execute binary if --Run / -Run option was passed
+# 7. Execute binary if --Run / -Run option was passed
 if ($Run) {
     # Default to --no-window unless --window / -window was specified
     $RunArgs = @()

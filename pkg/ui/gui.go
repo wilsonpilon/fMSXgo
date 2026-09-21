@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
@@ -113,6 +114,17 @@ type UI struct {
 	// Interactive CLI goroutine management
 	cliRunning bool
 	cliMutex   sync.Mutex
+
+	// Audio glitch diagnostics (see sound.Mixer.Stats). Only printed when
+	// FMSXGO_AUDIO_DEBUG is set in the environment (see audioDebugEnabled).
+	audioDebugEnabled    bool
+	audioStatsFrameCount int
+	audioStatsLastReport time.Time
+	audioStatsLastGen    int64
+
+	// Tracks the TPS ebiten is currently driven at, so it can be kept in
+	// sync with the VDP's actual detected video field rate (see syncTPSToVDP).
+	currentTPS int
 }
 
 // New creates a new UI instance.
@@ -156,16 +168,17 @@ func New(machine *msx.Machine) *UI {
 	}
 
 	ui := &UI{
-		Machine:          machine,
-		AudioDevice:      audioDev,
-		msxScreenImg:     ebiten.NewImage(vdp.DisplayWidth, vdp.DisplayHeight),
-		DisplayMode:      0,
-		VideoScale:       scale,
-		AspectRatio43:    aspect43,
-		BilinearFilter:   smooth,
-		CRTScanlines:     crtScanlines,
-		PhosphorMode:     phosphorMode,
-		ControllerConfig: ctrlCfg,
+		Machine:           machine,
+		AudioDevice:       audioDev,
+		msxScreenImg:      ebiten.NewImage(vdp.DisplayWidth, vdp.DisplayHeight),
+		DisplayMode:       0,
+		VideoScale:        scale,
+		AspectRatio43:     aspect43,
+		BilinearFilter:    smooth,
+		CRTScanlines:      crtScanlines,
+		PhosphorMode:      phosphorMode,
+		ControllerConfig:  ctrlCfg,
+		audioDebugEnabled: os.Getenv("FMSXGO_AUDIO_DEBUG") != "",
 	}
 
 	ui.ApplyTheme()
@@ -373,8 +386,40 @@ func (u *UI) Run() error {
 		targetTPS = 50
 	}
 	ebiten.SetTPS(targetTPS)
+	u.currentTPS = targetTPS
 
 	return ebiten.RunGame(u)
+}
+
+// syncTPSToVDP keeps Ebitengine's logical tick rate (which paces how often
+// StepFrame() actually runs in real time) aligned with the video field rate
+// the VDP is really running at.
+//
+// Config.Video only reflects the user's menu selection / boot config; the
+// VDP's actual PAL/NTSC state (VDP.Regs[9] bit 1, mirrored in TotalLines) is
+// set independently by the BIOS ROM at boot and can disagree with it (e.g. a
+// PAL-region BIOS will put the VDP in 313-line/50Hz mode even when Config.Video
+// requested NTSC). machine.go's own audio pacing already accounts for this
+// (see the "totalLines > 280" check in StepScanline), generating exactly
+// 1/50s of PCM per StepFrame() call in that case. But if ebiten keeps calling
+// StepFrame() 60 times/sec regardless, that's 60 * (1/50s) = 1.2x too much
+// audio generated per real second, which the mixer's ring buffer can't
+// absorb once it fills — it has to continuously drop samples to keep up.
+// That mismatch (not GC, not the scanline batching itself) is what was
+// making PLAY sound clipped/rushed: video and audio were both being stepped
+// 20% faster than the wall clock the mixer/audio driver actually plays at.
+func (u *UI) syncTPSToVDP() {
+	if u.Machine == nil || u.Machine.VDP == nil {
+		return
+	}
+	want := 60
+	if u.Machine.Config.Video == msx.VideoPAL || u.Machine.VDP.TotalLines > 280 {
+		want = 50
+	}
+	if want != u.currentTPS {
+		ebiten.SetTPS(want)
+		u.currentTPS = want
+	}
 }
 
 // Update handles frame logic and input.
@@ -525,12 +570,50 @@ func (u *UI) Update() error {
 
 	// Advance MSX emulation frame if not paused
 	if u.Machine != nil && !u.EmulationPaused {
+		u.syncTPSToVDP()
 		u.updateKeyboard()
 		u.updateJoysticksAndMouse()
 		u.Machine.StepFrame()
 		fb := u.Machine.GetFrameBuffer()
 		if fb != nil && u.msxScreenImg != nil {
 			u.msxScreenImg.WritePixels(fb)
+		}
+
+		// DEBUG: audio/timing diagnostics, printed once/sec of WALL-CLOCK time
+		// (not assumed frame count). Underruns mean production fell behind
+		// real-time playback (buffer ran dry); overruns mean production ran
+		// ahead and had to drop old samples. Off by default; enable by
+		// setting FMSXGO_AUDIO_DEBUG in the environment.
+		if u.audioDebugEnabled {
+			u.audioStatsFrameCount++
+			if u.audioStatsLastReport.IsZero() {
+				u.audioStatsLastReport = time.Now()
+				if u.Machine.Mixer != nil {
+					u.audioStatsLastGen = u.Machine.Mixer.TotalGenerated()
+				}
+			}
+			if elapsed := time.Since(u.audioStatsLastReport); elapsed >= time.Second {
+				vdpInfo := "no-vdp"
+				if u.Machine.VDP != nil {
+					vdpInfo = fmt.Sprintf("VDP.TotalLines=%d PAL=%v", u.Machine.VDP.TotalLines, u.Machine.VDP.PALVideo())
+				}
+				realFPS := float64(u.audioStatsFrameCount) / elapsed.Seconds()
+				if u.Machine.Mixer != nil {
+					underEv, underBytes, over := u.Machine.Mixer.Stats()
+					gen := u.Machine.Mixer.TotalGenerated()
+					genRate := float64(gen-u.audioStatsLastGen) / elapsed.Seconds()
+					genCalls, genMaxSamples, readCalls, readMinLen, readMaxLen := u.Machine.Mixer.CallStats()
+					fmt.Printf("[fMSXgo][audio] elapsed=%v StepFrame_calls=%d realFPS=%.2f currentTPS=%d %s sampleRate_target=%d actual_gen_rate=%.1fHz underruns=%d(%dB) overruns=%d buffered=%dB | genCalls=%d genMaxSamples=%d readCalls=%d readLen=[%d..%d]\n",
+						elapsed, u.audioStatsFrameCount, realFPS, u.currentTPS, vdpInfo,
+						u.Machine.Mixer.SampleRate, genRate, underEv, underBytes, over, u.Machine.Mixer.Available(),
+						genCalls, genMaxSamples, readCalls, readMinLen, readMaxLen)
+					u.Machine.Mixer.ResetStats()
+					u.Machine.Mixer.ResetCallStats()
+					u.audioStatsLastGen = gen
+				}
+				u.audioStatsFrameCount = 0
+				u.audioStatsLastReport = time.Now()
+			}
 		}
 	}
 
@@ -702,6 +785,7 @@ func (u *UI) handleClick(x, y int) {
 				u.ActiveMenu = ""
 				u.Machine.Config.Video = msx.VideoNTSC
 				ebiten.SetTPS(60)
+				u.currentTPS = 60
 				u.Machine.Reset()
 				return
 			} else if y >= MenuBarH+110 && y < MenuBarH+136 {
@@ -709,6 +793,7 @@ func (u *UI) handleClick(x, y int) {
 				u.ActiveMenu = ""
 				u.Machine.Config.Video = msx.VideoPAL
 				ebiten.SetTPS(50)
+				u.currentTPS = 50
 				u.Machine.Reset()
 				return
 			} else if y >= MenuBarH+136 && y < MenuBarH+160 {

@@ -261,6 +261,78 @@ func TestMachineFrameSteppingAndBoot(t *testing.T) {
 	t.Logf("Executed 5 frames: %d cycles, PC: %04Xh, FrameBuffer bytes: %d", totalCycles, m.CPU.PC, len(fb))
 }
 
+// TestAudioSampleGenerationMatchesRealTime is a regression test for a PSG/mixer
+// timing bug where audio synthesis was gated on "scanline % 8 == 0" within each
+// frame. Because the VDP's frame height (262 lines NTSC / 313 lines PAL) is not
+// a multiple of 8, that produced a trailing partial group counted as a full 8
+// lines (e.g. NTSC lines 256..261 is only 6 lines, not 8), so the mixer
+// generated audio for "N+2" lines per N-line frame — about 0.8%-2.2% faster
+// than real time. Once the ring buffer filled, the mixer had to continuously
+// drop the oldest buffered samples to keep up, which was audible as notes
+// (e.g. PLAY "V15cdefgab") being clipped into short bursts with small gaps,
+// and the overall tune finishing sooner than on real hardware / fMSX. This
+// test steps several frames and checks the number of PCM samples produced
+// tracks wall-clock frame count exactly (SampleRate/fps stereo samples per
+// frame, at whatever field rate the VDP is actually running), with no
+// systematic drift.
+func TestAudioSampleGenerationMatchesRealTime(t *testing.T) {
+	cfg := DefaultConfig()
+	m, err := NewMachine(cfg)
+	if err != nil {
+		t.Fatalf("Failed to create machine: %v", err)
+	}
+	if m.Mixer == nil {
+		t.Fatal("expected machine to have a Mixer")
+	}
+
+	// Let the BIOS finish selecting its video field rate before measuring.
+	for f := 0; f < 10; f++ {
+		m.StepFrame()
+	}
+	_, _ = m.Mixer.Read(make([]byte, m.Mixer.Available()))
+
+	totalLines := m.VDP.TotalLines
+	targetFPS := 60
+	if cfg.Video == VideoPAL || totalLines > 280 {
+		targetFPS = 50
+	}
+	samplesPerFrame := m.Mixer.SampleRate / targetFPS
+
+	const frames = 120
+	expectedBytes := frames * samplesPerFrame * 4
+
+	totalBytes := 0
+	for f := 0; f < frames; f++ {
+		m.StepFrame()
+
+		avail := m.Mixer.Available()
+		if avail == 0 {
+			continue
+		}
+		buf := make([]byte, avail)
+		n, err := m.Mixer.Read(buf)
+		if err != nil {
+			t.Fatalf("mixer read error: %v", err)
+		}
+		totalBytes += n
+	}
+
+	// Allow a small per-frame rounding tolerance, but reject the systematic
+	// ~0.8%+ drift the phantom-line bug produced.
+	tolerance := expectedBytes / 100 // 1%
+	if tolerance < 64 {
+		tolerance = 64
+	}
+	diff := totalBytes - expectedBytes
+	if diff < 0 {
+		diff = -diff
+	}
+	if diff > tolerance {
+		t.Fatalf("audio sample generation drifted from real time: got %d bytes over %d frames, expected ~%d (diff %d > tolerance %d)",
+			totalBytes, frames, expectedBytes, diff, tolerance)
+	}
+}
+
 func TestBootToPrompt(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.Model = ModelMSX2

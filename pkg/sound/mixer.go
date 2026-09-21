@@ -7,7 +7,29 @@ import (
 
 const (
 	DefaultSampleRate = 44100
-	BufferSize        = 16384 // Ring buffer size in samples (approx 370ms at 44.1kHz)
+
+	// MinBufferMillis is the minimum ring buffer capacity, in milliseconds of
+	// audio, that NewMixer allocates. This is a balance between two opposing
+	// failure modes, both encountered in practice (see SPEC.md §4.1 and the
+	// King's Valley sound-lag report that followed it):
+	//   - Too small: Ebitengine's audio player pulls PCM from Mixer.Read()
+	//     in chunks sized by sound.PlayerBufferSize (see device.go). If the
+	//     ring buffer is smaller than one such chunk, every Read() underruns
+	//     (pads with a held/repeated sample) and the buffer also overflows
+	//     between reads (drops the oldest samples) — audible as notes
+	//     clipped into bursts with small gaps, playing faster than real time.
+	//   - Too large: every byte sitting in the ring buffer is audio the
+	//     player hasn't played yet, so buffer size is a direct, permanent
+	//     latency floor between a game event (e.g. a PSG register write from
+	//     a pickup/death sound effect) and hearing it. A buffer sized for
+	//     worst-case underrun protection (e.g. 2 full seconds) is safe but
+	//     makes sound effects noticeably lag the on-screen action.
+	// 500ms gives ~5x headroom over PlayerBufferSize (100ms) — comfortably
+	// above the old library-default ~500ms read chunk that motivated the
+	// original oversized buffer, now that PlayerBufferSize keeps that chunk
+	// small in the first place — while keeping worst-case latency well under
+	// what's perceptible as "the sound happened late" during gameplay.
+	MinBufferMillis = 500
 )
 
 // ChannelPhase tracks the phase accumulator for melodic, noise, or wave generators.
@@ -47,6 +69,27 @@ type Mixer struct {
 	lastL       byte
 	lastH       byte
 	prebuffered bool
+
+	// Diagnostics: counts how often the ring buffer ran dry (Read() asked for
+	// more bytes than were available, so the last sample was held/repeated)
+	// or overflowed (GenerateSamples() had to drop the oldest buffered sample
+	// to make room). Either one, if non-zero during playback, is an audible
+	// glitch. Read with Stats().
+	underrunEvents int
+	underrunBytes  int
+	overrunSamples int
+
+	// Cumulative count of stereo samples ever passed to GenerateSamples(),
+	// for measuring the actual real-time production rate (see TotalGenerated).
+	totalGenerated int64
+
+	// Extra diagnostics for tracking down the source of ring buffer glitches:
+	// how GenerateSamples() and Read() are actually being called.
+	genCallCount   int64
+	genMaxSamples  int
+	readCallCount  int64
+	readMaxLen     int
+	readMinLen     int
 }
 
 // NewMixer creates a new audio mixer and synthesis engine.
@@ -61,7 +104,7 @@ func NewMixer(sampleRate int, psg *AY8910, scc *SCC, opll *YM2413) *Mixer {
 		OPLL:         opll,
 		NoiseGen:     0x10000,
 		MasterVolume: 192,
-		ringBuffer:   make([]byte, BufferSize*4), // 4 bytes per stereo sample (2 channels * 2 bytes)
+		ringBuffer:   make([]byte, sampleRate*MinBufferMillis/1000*4), // 4 bytes per stereo sample (2 channels * 2 bytes)
 	}
 	if opll != nil {
 		opll.SampleRate = sampleRate
@@ -118,6 +161,12 @@ func (m *Mixer) GenerateSamples(samples int) {
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	m.totalGenerated += int64(samples)
+	m.genCallCount++
+	if samples > m.genMaxSamples {
+		m.genMaxSamples = samples
+	}
 
 	var mix []int
 	if samples <= len(m.mixBuf) {
@@ -249,6 +298,7 @@ func (m *Mixer) GenerateSamples(samples int) {
 			// Advance read index by 4 bytes (drop one stereo sample)
 			m.readIdx = (m.readIdx + 4) % len(m.ringBuffer)
 			m.available -= 4
+			m.overrunSamples++
 		}
 
 		// Left channel
@@ -263,14 +313,80 @@ func (m *Mixer) GenerateSamples(samples int) {
 	}
 }
 
+// Available returns the number of buffered PCM bytes currently waiting to be read.
+func (m *Mixer) Available() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.available
+}
+
+// Stats returns cumulative audio glitch diagnostics since the last ResetStats():
+//   - underrunEvents: number of Read() calls that had to hold/repeat the last
+//     sample because the ring buffer ran dry (audio production falling behind
+//     real-time consumption).
+//   - underrunBytes: total bytes padded this way.
+//   - overrunSamples: number of stereo samples GenerateSamples() had to drop
+//     because the ring buffer was full (audio production running ahead of
+//     real-time consumption).
+func (m *Mixer) Stats() (underrunEvents, underrunBytes, overrunSamples int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.underrunEvents, m.underrunBytes, m.overrunSamples
+}
+
+// ResetStats zeroes the counters returned by Stats().
+func (m *Mixer) ResetStats() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.underrunEvents, m.underrunBytes, m.overrunSamples = 0, 0, 0
+}
+
+// CallStats returns diagnostics about how GenerateSamples() and Read() are
+// actually being invoked, to distinguish "many small bursts" from "one huge
+// burst" as the source of ring buffer glitches. Reset alongside ResetStats().
+func (m *Mixer) CallStats() (genCalls int64, genMaxSamples int, readCalls int64, readMinLen, readMaxLen int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.genCallCount, m.genMaxSamples, m.readCallCount, m.readMinLen, m.readMaxLen
+}
+
+// ResetCallStats zeroes the counters returned by CallStats().
+func (m *Mixer) ResetCallStats() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.genCallCount, m.genMaxSamples = 0, 0
+	m.readCallCount, m.readMinLen, m.readMaxLen = 0, 0, 0
+}
+
+// TotalGenerated returns the cumulative number of stereo samples ever passed
+// to GenerateSamples(), for measuring the actual real-time production rate.
+func (m *Mixer) TotalGenerated() int64 {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.totalGenerated
+}
+
 // Read implements io.Reader to supply stereo 16-bit PCM bytes to Ebitengine's audio player.
 func (m *Mixer) Read(p []byte) (int, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	m.readCallCount++
+	if len(p) > m.readMaxLen {
+		m.readMaxLen = len(p)
+	}
+	if m.readMinLen == 0 || len(p) < m.readMinLen {
+		m.readMinLen = len(p)
+	}
+
 	toRead := len(p)
 	if toRead > m.available {
+		short := toRead - (m.available &^ 3)
 		toRead = m.available &^ 3 // Align to 4-byte stereo boundary
+		if short > 0 {
+			m.underrunEvents++
+			m.underrunBytes += short
+		}
 	}
 
 	for i := 0; i < toRead; i += 2 {

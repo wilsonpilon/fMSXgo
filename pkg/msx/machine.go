@@ -103,9 +103,10 @@ type Machine struct {
 	Debugger *Debugger
 
 	// State
-	Running   bool
-	sampleAcc int
-	uSecAcc   int
+	Running      bool
+	sampleAcc    int
+	uSecAcc      int
+	audioLineAcc int
 }
 
 // NewMachine creates and configures an MSX computer with the specified configuration.
@@ -482,8 +483,17 @@ func (m *Machine) StepScanline() int {
 		}
 	}
 
-	// Sound synthesis step every 8 scanlines with exact microsecond and sample timing
-	if (line & 0x07) == 0 {
+	// Sound synthesis step every 8 scanlines with exact microsecond and sample timing.
+	// Uses a free-running line accumulator (rather than gating on scanline&7==0) so that
+	// the trailing partial group at the end of a frame (e.g. lines 256..261 on NTSC, only
+	// 6 lines instead of 8) carries its remainder into the next frame instead of being
+	// counted as a full 8-line group. Without this, NTSC counts 264 "lines" of audio per
+	// 262-line frame (PAL: 320 vs 313), so the PSG/mixer run ~0.8%-2.2% faster than real
+	// time; once the ring buffer fills, the mixer continuously drops the oldest samples to
+	// keep up, which is heard as notes being clipped into short bursts with small gaps.
+	m.audioLineAcc++
+	if m.audioLineAcc >= 8 {
+		m.audioLineAcc -= 8
 		totalLines := 262
 		targetFPS := 60
 		if m.VDP != nil && m.VDP.TotalLines > 0 {

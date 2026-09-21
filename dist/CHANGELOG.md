@@ -4,6 +4,46 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and version numbers follow the **`V X.Y.Z`** scheme with creative release codenames inspired by **Horror Cinema, MSX Classics, and Heavy Metal**.
 
+## [V 0.3.67] - "Nemesis 2" - 2026-09-21
+
+### Added & Documented
+- **Commercial Software Validation (*King's Valley*) (`README.md`, `SPEC.md`, `MANUAL.md`, `images/fmsxgo-04.png`)**:
+  - Validated fMSXgo with Konami's classic cartridge *King's Valley* (MSX1) for audio timing, sprite collision, and joystick responsiveness.
+  - Documented real-world test results showing authentic low-latency PSG sound (~100ms) with zero stutter, 60 FPS pacing, and proportional border display (`images/fmsxgo-04.png`).
+- **AI Pair Programming & Architecture Partners Credit (`README.md`, `SPEC.md`, `MANUAL.md`)**:
+  - Formally credited engineering collaboration between project author Wilson "Barney" Pilon and AI pair programming partners: **Claude** (Anthropic) for architectural diagnostics, audio timing synchronization, low-latency buffer tuning, and living documentation; and **Antigravity / Gemini** (Google DeepMind) for workstation tooling, VDP border subsystems, code generation, refactoring, and integration testing.
+- **Distribution Packaging Automation (`build.ps1`)**:
+  - Automated release `.zip` generation (`fmsxgo-vX.Y.Z-windows-amd64.zip`) bundling the full `dist/` directory (binary, seeded database, docs, fonts, images, media, and batch launchers).
+
+## [V 0.3.65] - "Nemesis 2" - 2026-09-21
+
+### Changed & Fixed
+- **Audio Latency Regression from the V 0.3.63 Buffer Fix (`pkg/sound/device.go`, `pkg/sound/mixer.go`)** — reported during *King's Valley* (MSX1) gameplay as sound effects (pickup, death) audibly lagging the on-screen action by "a few hundred milliseconds":
+  - The V 0.3.63 fix (oversizing `Mixer`'s ring buffer to 2 seconds to stop `PLAY` from stuttering) traded stutter for latency: every byte sitting in the ring buffer is audio the player hasn't played yet, so a bigger buffer is a bigger, permanent delay between a PSG register write and actually hearing it — safe for `PLAY`'s hidden-behind-BASIC-timing use case, bad for tight gameplay sound effects.
+  - Root fix: Ebitengine's `audio.Player.SetBufferSize()` controls how far ahead the player reads from its source — its own docs recommend a small value "if you want to play a real-time PCM," which is exactly this use case. `InitAudioDevice()` in `pkg/sound/device.go` now calls `player.SetBufferSize(sound.PlayerBufferSize)` (100ms) right after creating the player, which is almost certainly why the backend was observed pulling ~500ms chunks in the first place (the library default, now overridden).
+  - With the player no longer requesting huge chunks, `Mixer`'s ring buffer no longer needs 2 seconds of headroom either: reduced from `MinBufferSeconds = 2` to `MinBufferMillis = 500` (still ~5x `PlayerBufferSize` for underrun safety, but bounding worst-case latency to well under what's perceptible during gameplay instead of up to 2 full seconds).
+  - **Confirmed by user gameplay test on 2026-09-21**: re-tested *King's Valley* and reported gameplay sound now feels synced. User caveat: not an audio specialist, casual check rather than an instrumented A/B comparison against real hardware/fMSX — treat as a reasonable but not airtight confirmation. See `SPEC.md` §4.2 for the full write-up and what to do if either symptom (PLAY stutter or gameplay sound lag) resurfaces.
+
+## [V 0.3.63] - "Nemesis 2" - 2026-09-21
+
+### Changed & Fixed
+- **Audio Ring Buffer Undersized vs. Ebitengine Read() Chunk Size (`pkg/sound/mixer.go`)** — **root cause of `PLAY` notes stuttering/clipping and playing faster than fMSX, confirmed fixed by user listening test**:
+  - Instrumented `Mixer` with underrun/overrun/call-size counters (`Stats`, `CallStats`) and confirmed by direct measurement (not guesswork) that Ebitengine's audio backend pulls PCM from `Mixer.Read()` in large ~500ms chunks (88,200 bytes), only ~2 times/sec — not many small continuous reads as assumed.
+  - The mixer's ring buffer was only 16,384 samples (65,536 bytes ≈ 371ms) — **smaller than a single Read() request**. Every read therefore had to pad ~129ms with a held/repeated sample (audible as a stutter/pause), and because ~500ms of audio piles up between reads while only 371ms fits, the mixer also had to continuously drop the oldest ~129ms of buffered samples before the next read (audible as playback skipping ahead / finishing early). Measured: exactly 11,332 samples/sec dropped and 45,328 bytes/sec padded — matching the 500ms-request vs. 371ms-buffer shortfall bit for bit.
+  - Fixed by sizing the ring buffer dynamically from `sampleRate` (`MinBufferSeconds = 2`, ~172KB at 44.1kHz stereo) so it comfortably exceeds any read chunk size the audio backend uses, instead of a fixed 16,384-sample constant.
+  - This was the primary cause; the scanline-batching drift (0.3.60, below) and the PAL/NTSC `ebiten.SetTPS()` desync fix (`UI.syncTPSToVDP` in `pkg/ui/gui.go`) are real, smaller-magnitude issues that remain fixed but were not by themselves responsible for the reported stutter.
+- **Audio Diagnostics, Off By Default (`pkg/ui/gui.go`, `pkg/sound/mixer.go`)**:
+  - The wall-clock underrun/overrun/call-size logging added while diagnosing the above is kept for future debugging, gated behind the `FMSXGO_AUDIO_DEBUG` environment variable (unset = silent, matching prior behavior). Set it to any non-empty value to print a `[fMSXgo][audio]` line once per real second.
+
+## [V 0.3.60] - "Nemesis 2" - 2026-09-21
+
+### Changed & Fixed
+- **PSG/Mixer Audio Timing Drift Fix (`pkg/msx/machine.go`)**:
+  - The per-frame PSG envelope/sample synthesis trigger was gated on `scanline & 7 == 0`, treating every trigger as covering a full 8-line group. Since neither NTSC (262 lines) nor PAL (313 lines) frame heights are multiples of 8, the trailing partial group at the end of each frame (e.g. NTSC lines 256..261, only 6 real lines) was still counted as a full 8 lines, so the mixer generated audio for the equivalent of ~264 lines (NTSC) / ~320 lines (PAL) per frame — **~0.8%-2.2% faster than real time**.
+  - Once the mixer's ring buffer filled from this steady overproduction (well within the first second of runtime), every subsequent frame forced the mixer to drop the oldest buffered samples to keep up, which was audible as `PLAY` notes being clipped into short bursts with small gaps, and songs finishing sooner than on real hardware / fMSX.
+  - Replaced the scanline-modulo gate with a free-running line accumulator (`Machine.audioLineAcc`) that carries its remainder across frame boundaries, so the total number of "audio lines" processed always matches the number of scanlines actually stepped — eliminating the drift entirely.
+  - Added `Mixer.Available()` and a regression test (`TestAudioSampleGenerationMatchesRealTime`) asserting sample production stays within 1% of wall-clock expectations over 120 frames.
+
 ## [V 0.3.58] - "Nemesis 2" - 2026-09-21
 
 ### Changed & Fixed

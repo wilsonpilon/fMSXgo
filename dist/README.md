@@ -12,7 +12,7 @@
 In addition to inheriting the time-tested accuracy of fMSX, **fMSXgo** is designed from the ground up to serve as a **high-end workstation for MSX software developers, hackers, and reverse engineers**, featuring:
 
 * **Pure Go 64-bit Z80 CPU Core**: Cycle-accurate execution, precomputed flag tables (`ZSTable`, `PZSTable`), hardware-verified DAA table, and BIOS patch hook (`ED FE`).
-* **Audio Subsystem (PSG & Konami SCC)**: Cycle-accurate 3-channel AY-3-8910 (PSG) with noise and envelopes, plus 5-channel Konami SCC / SCC+ wavetable synthesis for MegaROM soundtracks, mixed to 44.1kHz stereo PCM.
+* **Audio Subsystem (PSG, Konami SCC & MSX-MUSIC)**: Cycle-accurate 3-channel AY-3-8910 (PSG) with noise and envelopes, 5-channel Konami SCC / SCC+ wavetable synthesis for MegaROM soundtracks, and Yamaha YM2413 (OPLL/MSX-MUSIC) FM synthesis, mixed to 44.1kHz stereo PCM through a dynamically-sized ring buffer tuned to the real audio backend's read pattern (see [SPEC.md](SPEC.md), section "4.1 Resolved Investigation: PSG/`PLAY` Audio Stutter", for the stutter fix history).
 * **Dual FDC Architecture**: Both high-speed BDOS BIOS trap simulation and low-level Western Digital WD2793/WD1793 floppy disk controller emulation for protected disk loaders and custom boot sectors.
 * **Save States (.sta)**: 100% binary-compatible snapshots with Marat Fayzullin's fMSX, with GUI hotkeys (F7/F8) and CLI commands (`savesta`/`loadsta`).
 * **Joysticks, USB Gamepads & Mouse**: Plug-and-play USB/Bluetooth controller support with keyboard fallback and authentic 4-nibble MSX mouse protocol.
@@ -49,7 +49,7 @@ fMSXgo follows strict **`V X.Y.Z`** semantic versioning with creative codenames 
 * **`Y` (Feature)**: Incremented upon completing and integrating a functional subsystem.
 * **`X` (Major)**: Incremented upon closing a major architectural milestone (e.g. Z80 certification = V 1.0.0).
 
-Current Version: **V 0.3.42 ("Nemesis 2")**
+Current Version: **V 0.3.67 ("Nemesis 2")**
 
 For complete phase tracking and immediate next steps, see [SPEC.md](SPEC.md).
 
@@ -119,6 +119,14 @@ All preferences are automatically persisted in `fmsxgo.db` across sessions.
 
 ![fMSXgo MSX-DOS Boot and Interactive Developer Environment](images/fmsxgo-03.png)
 
+### Real-World Commercial Software Validation (*King's Valley*)
+Beyond synthetic benchmarks and automated test suites, fMSXgo undergoes real-world testing with classic MSX commercial software. During the fine-tuning of the audio and PSG subsystems, Konami's iconic **King's Valley** (MSX1 cartridge) was used in interactive gameplay testing and ran remarkably well:
+* **Audio & PSG Validation**: Verified 3-channel tone generation, polynomial noise bursts (jumping, collecting gems, mummies, death sound effects), and confirmed real-time low-latency playback (~100ms) with zero stutter.
+* **VDP Display & Proportional Borders**: Displayed with authentic 4-side borders, pixel-perfect 2x integer scaling, and solid 60 FPS / 60 TPS emulation.
+* **Interactive Gameplay**: Tight controller responsiveness, authentic sprite rendering, and complete stage progression.
+
+![fMSXgo Running King's Valley](images/fmsxgo-04.png)
+
 ---
 
 ## Project Documentation
@@ -135,5 +143,8 @@ This project is a Go translation and workstation extension of **fMSX**, original
 
 * **Original fMSX Core & Architecture**: &copy; Marat Fayzullin (1994-2021). Developed with the author's knowledge and blessing.
 * **Go Port, Developer Tools & Workstation Interface**: &copy; Wilson "Barney" Pilon.
+* **AI Pair Programming & Engineering Partners**:
+  * **Claude** (Anthropic) &mdash; Deep architectural diagnostics, audio timing synchronization, low-latency buffer tuning, and living documentation engineering.
+  * **Antigravity / Gemini** (Google DeepMind) &mdash; Workstation tooling, VDP overscan border subsystems, code generation, refactoring, and integration testing.
 
 **Important Notice**: This project is provided **strictly for Non-Commercial use**, inheriting the non-commercial licensing terms of the original fMSX source code. Please review the [LICENSE](LICENSE) file for complete details.

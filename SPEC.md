@@ -2,6 +2,12 @@
 
 > **Living Engineering Document for fMSXgo**
 > This document tracks the current project status, milestone history, architectural decisions, completed work, and immediate next steps.
+>
+> **Project Leadership & Engineering**: Wilson "Barney" Pilon
+> **Original fMSX Architecture**: Marat Fayzullin (1994-2021)
+> **AI Pair Programming & Engineering Partners**:
+> - **Claude** (Anthropic) &mdash; Audio timing synchronization, low-latency buffer tuning, living documentation engineering, and deep diagnostic tracing.
+> - **Antigravity / Gemini** (Google DeepMind) &mdash; Workstation tooling, VDP overscan border subsystems, code generation, refactoring, and integration testing.
 
 ![fMSXgo Workstation Overview](images/fmsxgo-00.png)
 
@@ -26,7 +32,7 @@ fMSXgo follows the strict semantic versioning format: **`V X.Y.Z`**
 | **V 0.5.x** | **Iron Maiden (Powerslave)** | Heavy metal pioneer / Egyptian precision of Z80 cycle timing |
 | **V 1.0.x** | **Vampire Killer (Dracula's Curse)** | Konami's MSX magnum opus / 1.0 milestone release |
 
-*Current Version:* **V 0.3.58 ("Nemesis 2")**
+*Current Version:* **V 0.3.67 ("Nemesis 2")**
 
 ---
 
@@ -176,6 +182,8 @@ fMSXgo follows the strict semantic versioning format: **`V X.Y.Z`**
 - [x] **Audio Mixer & Output Streaming** (`pkg/sound/mixer.go`):
   - [x] Real-time stereo mixer blending PSG, SCC, and OPLL FM voices with calibrated gain and master volume control.
   - [x] Low-latency 44.1kHz PCM stereo audio stream piped directly into Ebitengine's audio driver.
+  - [x] Ring buffer dynamically sized from `sampleRate` (`MinBufferMillis = 500` in `pkg/sound/mixer.go`, ~35KB at 44.1kHz stereo) so it comfortably exceeds the PCM chunk size Ebitengine's `audio.Player` actually requests per `Read()` call, which is itself explicitly bounded via `player.SetBufferSize(sound.PlayerBufferSize)` (`PlayerBufferSize = 100ms` in `pkg/sound/device.go`) — see **§4.1** (the original stutter fix) and **§4.2** (the latency-regression follow-up that arrived at these final values) below for why this matters and how it was diagnosed.
+  - [x] Built-in, off-by-default diagnostics (`Mixer.Stats()`, `Mixer.CallStats()`) surfaced via the `FMSXGO_AUDIO_DEBUG` environment variable (see `pkg/ui/gui.go` `Update()`), printing once per real second: wall-clock FPS, VDP PAL/NTSC state, target vs. actual sample generation rate, underrun/overrun counts, and the actual `GenerateSamples()`/`Read()` call sizes observed. Re-enable this first for any future audio timing regression instead of re-deriving it from scratch.
 
 ---
 
@@ -276,6 +284,13 @@ Every official fMSX parameter (`-verbose`, `-msx1/-msx2`, `-diska/-diskb`, `-rom
 
 ![fMSXgo Command-Line Options](images/fmsxgo-02.png)
 
+### Real-World Commercial Software Validation (Konami's *King's Valley*)
+Beyond synthetic benchmarks and unit tests, fMSXgo is verified against classic commercial MSX cartridges. *King's Valley* (Konami, 1985, MSX1 cartridge) was used as the interactive validation benchmark for the audio subsystem (PSG envelope timing, polynomial noise generation, low-latency audio streaming) and VDP proportional borders:
+
+![fMSXgo Running King's Valley](images/fmsxgo-04.png)
+
+*King's Valley* ran remarkably well in extensive gameplay testing, confirming tight PSG sound effect responsiveness (~100ms latency), smooth character/mummy sprites with collision handling, and fluid 60 FPS pacing.
+
 ---
 
 ## 4. Progress Tracking & Next Direct Steps
@@ -294,5 +309,52 @@ Every official fMSX parameter (`-verbose`, `-msx1/-msx2`, `-diska/-diskb`, `-rom
     - Breakpoints & Watchpoints (PC, Memory Read/Write, IO, Scanline), 10,000-instruction trace history, and Symbol Table parser.
 * **Immediate Next Step**:
   - Release packaging & developer showcase.
+
+---
+
+## 4.1 Resolved Investigation: PSG/`PLAY` Audio Stutter (V 0.3.60 → V 0.3.63) — STATUS: **RESOLVED for the reported symptom, but see §4.2 — the fix below introduced an audio latency regression**
+
+> Written for AI assistants (this project is worked on by both Claude and Gemini in parallel sessions): read this before touching `pkg/sound/mixer.go`, `pkg/sound/ay8910.go`, or the audio-timing code in `pkg/msx/machine.go` / `pkg/ui/gui.go`. The bug reported below is fixed; do not re-attempt any of the reverted approaches listed in "Dead ends" without new evidence.
+
+**Symptom reported by the user**: a simple `PLAY "V15cdefgab"` in MSX-BASIC did not play the scale continuously — notes were clipped into short bursts with small gaps, and the tune played noticeably faster than in reference fMSX.
+
+**Root cause (confirmed, not guessed)**: `Mixer`'s PCM ring buffer (`pkg/sound/mixer.go`) was sized at a fixed 16,384 samples (65,536 bytes ≈ 371ms). Ebitengine's audio backend, however, pulls PCM from `Mixer.Read()` in large ~500ms chunks (measured: exactly 88,200 bytes per call), only ~2 times per second — not many small continuous reads as the original implementation assumed. Since the ring buffer (371ms) was *smaller than a single read request* (500ms):
+- Every `Read()` call had to pad ~129ms with a held/repeated sample (`underrun` — audible as a stutter/frozen note).
+- Between reads, ~500ms of audio accumulated in production but only 371ms fit in the buffer, so the mixer had to continuously drop the oldest ~129ms of buffered samples before the next read arrived (`overrun` — audible as playback skipping ahead / finishing early).
+- Measured exactly: 11,332 samples/sec dropped and 45,328 bytes/sec padded — this is bit-for-bit the arithmetic shortfall between the 500ms read request and the 371ms buffer, confirming the mechanism rather than a vague "GC/timing jitter" theory.
+
+**Fix applied at the time** (`pkg/sound/mixer.go`): the ring buffer was sized dynamically from `sampleRate` (originally `MinBufferSeconds = 2`, ~172KB at 44.1kHz stereo) instead of the fixed 16,384-sample constant, giving generous headroom over the observed ~500ms read-chunk size. **This constant was later reduced again in §4.2** once the actual cause of that 500ms chunk size was found and fixed at the source — read §4.2 before changing buffer sizing.
+
+**How it was diagnosed** (reusable methodology — do this first for any future audio-timing bug instead of guessing):
+1. Added `Mixer.Stats()` (underrun/overrun counters) and `Mixer.CallStats()` (call counts + min/max `GenerateSamples()`/`Read()` sizes), plus `Mixer.TotalGenerated()` for measuring real production rate.
+2. Printed all of this once per **wall-clock** second (`time.Since()`-based, not an assumed frame count) from `UI.Update()` in `pkg/ui/gui.go`, gated behind the `FMSXGO_AUDIO_DEBUG` environment variable (unset = silent, zero overhead beyond a few int increments in the hot path).
+3. Had the user run the real GUI binary with `PLAY` playing and paste back the printed log. The numbers (`readLen=[88200..88200] readCalls=2`) immediately revealed the actual read-chunk size, which no amount of source-reading would have surfaced (it's an Ebitengine/oto internal behavior, not something this codebase controls or should assume).
+4. Confirmed the fix numerically first (`underruns=0 overruns=0` in steady state), *then* had the user confirm audibly — a clean buffer-stats log is necessary but not sufficient; only the listening test closes the loop, since the stats can't prove the waveform itself sounds correct.
+
+**Dead ends explored and reverted — do not repeat without new evidence**:
+- ~~Removing the `/2` in `AY8910.Sync()`'s melodic channel frequency formula (`psg.Channels[ch].Freq = psg.Clock / k` instead of `(psg.Clock / 2) / k`)~~. This looked like a bug (a unit test's comment didn't match its own asserted value), but tracing `NewAY8910(3579545)`'s caller in `machine.go` plus fMSX's `MSX.h` (`#define PSG_CLOCK (CPU_CLOCK/2)`) and cross-checking against openMSX's `AY8910.cc` (`ToneGenerator::advance()`, which toggles output once per `period` ticks — i.e. a full cycle takes `2*period` ticks) proved the original `/2` formula was already correct and numerically equivalent to both fMSX and openMSX (`≈ CPU_CLOCK/(32*k)`). **Do not remove this `/2` again.**
+- The scanline-batching drift fix (V 0.3.60, `Machine.audioLineAcc` in `pkg/msx/machine.go`) and the PAL/NTSC `ebiten.SetTPS()` desync fix (V 0.3.61, `UI.syncTPSToVDP()` in `pkg/ui/gui.go`) are real bugs and remain fixed (both are still correct and worth keeping), but neither was the primary cause — the user re-tested after each and the stutter persisted until the ring buffer size was fixed. Their magnitude (~0.8%-2.2% drift) was too small to explain the reported symptom on its own.
+
+**Where the debug instrumentation lives now**: still in the code (`Mixer.Stats`/`CallStats`/`TotalGenerated` in `pkg/sound/mixer.go`; the print block in `UI.Update()` in `pkg/ui/gui.go`), silent unless `FMSXGO_AUDIO_DEBUG` is set in the environment. Re-enable it first if any new audio glitch is reported rather than re-instrumenting from scratch.
+
+---
+
+## 4.2 Follow-up: Audio Latency Regression from §4.1's Fix (V 0.3.65) — STATUS: **RESOLVED, user reports gameplay sound now feels synced (2026-09-21) — caveat below**
+
+> Also written for AI assistants. This directly follows §4.1 — read that first. The lesson here: a buffer-health metric (`underruns=0 overruns=0`) proves a fix stopped *dropping/repeating* audio, but says nothing about *latency*, which is a separate axis. Don't declare an audio timing fix done on buffer-stats alone; the user has to confirm perceptually (and for latency specifically, against real-time gameplay feedback, not just "does `PLAY` sound continuous").
+
+**Symptom reported by the user**: playing *King's Valley* (MSX1 cartridge), every sound effect (picking up a treasure/rock, the death sound, etc.) plays audibly *after* the corresponding on-screen action — "a few hundred milliseconds late," consistently, on every sound in the game.
+
+**Root cause**: this is a direct trade-off consequence of the §4.1 fix, not a new independent bug. Every byte sitting in `Mixer`'s ring buffer is PCM the audio player has *not played yet* — so buffer size is a hard, permanent latency floor between "a game event causes a PSG register write" and "you hear it," regardless of how accurate the PSG/timing emulation itself is. §4.1 grew that buffer to 2 full seconds of headroom to stop `PLAY` from stuttering, which incidentally also made *every* sound effect in *every* game latency-bound by however full that buffer happened to be (observed drifting up to 90,000+ bytes / ~500ms+ in casual testing, with no hard ceiling below the full 2s capacity).
+
+**The actual missing piece, found by reading the Ebitengine `audio` package source** (`$(go env GOMODCACHE)/github.com/hajimehoshi/ebiten/v2@<version>/audio/audio.go`): `audio.Player` has a `SetBufferSize(bufferSize time.Duration)` method, undocumented in this codebase until now, whose own doc comment says *"A small buffer size is useful if you want to play a real-time PCM"* — i.e. exactly this emulator's use case. `InitAudioDevice()` (`pkg/sound/device.go`) was never calling it, so the player ran at whatever Ebitengine's internal default is — almost certainly the actual source of the ~500ms read-chunk size measured in §4.1 (never independently confirmed as "just how Ebitengine works"; it was a library default that could be, and was, changed).
+
+**Fix applied**:
+- `pkg/sound/device.go`: `InitAudioDevice()` now calls `player.SetBufferSize(sound.PlayerBufferSize)` (`PlayerBufferSize = 100 * time.Millisecond`) right after creating the player, before `Play()`.
+- `pkg/sound/mixer.go`: since the player no longer requests ~500ms chunks, `Mixer`'s ring buffer headroom requirement dropped too — the constant was renamed `MinBufferSeconds` (int, 2) → `MinBufferMillis` (int, 500), keeping ~5x margin over `PlayerBufferSize` for underrun safety while capping worst-case latency far below the old 2-second ceiling.
+
+**Verification**: the user re-tested *King's Valley* after this fix and reported gameplay sound now feels synced ("parece ter resolvido o problema" — appears to have solved the problem). **Caveat**: the user is explicit that they are not an audio specialist and this was a casual gameplay check, not a measured/instrumented comparison against real hardware or fMSX — so this is a reasonable, but not airtight, confirmation. No `FMSXGO_AUDIO_DEBUG=1` log was re-captured after this specific change to re-confirm `underruns=0 overruns=0` still holds with the smaller buffer.
+
+If a *future* report resurfaces either symptom (PLAY stutter or gameplay sound lag), don't assume this section's fix regressed — capture a fresh `FMSXGO_AUDIO_DEBUG=1` log first (per §4.1's methodology) before changing `PlayerBufferSize` (`pkg/sound/device.go`) or `MinBufferMillis` (`pkg/sound/mixer.go`) again. If sound effects ever lag noticeably again, the next lever to try is lowering `PlayerBufferSize` further (e.g. 100ms → 50ms) rather than growing the mixer buffer back up, since growing the mixer buffer is what caused the §4.2 regression in the first place.
 
 
