@@ -1593,8 +1593,12 @@ func (sh *Shell) resolveDiskPath(path string) (string, error) {
 		}
 	}
 
-	// 3. In ./disks subdirectory
-	cand := filepath.Join("disks", path)
+	// 3. In ./media or ./disks subdirectory
+	cand := filepath.Join("media", path)
+	if fi, err := os.Stat(cand); err == nil && !fi.IsDir() {
+		return filepath.Abs(cand)
+	}
+	cand = filepath.Join("disks", path)
 	if fi, err := os.Stat(cand); err == nil && !fi.IsDir() {
 		return filepath.Abs(cand)
 	}

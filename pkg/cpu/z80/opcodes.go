@@ -8,7 +8,9 @@ func (z *Z80) Step(bus Bus) int {
 		return 4
 	}
 
-	z.EIWait = false
+	if z.EIWait > 0 {
+		z.EIWait--
+	}
 
 	// Refresh register R increments on each M1 fetch (bit 7 preserved)
 	z.R = ((z.R + 1) & 0x7F) | (z.R & 0x80)
@@ -1071,7 +1073,7 @@ func (z *Z80) execOpcode(bus Bus, op uint8) int {
 	case 0xFB: // EI
 		z.IFF1 = true
 		z.IFF2 = true
-		z.EIWait = true
+		z.EIWait = 2
 	case 0xFC: // CALL M, nn
 		target := z.fetchWord(bus)
 		if (z.F & FlagS) != 0 {

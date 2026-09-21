@@ -37,7 +37,7 @@ type Z80 struct {
 
 	// Execution state
 	Halted bool
-	EIWait bool // Delay interrupt by 1 instruction following EI
+	EIWait int // Delay interrupt by 1 instruction following EI (count down)
 
 	// Cycles elapsed in current step / total
 	Cycles int64
@@ -110,7 +110,7 @@ func (z *Z80) Reset() {
 	z.IFF2 = false
 	z.IM = 0
 	z.Halted = false
-	z.EIWait = false
+	z.EIWait = 0
 	z.Trap = 0xFFFF
 	z.Trace = false
 	z.HistoryHead = 0
@@ -195,7 +195,7 @@ func (z *Z80) PopWord(bus Bus) uint16 {
 // Interrupt triggers a maskable interrupt (INT).
 // vector is typically 0x38 (RST 38h) for IM 1.
 func (z *Z80) Interrupt(bus Bus, vector uint16) bool {
-	if !z.IFF1 || z.EIWait {
+	if !z.IFF1 || z.EIWait > 0 {
 		return false
 	}
 	z.Halted = false

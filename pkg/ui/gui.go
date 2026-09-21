@@ -302,8 +302,8 @@ func (u *UI) SetBilinearFilter(smooth bool) {
 
 // updateScanlines regenerates the CRT scanlines overlay texture.
 func (u *UI) updateScanlines() {
-	if u.scanlineImg == nil {
-		u.scanlineImg = ebiten.NewImage(512, 212)
+	if u.scanlineImg == nil || u.scanlineImg.Bounds().Dx() != vdp.DisplayWidth || u.scanlineImg.Bounds().Dy() != vdp.DisplayHeight {
+		u.scanlineImg = ebiten.NewImage(vdp.DisplayWidth, vdp.DisplayHeight)
 	}
 	u.scanlineImg.Clear()
 	if u.CRTScanlines == 0 {
@@ -313,14 +313,14 @@ func (u *UI) updateScanlines() {
 	if u.CRTScanlines == 2 {
 		alpha = 140 // Medium
 	}
-	lineBytes := make([]byte, 512*4)
-	for x := 0; x < 512; x++ {
+	lineBytes := make([]byte, vdp.DisplayWidth*4)
+	for x := 0; x < vdp.DisplayWidth; x++ {
 		lineBytes[x*4+3] = alpha // Black pixel with alpha
 	}
-	pix := make([]byte, 512*212*4)
-	for y := 0; y < 212; y++ {
+	pix := make([]byte, vdp.DisplayWidth*vdp.DisplayHeight*4)
+	for y := 0; y < vdp.DisplayHeight; y++ {
 		if y%2 == 1 {
-			copy(pix[y*512*4:(y+1)*512*4], lineBytes)
+			copy(pix[y*vdp.DisplayWidth*4:(y+1)*vdp.DisplayWidth*4], lineBytes)
 		}
 	}
 	u.scanlineImg.WritePixels(pix)
@@ -367,6 +367,12 @@ func (u *UI) Run() error {
 	u.applyWindowResize()
 	ebiten.SetWindowTitle("fMSXgo - MSX Emulator & Developer Workstation (64-bit)")
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
+
+	targetTPS := 60
+	if u.Machine != nil && u.Machine.Config.Video == msx.VideoPAL {
+		targetTPS = 50
+	}
+	ebiten.SetTPS(targetTPS)
 
 	return ebiten.RunGame(u)
 }
@@ -695,12 +701,14 @@ func (u *UI) handleClick(x, y int) {
 				// NTSC (60Hz)
 				u.ActiveMenu = ""
 				u.Machine.Config.Video = msx.VideoNTSC
+				ebiten.SetTPS(60)
 				u.Machine.Reset()
 				return
 			} else if y >= MenuBarH+110 && y < MenuBarH+136 {
 				// PAL (50Hz)
 				u.ActiveMenu = ""
 				u.Machine.Config.Video = msx.VideoPAL
+				ebiten.SetTPS(50)
 				u.Machine.Reset()
 				return
 			} else if y >= MenuBarH+136 && y < MenuBarH+160 {
@@ -1008,12 +1016,12 @@ func (u *UI) Draw(screen *ebiten.Image) {
 		availW := winW
 		availH := winH - MenuBarH
 
-		targetH := u.VideoScale * 212
+		targetH := u.VideoScale * vdp.DisplayHeight
 		var targetW int
 		if u.AspectRatio43 {
 			targetW = (targetH * 4) / 3
 		} else {
-			targetW = u.VideoScale * 256
+			targetW = (targetH * vdp.DisplayWidth) / vdp.DisplayHeight
 		}
 
 		// Scale down to fit if window was manually shrunk smaller than preset
@@ -1032,8 +1040,8 @@ func (u *UI) Draw(screen *ebiten.Image) {
 		destY := MenuBarH + (availH - targetH) / 2
 
 		msxOp := &ebiten.DrawImageOptions{}
-		scaleX := float64(targetW) / 512.0
-		scaleY := float64(targetH) / 212.0
+		scaleX := float64(targetW) / float64(vdp.DisplayWidth)
+		scaleY := float64(targetH) / float64(vdp.DisplayHeight)
 		msxOp.GeoM.Scale(scaleX, scaleY)
 		msxOp.GeoM.Translate(float64(destX), float64(destY))
 		if u.BilinearFilter || u.AspectRatio43 || scaleX != float64(int(scaleX)) {

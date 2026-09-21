@@ -122,6 +122,7 @@ func (psg *AY8910) ReadData() uint8 {
 }
 
 // Write sets an individual register and recalculates channel dirty flags.
+// Write sets an individual register and recalculates channel dirty flags.
 // Directly mirrors fMSX EMULib/AY8910.c Write8910.
 func (psg *AY8910) Write(reg uint8, val uint8) {
 	switch reg {
@@ -130,14 +131,14 @@ func (psg *AY8910) Write(reg uint8, val uint8) {
 		fallthrough
 	case 0, 2, 4:
 		if val != psg.Regs[reg] {
-			psg.Changed |= (1 << (reg >> 1)) &^ psg.Regs[7]
+			psg.Changed |= 1 << (reg >> 1)
 			psg.Regs[reg] = val
 		}
 
 	case 6:
 		val &= 0x1F
 		if val != psg.Regs[reg] {
-			psg.Changed |= 0x38 &^ psg.Regs[7]
+			psg.Changed |= 0x38
 			psg.Regs[reg] = val
 		}
 
@@ -148,7 +149,7 @@ func (psg *AY8910) Write(reg uint8, val uint8) {
 	case 8, 9, 10:
 		val &= 0x1F
 		if val != psg.Regs[reg] {
-			psg.Changed |= (0x09 << (reg - 8)) &^ psg.Regs[7]
+			psg.Changed |= 0x09 << (reg - 8)
 			psg.Regs[reg] = val
 		}
 
@@ -163,11 +164,7 @@ func (psg *AY8910) Write(reg uint8, val uint8) {
 		psg.Regs[13] = val & 0x0F
 		psg.ECount = 0
 		psg.EPhase = 0
-		for j := 0; j < 3; j++ {
-			if (psg.Regs[j+8] & 0x10) != 0 {
-				psg.Changed |= (0x09 << j) &^ psg.Regs[7]
-			}
-		}
+		psg.Changed |= 0x3F
 
 	case 14, 15:
 		psg.Regs[reg] = val
@@ -219,7 +216,7 @@ func (psg *AY8910) Step(uSec int) {
 	// Update channels with hardware envelope enabled
 	for j := 0; j < 3; j++ {
 		if (psg.Regs[j+8] & 0x10) != 0 {
-			psg.Changed |= (0x09 << j) &^ psg.Regs[7]
+			psg.Changed |= 0x09 << j
 		}
 	}
 
@@ -260,8 +257,11 @@ func (psg *AY8910) Sync() {
 			psg.Channels[ch].Volume = Volumes[volIdx]
 
 			k := (int(psg.Regs[(ch<<1)+1]&0x0F) << 8) | int(psg.Regs[ch<<1])
-			if k > 0 && psg.Clock > 0 {
-				psg.Channels[ch].Freq = psg.Clock / k
+			if k == 0 {
+				k = 1 // Prevent divide-by-zero; 1 produces ultrasonic frequency
+			}
+			if psg.Clock > 0 {
+				psg.Channels[ch].Freq = (psg.Clock / 2) / k
 			} else {
 				psg.Channels[ch].Freq = 0
 			}

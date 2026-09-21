@@ -4,6 +4,55 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and version numbers follow the **`V X.Y.Z`** scheme with creative release codenames inspired by **Horror Cinema, MSX Classics, and Heavy Metal**.
 
+## [V 0.3.58] - "Nemesis 2" - 2026-09-21
+
+### Changed & Fixed
+- **Zero-Allocation Audio Mixer (`pkg/sound/mixer.go`)**:
+  - Replaced heap slice allocations (`make([]int, samples)`) in `GenerateSamples` with a static struct array buffer `mixBuf [1024]int`.
+  - Dropped audio hot-loop heap allocations to **0 bytes/sec**, eliminating Go Garbage Collector (GC) micro-pauses (*Stop-The-World*) during audio rendering.
+- **AY-3-8910 (PSG) Pitch Frequency Correction (`pkg/sound/ay8910.go`)**:
+  - Corrected tone channel frequency calculation to $f = \frac{\text{Clock}}{2 \times k} = \frac{111,860}{k}$ Hz matching hardware AY-3-8910 / YM2149 specification, fixing 1-octave double pitch transposition.
+- **Ebitengine Frame Rate Lock (TPS) (`pkg/ui/gui.go`)**:
+  - Enforced `ebiten.SetTPS(60)` (and `50` for PAL) in GUI window startup and video standard menu switching, locking emulation execution to MSX real-time (60 FPS NTSC / 50 FPS PAL).
+- **Z80 `EIWait` Delayed Interrupt Protection (`pkg/cpu/z80/z80.go`, `opcodes.go`)**:
+  - Ported Z80 hardware delayed interrupt acceptance after `EI` opcode (`0xFB`), protecting ISR stack returns (`EI` followed by `RET`) from premature re-entrant interrupts.
+  - Stabilized MSX BIOS VBlank 60Hz timer ticks used by MSX BASIC `PLAY` statement and sound routines.
+- **fMSX C Anti-Aliased Edge Blending (`pkg/sound/mixer.go`)**:
+  - Ported Marat Fayzullin's fMSX C `EMULib/Sound.c` line 813 band-limited edge blending formula `((l0 ^ l2) & 0x8000) != 0` for PSG square waves.
+- **Distribution Automation (`build.ps1`)**:
+  - Updated `build.ps1` to bundle `media/` folder and mirror compiled `fmsxgo.exe` and `fmsxgo.db` to project root for instant root testing.
+
+## [V 0.3.46] - "Nemesis 2" - 2026-09-20
+
+### Added
+- **AY-3-8910 (PSG) Sound Truncation & Sample Accumulator Fix (`pkg/sound/ay8910.go`, `pkg/msx/machine.go`)**:
+  - **PSG Register Changed Mask Fix**: Fixed incorrect `&^` bitmasking in `ay8910.go` that suppressed pitch/volume register updates when R7 mixer bits were disabled for noise, restoring continuous playback in games like *King's Valley*.
+  - **Fractional Sample Accumulator**: Replaced truncating sample count calculation with an exact fixed-point accumulator (`sampleAcc`) in `machine.go`, generating exactly 44,100 samples/sec and eliminating buffer underrun silent gaps.
+- **MSX 4-Side Proportional Overscan Border Subsystem (`pkg/vdp/vdp.go`, `render.go`, `sprites.go`, `pkg/ui/gui.go`)**:
+  - **4-Side Proportional Borders**: Expanded display buffer to $576 \times 240$ ($32\text{px}$ left border + $512\text{px}$ active display + $32\text{px}$ right border; $24\text{px}$ top border + $192\text{px}$ active display + $24\text{px}$ bottom border).
+  - **Dynamic Border Color (`COLOR ,,5`)**: Real-time rendering of VDP Register 7 (`BGColor`) across all 4 border margins in SCREEN 0..12.
+  - **Window Resize Scaling**: Scaled video viewport in Ebitengine window maintains 100% proportional border thickness across all 4 sides when resized.
+- **MSX2+ VDP Smooth Horizontal Scroll (`pkg/vdp/render.go`, `vdp.go`)**:
+  - **Fine & Coarse Horizontal Scrolling**: Integrated registers R#26 (coarse scroll in steps of 8 pixels) and R#27 (fine scroll 0..7 pixels) across SCREEN 5, SCREEN 6, SCREEN 7, SCREEN 8, SCREEN 10/11 (YAE), and SCREEN 12 (YJK).
+  - **Single & Dual Page Wrapping**: Support for single-page 256-pixel circular wrapping and dual-page 512-pixel scroll (`R#25 bit 0`, `HScroll512`), enabling silky smooth side-scrolling in MSX2+ titles like *Space Manbow* and *F1 Spirit 3D*.
+  - **Left Margin Masking (`MSK`)**: Support for V9958 `R#25 bit 1`, blanking the leftmost 8 display dots with the border background color to prevent scrolling artifact fringe.
+- **Retro CRT Graphic Filters & Phosphor Modes (`pkg/ui/gui.go`, `pkg/i18n/i18n.go`)**:
+  - **CRT Scanlines Overlay**: Real-time scanline emulation with configurable intensity (Off, Light 30%, Medium 55%) rendered on top of active MSX display.
+  - **Monochrome CRT Phosphor Simulation**: GPU-accelerated color transformations using Ebitengine's `ColorM` pipeline:
+    - **P1 Green Phosphor**: Authentic green CRT monitor luminescence ($R=0.25Y, G=1.0Y, B=0.25Y$).
+    - **Amber Phosphor**: Warm vintage amber CRT monitor luminescence ($R=1.0Y, G=0.72Y, B=0.15Y$).
+  - **Video Menu Integration**: Video menu options with instant dynamic switching and persistence in SQLite `config` table (`crt_scanlines`, `phosphor_mode`).
+- **Graphical USB Joystick Calibration & Deadzone Modal (`pkg/ui/controller_config.go`, `pkg/ui/gui.go`)**:
+  - **Interactive Calibration Modal Dialog (`Setup -> Controllers & Calibration...`)**:
+    - **Live Analog Stick Visualizer**: Real-time stick crosshair tracking within outer boundary and inner deadzone box, highlighting active state vs deadzone deadband.
+    - **Interactive Input Indicators**: Visual status boxes for D-Pad directions (U, D, L, R) and MSX action buttons (A, B) lighting up on physical button press.
+    - **Adjustable Analog Deadzone**: Fine-grained deadzone controls with `[-]` and `[+]` buttons, percentage indicator (5% to 70%), and visual progress meter.
+    - **Button Remapping & A/B Inversion**: One-click "Swap A / B Buttons" toggle for standard Western vs Japanese gamepad layouts.
+    - **Independent Port Configuration**: Dedicated tabs for Port 1 (Joystick 1) and Port 2 (Joystick 2).
+    - **Persistent Storage**: Saves calibration preferences to SQLite `fmsxgo.db` (`joy1_deadzone`, `joy1_swap_ab`, `joy2_deadzone`, `joy2_swap_ab`).
+- **Comprehensive Verification Suite (`pkg/vdp/scroll_test.go`, `pkg/ui/controller_config_test.go`)**:
+  - Unit tests verifying fine scroll (1..7 px), coarse scroll (8 px steps), left masking, and deadzone persistence roundtrips.
+
 ## [V 0.3.45] - "Nemesis 2" - 2026-09-20
 
 ### Added

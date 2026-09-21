@@ -101,8 +101,29 @@ $DistDB = Join-Path $DistDir "fmsxgo.db"
 # Seed the distribution database using fmsxgo itself
 & $BinaryPath --no-window --db $DistDB -test | Out-Null
 
-# Copy Documentation to dist/
-$Docs = @("README.md", "MANUAL.md", "CHANGELOG.md", "SPEC.md", "LICENSE")
+# Copy updated binary and database to project root for instant root execution/testing
+$RootBinary = Join-Path $PSScriptRoot "fmsxgo.exe"
+Copy-Item -Path $BinaryPath -Destination $RootBinary -Force
+$RootDB = Join-Path $PSScriptRoot "fmsxgo.db"
+if (Test-Path $DistDB) {
+    Copy-Item -Path $DistDB -Destination $RootDB -Force
+}
+
+# Clean obsolete files/folders from dist/ if present
+$ObsoleteFiles = @("SPEC.md")
+foreach ($obs in $ObsoleteFiles) {
+    $obsPath = Join-Path $DistDir $obs
+    if (Test-Path $obsPath) {
+        Remove-Item -Path $obsPath -Force -Recurse
+    }
+}
+$ObsoleteDisks = Join-Path $DistDir "disks"
+if (Test-Path $ObsoleteDisks) {
+    Remove-Item -Path $ObsoleteDisks -Force -Recurse
+}
+
+# Copy User Documentation to dist/ (SPEC.md omitted for user distribution)
+$Docs = @("README.md", "MANUAL.md", "CHANGELOG.md", "LICENSE")
 foreach ($doc in $Docs) {
     $docPath = Join-Path $PSScriptRoot $doc
     if (Test-Path $docPath) {
@@ -115,9 +136,13 @@ $DistFonts = Join-Path $DistDir "fonts"
 if (!(Test-Path $DistFonts)) {
     New-Item -ItemType Directory -Path $DistFonts | Out-Null
 }
-$SrcFonts = Join-Path (Join-Path $PSScriptRoot "third-party") "fonts"
-if (Test-Path $SrcFonts) {
-    Copy-Item -Path (Join-Path $SrcFonts "*.ttf") -Destination $DistFonts -Force
+$SrcFontsRoot = Join-Path $PSScriptRoot "fonts"
+if (Test-Path $SrcFontsRoot) {
+    Copy-Item -Path (Join-Path $SrcFontsRoot "*.*") -Destination $DistFonts -Force
+}
+$SrcFonts3rd = Join-Path (Join-Path $PSScriptRoot "third-party") "fonts"
+if (Test-Path $SrcFonts3rd) {
+    Copy-Item -Path (Join-Path $SrcFonts3rd "*.ttf") -Destination $DistFonts -Force
 }
 
 # Copy documentation images to dist/images
@@ -130,14 +155,14 @@ if (Test-Path $SrcImages) {
     Copy-Item -Path (Join-Path $SrcImages "*.*") -Destination $DistImages -Force
 }
 
-# Copy sample disk images to dist/disks
-$SrcDisks = Join-Path $PSScriptRoot "disks"
-$DistDisks = Join-Path $DistDir "disks"
-if (Test-Path $SrcDisks) {
-    if (!(Test-Path $DistDisks)) {
-        New-Item -ItemType Directory -Path $DistDisks | Out-Null
+# Copy media files (.dsk, .rom, .cas) to dist/media
+$SrcMedia = Join-Path $PSScriptRoot "media"
+$DistMedia = Join-Path $DistDir "media"
+if (Test-Path $SrcMedia) {
+    if (!(Test-Path $DistMedia)) {
+        New-Item -ItemType Directory -Path $DistMedia | Out-Null
     }
-    Copy-Item -Path (Join-Path $SrcDisks "*.*") -Destination $DistDisks -Force
+    Copy-Item -Path (Join-Path $SrcMedia "*.*") -Destination $DistMedia -Force
 }
 
 # Create convenience launcher bat files in dist/

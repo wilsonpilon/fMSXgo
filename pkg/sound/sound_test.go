@@ -31,8 +31,8 @@ func TestAY8910Basic(t *testing.T) {
 	if psg.Channels[0].Volume != 255 {
 		t.Fatalf("expected channel A volume 255, got %d", psg.Channels[0].Volume)
 	}
-	if psg.Channels[0].Freq < 2200 || psg.Channels[0].Freq > 2250 {
-		t.Fatalf("expected channel A freq ~2237, got %d", psg.Channels[0].Freq)
+	if psg.Channels[0].Freq < 1100 || psg.Channels[0].Freq > 1150 {
+		t.Fatalf("expected channel A freq ~1118, got %d", psg.Channels[0].Freq)
 	}
 
 	// 3. Test hardware envelope

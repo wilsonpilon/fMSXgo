@@ -1,12 +1,18 @@
 package vdp
 
-// Dimensions for the rendered display buffer (512x212 native high resolution).
+// Dimensions for the rendered display buffer including MSX overscan borders (576x240).
 const (
-	DisplayWidth    = 512
-	DisplayHeight   = 212
+	LeftBorder   = 32
+	RightBorder  = 32
+	TopBorder    = 14
+	BottomBorder = 14
+
 	ScreenWidth     = 512
 	ScreenHeight    = 192
 	ScreenHeight212 = 212
+
+	DisplayWidth  = LeftBorder + ScreenWidth + RightBorder  // 576
+	DisplayHeight = TopBorder + ScreenHeight212 + BottomBorder // 240
 
 	MaxScreen = 12
 )

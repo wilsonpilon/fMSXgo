@@ -2,8 +2,8 @@ package vdp
 
 var sprHeights = [4]int{8, 16, 16, 32}
 
-// RenderSpritesMode1 renders TMS9918 sprites (SCREEN 1..3) onto line buffer (256 pixels).
-func (v *VDP) RenderSpritesMode1(y int, lineBuf *[ScreenWidth]uint8) {
+// RenderSpritesMode1 renders TMS9918 sprites (SCREEN 1..3) onto line buffer.
+func (v *VDP) RenderSpritesMode1(y int, lineBuf *[DisplayWidth]uint8) {
 	if v.SpritesOFF() || len(v.VRAM) == 0 {
 		return
 	}
@@ -102,7 +102,7 @@ func (v *VDP) RenderSpritesMode1(y int, lineBuf *[ScreenWidth]uint8) {
 
 		for px := 0; px < sprWidth; px++ {
 			sprX := x + px
-			dotX := sprX * 2
+			dotX := LeftBorder + (sprX * 2)
 
 			// Check bit in pattern
 			srcBit := px
@@ -112,10 +112,10 @@ func (v *VDP) RenderSpritesMode1(y int, lineBuf *[ScreenWidth]uint8) {
 			mask := uint16(0x8000) >> srcBit
 
 			if (pattern16 & mask) != 0 {
-				if dotX >= 0 && dotX < ScreenWidth {
+				if dotX >= LeftBorder && dotX < LeftBorder+ScreenWidth {
 					lineBuf[dotX] = col
 				}
-				if dotX+1 >= 0 && dotX+1 < ScreenWidth {
+				if dotX+1 >= LeftBorder && dotX+1 < LeftBorder+ScreenWidth {
 					lineBuf[dotX+1] = col
 				}
 			}
@@ -124,7 +124,7 @@ func (v *VDP) RenderSpritesMode1(y int, lineBuf *[ScreenWidth]uint8) {
 }
 
 // RenderSpritesMode2 renders V9938 color sprites (SCREEN 4..8) onto line buffer.
-func (v *VDP) RenderSpritesMode2(y int, lineBuf *[ScreenWidth]uint8) {
+func (v *VDP) RenderSpritesMode2(y int, lineBuf *[DisplayWidth]uint8) {
 	if v.SpritesOFF() || len(v.VRAM) == 0 {
 		return
 	}
@@ -222,7 +222,7 @@ func (v *VDP) RenderSpritesMode2(y int, lineBuf *[ScreenWidth]uint8) {
 
 		for px := 0; px < sprWidth; px++ {
 			sprX := x + px
-			dotX := sprX * 2
+			dotX := LeftBorder + (sprX * 2)
 
 			srcBit := px
 			if oh > ih {
@@ -233,17 +233,17 @@ func (v *VDP) RenderSpritesMode2(y int, lineBuf *[ScreenWidth]uint8) {
 			if (pattern16 & mask) != 0 {
 				if (colByte & 0x40) != 0 {
 					// CC bit set: OR color with existing pixel
-					if dotX >= 0 && dotX < ScreenWidth {
+					if dotX >= LeftBorder && dotX < LeftBorder+ScreenWidth {
 						lineBuf[dotX] |= col
 					}
-					if dotX+1 >= 0 && dotX+1 < ScreenWidth {
+					if dotX+1 >= LeftBorder && dotX+1 < LeftBorder+ScreenWidth {
 						lineBuf[dotX+1] |= col
 					}
 				} else {
-					if dotX >= 0 && dotX < ScreenWidth {
+					if dotX >= LeftBorder && dotX < LeftBorder+ScreenWidth {
 						lineBuf[dotX] = col
 					}
-					if dotX+1 >= 0 && dotX+1 < ScreenWidth {
+					if dotX+1 >= LeftBorder && dotX+1 < LeftBorder+ScreenWidth {
 						lineBuf[dotX+1] = col
 					}
 				}

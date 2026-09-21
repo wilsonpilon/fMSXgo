@@ -36,11 +36,17 @@ type Mixer struct {
 	MasterVolume int
 	Muted        bool
 
+	// Static mixing buffer to eliminate heap allocations and GC pressure in GenerateSamples
+	mixBuf [1024]int
+
 	// Ring buffer of 16-bit signed stereo PCM bytes (Little Endian)
-	ringBuffer []byte
-	readIdx    int
-	writeIdx   int
-	available  int
+	ringBuffer  []byte
+	readIdx     int
+	writeIdx    int
+	available   int
+	lastL       byte
+	lastH       byte
+	prebuffered bool
 }
 
 // NewMixer creates a new audio mixer and synthesis engine.
@@ -60,7 +66,27 @@ func NewMixer(sampleRate int, psg *AY8910, scc *SCC, opll *YM2413) *Mixer {
 	if opll != nil {
 		opll.SampleRate = sampleRate
 	}
+	m.Reset()
 	return m
+}
+
+// Reset restores mixer buffer and channel phase state.
+func (m *Mixer) Reset() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for i := range m.ringBuffer {
+		m.ringBuffer[i] = 0
+	}
+	m.readIdx = 0
+	m.writeIdx = 0
+	m.available = 0
+	m.lastL = 0
+	m.lastH = 0
+	m.NoiseGen = 0x10000
+	for i := range m.PSGPhase {
+		m.PSGPhase[i] = ChannelPhase{}
+	}
 }
 
 
@@ -90,11 +116,18 @@ func (m *Mixer) GenerateSamples(samples int) {
 		return
 	}
 
-	// Intermediate 32-bit mixing buffer
-	mix := make([]int, samples)
-
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	var mix []int
+	if samples <= len(m.mixBuf) {
+		mix = m.mixBuf[:samples]
+		for i := 0; i < samples; i++ {
+			mix[i] = 0
+		}
+	} else {
+		mix = make([]int, samples)
+	}
 
 	// 1. Synthesize PSG channels (Melodic 0..2, Noise 3..5)
 	if m.PSG != nil {
@@ -105,7 +138,7 @@ func (m *Mixer) GenerateSamples(samples int) {
 			}
 
 			if !c.IsNoise {
-				// Melodic (Square Wave)
+				// Melodic (Square Wave) - 100% faithful fMSX EMULib/Sound.c:813
 				if c.Freq >= m.SampleRate/2 {
 					continue
 				}
@@ -114,7 +147,13 @@ func (m *Mixer) GenerateSamples(samples int) {
 
 				vol := c.Volume
 				for i := 0; i < samples; i++ {
-					if (count & 0x8000) != 0 {
+					l1 := count
+					l2 := count + step
+					l0 := count - step
+					if ((l0 ^ l2) & 0x8000) != 0 {
+						// Edge transition blending matching fMSX Sound.c line 813
+						mix[i] += 0
+					} else if (l1 & 0x8000) != 0 {
 						mix[i] += 127 * vol
 					} else {
 						mix[i] -= 128 * vol
@@ -229,28 +268,24 @@ func (m *Mixer) Read(p []byte) (int, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.available == 0 {
-		// If buffer underrun, pad with silence
-		for i := range p {
-			p[i] = 0
-		}
-		return len(p), nil
-	}
-
 	toRead := len(p)
 	if toRead > m.available {
-		toRead = m.available
+		toRead = m.available &^ 3 // Align to 4-byte stereo boundary
 	}
 
-	for i := 0; i < toRead; i++ {
-		p[i] = m.ringBuffer[m.readIdx]
-		m.readIdx = (m.readIdx + 1) % len(m.ringBuffer)
+	for i := 0; i < toRead; i += 2 {
+		m.lastL = m.ringBuffer[m.readIdx]
+		m.lastH = m.ringBuffer[m.readIdx+1]
+		p[i] = m.lastL
+		p[i+1] = m.lastH
+		m.readIdx = (m.readIdx + 2) % len(m.ringBuffer)
 	}
 	m.available -= toRead
 
-	// If requested more than available, fill remainder with silence
-	for i := toRead; i < len(p); i++ {
-		p[i] = 0
+	// Fill remainder if requested more than available with smooth sample hold
+	for i := toRead; i < len(p)-1; i += 2 {
+		p[i] = m.lastL
+		p[i+1] = m.lastH
 	}
 
 	return len(p), nil

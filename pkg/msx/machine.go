@@ -103,7 +103,9 @@ type Machine struct {
 	Debugger *Debugger
 
 	// State
-	Running bool
+	Running   bool
+	sampleAcc int
+	uSecAcc   int
 }
 
 // NewMachine creates and configures an MSX computer with the specified configuration.
@@ -383,6 +385,9 @@ func (m *Machine) Reset() {
 	if m.OPLL != nil {
 		m.OPLL.Reset()
 	}
+	if m.Mixer != nil {
+		m.Mixer.Reset()
+	}
 	if m.Joy != nil {
 		m.Joy.Reset()
 	}
@@ -477,18 +482,35 @@ func (m *Machine) StepScanline() int {
 		}
 	}
 
-	// Sound synthesis step every 8 scanlines (~509 microseconds)
-	// Directly mirrors fMSX MSX.c lines 2158-2174
+	// Sound synthesis step every 8 scanlines with exact microsecond and sample timing
 	if (line & 0x07) == 0 {
-		if m.PSG != nil {
-			m.PSG.Step(509)
+		totalLines := 262
+		targetFPS := 60
+		if m.VDP != nil && m.VDP.TotalLines > 0 {
+			totalLines = m.VDP.TotalLines
 		}
-		if m.Mixer != nil {
-			samples := (m.Mixer.SampleRate * 509) / 1000000
-			if samples < 1 {
-				samples = 1
+		if m.Config.Video == VideoPAL || totalLines > 280 {
+			targetFPS = 50
+		}
+		frameDiv := targetFPS * totalLines
+		if frameDiv > 0 {
+			// 1. Step PSG envelopes with exact microsecond accumulator (8,000,000 / frameDiv us per 8 lines)
+			m.uSecAcc += 8000000
+			uSec := m.uSecAcc / frameDiv
+			m.uSecAcc %= frameDiv
+			if m.PSG != nil && uSec > 0 {
+				m.PSG.Step(uSec)
 			}
-			m.Mixer.GenerateSamples(samples)
+
+			// 2. Generate exact 44,100 Hz PCM audio samples (SampleRate * 8 / frameDiv per 8 lines)
+			if m.Mixer != nil {
+				m.sampleAcc += m.Mixer.SampleRate * 8
+				samples := m.sampleAcc / frameDiv
+				m.sampleAcc %= frameDiv
+				if samples > 0 {
+					m.Mixer.GenerateSamples(samples)
+				}
+			}
 		}
 	}
 
@@ -528,7 +550,9 @@ func (m *Machine) StepScanline() int {
 
 	// 4. Dispatch interrupt if pending
 	if m.VDP.InterruptPending() {
-		m.CPU.Interrupt(m.Bus, 0x0038)
+		if m.CPU.Interrupt(m.Bus, 0x0038) {
+			m.VDP.IRQPending = 0 // Match fMSX Z80.c:707 clearing IRequest on acceptance
+		}
 	}
 
 	// Advance to next line
